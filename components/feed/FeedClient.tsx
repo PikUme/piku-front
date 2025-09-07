@@ -15,6 +15,7 @@ const FeedClient = () => {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);
 
   const [isClient, setIsClient] = useState(false);
@@ -107,11 +108,14 @@ const FeedClient = () => {
     [loading, hasMore, loadMore],
   );
 
-  // 최초 로딩을 위한 useEffect
+  // 최초 로딩을 위한 useEffect - 중복 요청 방지
   useEffect(() => {
-    loadMore();
+    if (!initialized) {
+      setInitialized(true);
+      loadMore();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialized]);
 
   const handleFriendshipStatusChange = (
     diaryId: number,
