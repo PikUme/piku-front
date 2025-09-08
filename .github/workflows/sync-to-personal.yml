@@ -1,0 +1,21 @@
+name: Sync to Personal Repo
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to personal repo
+        run: |
+          git remote add personal https://${{ secrets.PERSONAL_USER }}:${{ secrets.PERSONAL_TOKEN }}@github.com/${{ secrets.PERSONAL_USER }}/${{ secrets.PERSONAL_REPO }}.git
+          git push personal dev --force
