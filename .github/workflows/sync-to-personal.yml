@@ -18,4 +18,4 @@ jobs:
       - name: Push to personal repo
         run: |
           git remote add personal https://${{ secrets.PERSONAL_USER }}:${{ secrets.PERSONAL_TOKEN }}@github.com/${{ secrets.PERSONAL_USER }}/${{ secrets.PERSONAL_REPO }}.git
-          git push personal dev --force
+          git push personal dev
