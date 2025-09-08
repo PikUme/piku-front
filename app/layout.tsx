@@ -67,7 +67,7 @@ export const metadata: Metadata = {
       { url: `${BASE_URL}/apple-touch-icon.png`, sizes: "180x180", type: "image/png" },
     ],
   },
-  manifest: `${BASE_URL}/site.webmanifest`,
+  manifest: `/site.webmanifest`,
 
   // PWA: iOS
   appleWebApp: {
