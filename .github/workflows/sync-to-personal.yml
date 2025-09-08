@@ -10,12 +10,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source repo
+      - name: Checkout (no credentials)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Push to personal repo
+      - name: Configure Git identity
+        run: |
+          git config user.name  "${{ secrets.PERSONAL_USER }}"
+          git config user.email "${{ secrets.PERSONAL_EMAIL }}"
+
+      - name: Push to personal repo with PAT
         run: |
           git remote add personal https://${{ secrets.PERSONAL_USER }}:${{ secrets.PERSONAL_TOKEN }}@github.com/${{ secrets.PERSONAL_USER }}/${{ secrets.PERSONAL_REPO }}.git
           git push personal dev
