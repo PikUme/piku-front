@@ -182,7 +182,7 @@ export default function PWAInstallButton() {
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
       <div className="flex items-center mb-4">
         <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mr-3">
-          <Image src="/apple-touch-icon.png" alt="PikU App Icon" width={24} height={24} className="rounded-md" />
+          <Image src="/apple-touch-icon.png" alt="PikUme App Icon" width={24} height={24} className="rounded-md" />
         </div>
         <div>
           <h3 className="font-semibold text-gray-900 dark:text-white">앱 설치</h3>

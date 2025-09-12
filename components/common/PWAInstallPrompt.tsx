@@ -223,11 +223,11 @@ export default function PWAInstallPrompt() {
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center">
             <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mr-3">
-              <Image src="/apple-touch-icon.png" alt="PikU App Icon" width={24} height={24} className="rounded-md" />
+              <Image src="/apple-touch-icon.png" alt="PikUme App Icon" width={24} height={24} className="rounded-md" />
             </div>
             <div>
               <h3 className="font-semibold text-gray-900 dark:text-white text-sm">
-                PikU 앱 설치
+                PikUme 앱 설치
               </h3>
               <p className="text-xs text-gray-600 dark:text-gray-400">
                 더 빠르고 편리하게 이용하세요

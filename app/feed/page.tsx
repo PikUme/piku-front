@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '피드 - PikU',
+  title: '피드 - PikUme',
   description: '친구들의 감정과 일기를 한눈에 보는 피드',
 };
 import FeedClient from '@/components/feed/FeedClient';

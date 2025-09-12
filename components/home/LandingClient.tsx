@@ -6,7 +6,7 @@ const LandingClient = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-white">
       <div className="text-center">
-        <h1 className="text-6xl font-bold text-gray-800">PikU</h1>
+        <h1 className="text-6xl font-bold text-gray-800">PikUme</h1>
         <p className="mt-4 text-lg text-gray-600">
           나만의 캐릭터로 기록하는 하루 한 장
         </p>
