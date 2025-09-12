@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '새 일기 작성 - PikU',
+  title: '새 일기 작성 - PikUme',
   description: '오늘의 감정을 기록해보세요',
 };
 import DiaryCreateForm from '@/components/diary/DiaryCreateForm';

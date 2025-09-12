@@ -23,12 +23,12 @@ export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
 
   // 기본 메타
-  title: "PikU",
+  title: "PikUme",
   description: "나만의 캐릭터로 기록하는 하루 한 장",
-  keywords: ["다이어리", "캐릭터", "일기", "PikU", "픽유", "감정 기록"],
-  authors: [{ name: "PikU Team" }],
-  creator: "PikU Team",
-  publisher: "PikU",
+  keywords: ["다이어리", "캐릭터", "일기", "PikUme", "픽유", "감정 기록"],
+  authors: [{ name: "PikUme Team" }],
+  creator: "PikUme Team",
+  publisher: "PikUme",
 
   // canonical 은 metadataBase와 합쳐져 절대 URL로 출력됨
   alternates: {
@@ -73,15 +73,15 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "PikU",
+    title: "PikUme",
   },
 
   // === Open Graph (절대 URL 고정) ===
   openGraph: {
     type: "website",
     url: BASE_URL, // og:url
-    siteName: "PikU",
-    title: "PikU - 나만의 캐릭터 다이어리",
+    siteName: "PikUme",
+    title: "PikUme - 나만의 캐릭터 다이어리",
     description: "나만의 캐릭터로 기록하는 하루 한 장",
     locale: "ko_KR",
     images: [
@@ -89,7 +89,7 @@ export const metadata: Metadata = {
         url: `${BASE_URL}/piku-og-1200x630.png`, // og:image 절대 경로
         width: 1200,
         height: 630,
-        alt: "PikU - 나만의 캐릭터 다이어리",
+        alt: "PikUme - 나만의 캐릭터 다이어리",
         type: "image/png",
       },
     ],
@@ -99,7 +99,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     // site/creator 핸들이 실제 운영 중이 아니면 생략해도 됩니다.
-    title: "PikU - 나만의 캐릭터 다이어리",
+    title: "PikUme - 나만의 캐릭터 다이어리",
     description: "나만의 캐릭터로 기록하는 하루 한 장",
     images: [`${BASE_URL}/piku-og-1200x630.png`], // twitter:image
   },
@@ -136,7 +136,7 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "WebSite",
               url: BASE_URL,
-              name: "PikU",
+              name: "PikUme",
               potentialAction: {
                 "@type": "SearchAction",
                 target: `${BASE_URL}/search?query={search_term_string}`,
@@ -153,7 +153,7 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "Organization",
-              name: "PikU",
+              name: "PikUme",
               url: BASE_URL,
               logo: `${BASE_URL}/android-chrome-512x512.png`,
             }),

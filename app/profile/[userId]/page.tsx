@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '프로필 - PikU',
+  title: '프로필 - PikUme',
   description: '사용자의 공개 프로필과 감정 기록',
 };
 import ProfilePageClient from '@/components/profile/ProfilePageClient';

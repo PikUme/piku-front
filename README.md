@@ -1,6 +1,6 @@
-# PikU Frontend
+# PikUme Frontend
 
-> **PikU**는 'Pick your memory'의 줄임말로, 사용자가 자신의 소중한 순간을 AI와 함께 특별한 그림으로 기록하고 친구들과 공유할 수 있는 소셜 다이어리 서비스입니다.
+> **PikUme**는 'Pick your memory'의 줄임말로, 사용자가 자신의 소중한 순간을 AI와 함께 특별한 그림으로 기록하고 친구들과 공유할 수 있는 소셜 다이어리 서비스입니다.
 
 이 프로젝트는 Next.js, TypeScript, Tailwind CSS를 사용하여 구축된 PikU의 프론트엔드 애플리케이션입니다.
 
