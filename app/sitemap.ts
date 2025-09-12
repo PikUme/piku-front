@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.piku.store';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.pikume.com';
 
   // 정적 페이지들 (로그인 불필요 + 주요 페이지들)
   const staticRoutes: string[] = [
