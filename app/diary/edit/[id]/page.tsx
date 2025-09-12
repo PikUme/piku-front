@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import DiaryEditClient from '@/components/diary/DiaryEditClient';
 
 export const metadata: Metadata = {
-  title: '일기 수정 - PikU',
+  title: '일기 수정 - PikUme',
   description: '작성한 일기를 수정합니다',
 };
 

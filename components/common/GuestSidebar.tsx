@@ -16,7 +16,7 @@ const GuestSidebar = () => {
           className="flex items-center justify-start"
         >
           <h1 className="text-2xl font-semibold font-serif">
-            PikU
+            PikUme
           </h1>
         </Link>
       </div>
