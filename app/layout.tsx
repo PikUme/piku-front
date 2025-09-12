@@ -6,7 +6,7 @@ import ReactQueryProvider from "@/providers/ReactQueryProvider";
 
 // === 절대 URL 고정 (마지막 슬래시 제거) ===
 const BASE_URL =
-  (process.env.NEXT_PUBLIC_BASE_URL || "https://www.piku.store").replace(/\/+$/, "");
+  (process.env.NEXT_PUBLIC_BASE_URL || "https://www.pikume.com").replace(/\/+$/, "");
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
