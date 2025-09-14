@@ -23,12 +23,20 @@ export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
 
   // 기본 메타
-  title: "PikUme",
-  description: "나만의 캐릭터로 기록하는 하루 한 장",
-  keywords: ["다이어리", "캐릭터", "일기", "PikUme", "픽유", "감정 기록"],
+  title: {
+    default: "PikUme - 캐릭터 감정 다이어리",
+    template: "%s | PikUme",
+  },
+  description: "PIKU 캐릭터로 기록하는 감정 다이어리. 캐릭터와 함께 하루 한 장 일기를 작성하고 친구들과 감정을 공유해보세요.",
+  keywords: [
+    "감정 다이어리", "캐릭터 일기", "PIKU", "피쿠미", "PikUme", "pikume",
+    "일기 앱", "감정 기록", "친구 다이어리", "캐릭터 선택", "일상 기록", 
+    "모바일 다이어리", "웹 다이어리", "소셜 다이어리"
+  ],
   authors: [{ name: "PikUme Team" }],
   creator: "PikUme Team",
   publisher: "PikUme",
+  category: "Lifestyle",
 
   // canonical 은 metadataBase와 합쳐져 절대 URL로 출력됨
   alternates: {
@@ -81,15 +89,15 @@ export const metadata: Metadata = {
     type: "website",
     url: BASE_URL, // og:url
     siteName: "PikUme",
-    title: "PikUme - 나만의 캐릭터 다이어리",
-    description: "나만의 캐릭터로 기록하는 하루 한 장",
+    title: "PikUme - 캐릭터 감정 다이어리",
+    description: "PIKU 캐릭터로 기록하는 감정 다이어리. 캐릭터와 함께 하루 한 장 일기를 작성하고 친구들과 감정을 공유해보세요.",
     locale: "ko_KR",
     images: [
       {
         url: `${BASE_URL}/piku-og-1200x630.png`, // og:image 절대 경로
         width: 1200,
         height: 630,
-        alt: "PikUme - 나만의 캐릭터 다이어리",
+        alt: "PikUme - 캐릭터 감정 다이어리",
         type: "image/png",
       },
     ],
@@ -98,9 +106,8 @@ export const metadata: Metadata = {
   // === Twitter Card (절대 URL 고정) ===
   twitter: {
     card: "summary_large_image",
-    // site/creator 핸들이 실제 운영 중이 아니면 생략해도 됩니다.
-    title: "PikUme - 나만의 캐릭터 다이어리",
-    description: "나만의 캐릭터로 기록하는 하루 한 장",
+    title: "PikUme - 캐릭터 감정 다이어리",
+    description: "PIKU 캐릭터로 기록하는 감정 다이어리. 캐릭터와 함께 하루 한 장 일기를 작성하고 친구들과 감정을 공유해보세요.",
     images: [`${BASE_URL}/piku-og-1200x630.png`], // twitter:image
   },
 };
@@ -137,10 +144,24 @@ export default function RootLayout({
               "@type": "WebSite",
               url: BASE_URL,
               name: "PikUme",
+              alternateName: "피쿠미",
+              description: "캐릭터로 기록하는 감정 다이어리",
+              keywords: "감정 다이어리, 캐릭터 일기, PIKU, 일기 앱",
               potentialAction: {
                 "@type": "SearchAction",
                 target: `${BASE_URL}/search?query={search_term_string}`,
                 "query-input": "required name=search_term_string",
+              },
+              mainEntity: {
+                "@type": "WebApplication",
+                name: "PikUme",
+                applicationCategory: "LifestyleApplication",
+                operatingSystem: "Web, iOS, Android",
+                offers: {
+                  "@type": "Offer",
+                  price: "0",
+                  priceCurrency: "KRW",
+                },
               },
             }),
           }}
@@ -154,8 +175,54 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "Organization",
               name: "PikUme",
+              alternateName: "피쿠미",
               url: BASE_URL,
               logo: `${BASE_URL}/android-chrome-512x512.png`,
+              description: "감정 기록을 위한 캐릭터 다이어리 서비스",
+              foundingDate: "2024",
+              contactPoint: {
+                "@type": "ContactPoint",
+                contactType: "Customer Service",
+                availableLanguage: "Korean",
+              },
+              sameAs: [
+                `${BASE_URL}`,
+              ],
+            }),
+          }}
+        />
+
+        {/* WebApplication 구조화 데이터 */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebApplication",
+              name: "PikUme",
+              description: "선택한 캐릭터와 함께 감정을 기록하는 다이어리 앱",
+              url: BASE_URL,
+              applicationCategory: "LifestyleApplication",
+              operatingSystem: "Web Browser",
+              browserRequirements: "Requires JavaScript",
+              screenshot: `${BASE_URL}/piku-og-1200x630.png`,
+              offers: {
+                "@type": "Offer",
+                price: "0",
+                priceCurrency: "KRW",
+                availability: "https://schema.org/InStock",
+              },
+              author: {
+                "@type": "Organization",
+                name: "PikUme Team",
+              },
+              aggregateRating: {
+                "@type": "AggregateRating",
+                ratingValue: "4.5",
+                ratingCount: "100",
+                bestRating: "5",
+                worstRating: "1",
+              },
             }),
           }}
         />

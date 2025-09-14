@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "PikUme - 나만의 캐릭터 다이어리",
+  "name": "PikUme - 캐릭터 다이어리",
   "short_name": "PikUme",
-  "description": "나만의 캐릭터로 기록하는 하루 한 장",
+  "description": "캐릭터로 기록하는 하루 한 장",
   "icons": [
     {
       "src": "/favicon-16x16.png",
