@@ -8,7 +8,7 @@ const LandingClient = () => {
       <div className="text-center">
         <h1 className="text-6xl font-bold text-gray-800">PikUme</h1>
         <p className="mt-4 text-lg text-gray-600">
-          나만의 캐릭터로 기록하는 하루 한 장
+          캐릭터로 기록하는 하루 한 장
         </p>
       </div>
       <div className="mt-12 flex flex-col gap-4 w-full max-w-xs">
