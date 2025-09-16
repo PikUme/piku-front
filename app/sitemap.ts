@@ -18,8 +18,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: '/search', changeFrequency: 'weekly', priority: 0.6 },
     { path: '/notifications', changeFrequency: 'daily', priority: 0.5 },
     { path: '/settings', changeFrequency: 'monthly', priority: 0.4 },
-    { path: '/profile', changeFrequency: 'weekly', priority: 0.7 },
-    { path: '/profile/edit', changeFrequency: 'monthly', priority: 0.5 },
   ];
 
   // 추가 랜딩 페이지들 (SEO 목적)
