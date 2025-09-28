@@ -76,6 +76,7 @@ export interface FeedDiary {
   avatar: string;
   userId: string;
   createdAt: string; // LocalDateTime -> ISO String
+  commentCount: number;
   friendStatus: FriendshipStatus;
 }
 
