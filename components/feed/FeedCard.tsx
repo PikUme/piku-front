@@ -295,10 +295,11 @@ const FeedCard = ({
 
       <div className="p-3">
         <div className="flex justify-between">
-          <div className="flex space-x-4">
+          <div className="flex space-x-1">
               <button onClick={onContentClick}>
               <CommentIcon />
               </button>
+              <span className='font-bold'>{post.commentCount}</span>
             {/* <button>
               <ShareIcon />
             </button> */}
