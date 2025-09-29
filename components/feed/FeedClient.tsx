@@ -9,6 +9,7 @@ import { FeedDiary, DiaryDetail } from '@/types/diary';
 import { FriendshipStatus } from '@/types/friend';
 import DiaryDetailModal from '../diary/DiaryDetailModal';
 import DiaryStoryModal from '../diary/DiaryStoryModal';
+import StoryCommentModal from '../diary/StoryCommentModal';
 
 const FeedClient = () => {
   const [feed, setFeed] = useState<FeedDiary[]>([]);
@@ -23,6 +24,11 @@ const FeedClient = () => {
   const [selectedDiary, setSelectedDiary] = useState<DiaryDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isCommentViewOpen, setIsCommentViewOpen] = useState(false);
+  const [commentModalOpen, setCommentModalOpen] = useState<{
+    diaryId: number;
+    commentCount: number;
+    post: FeedDiary;
+  } | null>(null);
   const isDesktop = useMediaQuery({ query: '(min-width: 768px)' });
 
   useEffect(() => {
@@ -66,6 +72,31 @@ const FeedClient = () => {
       } finally {
         setIsLoadingDetail(false);
       }
+    }
+  };
+
+  const handleCommentClick = (post: FeedDiary) => {
+    setCommentModalOpen({ 
+      diaryId: post.diaryId, 
+      commentCount: post.commentCount,
+      post 
+    });
+  };
+
+  const handleCloseCommentModal = () => {
+    setCommentModalOpen(null);
+  };
+
+  const handleUpdateCommentCount = (count: number) => {
+    if (commentModalOpen) {
+      // 피드에서 해당 일기의 댓글 수 업데이트
+      setFeed(prevFeed =>
+        prevFeed.map(post =>
+          post.diaryId === commentModalOpen.diaryId
+            ? { ...post, commentCount: count }
+            : post,
+        ),
+      );
     }
   };
 
@@ -152,6 +183,8 @@ const FeedClient = () => {
             post={post}
             onFriendshipStatusChange={handleFriendshipStatusChange}
             onContentClick={() => handleContentClick(post.diaryId)}
+            onCommentClick={() => handleCommentClick(post)}
+            isMobile={!isDesktop}
           />
         </div>
       ))}
@@ -180,6 +213,23 @@ const FeedClient = () => {
             onCommentViewToggle={setIsCommentViewOpen}
           />
         ))}
+      {commentModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/60" onClick={handleCloseCommentModal}>
+          <StoryCommentModal
+            diaryId={commentModalOpen.diaryId}
+            initialCommentCount={commentModalOpen.commentCount}
+            onClose={handleCloseCommentModal}
+            onUpdateCommentCount={handleUpdateCommentCount}
+            diaryContent={{
+              nickname: commentModalOpen.post.nickname,
+              avatar: commentModalOpen.post.avatar,
+              content: commentModalOpen.post.content,
+              createdAt: commentModalOpen.post.createdAt,
+              userId: commentModalOpen.post.userId,
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 };
