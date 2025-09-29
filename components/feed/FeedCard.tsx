@@ -31,12 +31,16 @@ interface FeedCardProps {
     newStatus: FriendshipStatus,
   ) => void;
   onContentClick: () => void;
+  onCommentClick: () => void;
+  isMobile: boolean;
 }
 
 const FeedCard = ({
   post,
   onFriendshipStatusChange,
   onContentClick,
+  onCommentClick,
+  isMobile,
 }: FeedCardProps) => {
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -296,7 +300,7 @@ const FeedCard = ({
       <div className="p-3">
         <div className="flex justify-between">
           <div className="flex space-x-1">
-              <button onClick={onContentClick}>
+              <button onClick={isMobile ? onCommentClick : onContentClick}>
               <CommentIcon />
               </button>
               <span className='font-bold'>{post.commentCount}</span>
