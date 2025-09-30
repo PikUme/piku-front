@@ -69,8 +69,6 @@ const StoryCommentModal = ({
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
   const [scrollToCommentId, setScrollToCommentId] = useState<number | null>(null);
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const { isLoggedIn, user } = useAuthStore();
@@ -181,41 +179,7 @@ const StoryCommentModal = ({
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    // 모바일 키보드 감지를 위한 뷰포트 높이 변화 감지
-    const handleResize = () => {
-      const viewport = window.visualViewport;
-      if (viewport) {
-        const keyboardHeight = window.innerHeight - viewport.height;
-        setKeyboardHeight(keyboardHeight);
-        setIsKeyboardVisible(keyboardHeight > 100); // 100px 이상 차이나면 키보드로 간주
-      } else {
-        // visualViewport가 지원되지 않는 경우 fallback
-        const currentHeight = window.innerHeight;
-        const keyboardHeight = Math.max(0, (window.screen.height - currentHeight) - 100);
-        setKeyboardHeight(keyboardHeight);
-        setIsKeyboardVisible(keyboardHeight > 100);
-      }
-    };
-
-    // 초기 설정
-    handleResize();
-
-    // 이벤트 리스너 등록
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleResize);
-    } else {
-      window.addEventListener('resize', handleResize);
-    }
-
-    return () => {
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', handleResize);
-      } else {
-        window.removeEventListener('resize', handleResize);
-      }
-    };
-  }, []);
+  // 키보드 감지 로직 제거 - 모달을 고정 위치로 유지
 
   useEffect(() => {
     if (scrollToCommentId) {
@@ -446,18 +410,13 @@ const StoryCommentModal = ({
     e.currentTarget.src = DEFAULT_AVATAR;
   };
 
-  // 키보드 높이에 따른 모달 높이 계산
-  const modalHeight = isKeyboardVisible 
-    ? `calc(100vh - ${keyboardHeight}px)` 
-    : '85vh';
-
-  const modalBottomStyle = isKeyboardVisible 
-    ? { bottom: `${keyboardHeight}px` } 
-    : { bottom: '0px' };
+  // 모달을 적절한 높이로 설정 (상단에 여유 공간 확보)
+  const modalHeight = '90vh';
+  const modalBottomStyle = { bottom: '0px' };
 
   return (
     <motion.div
-      className="absolute left-0 right-0 z-30 flex cursor-grab flex-col rounded-t-2xl bg-white shadow-lg dark:bg-gray-800"
+      className="fixed left-0 right-0 z-30 flex cursor-grab flex-col rounded-t-2xl bg-white shadow-lg dark:bg-gray-800"
       style={{
         height: modalHeight,
         ...modalBottomStyle,
@@ -472,14 +431,20 @@ const StoryCommentModal = ({
       onDragEnd={handleCommentViewDragEnd}
       onClick={(e) => e.stopPropagation()}
     >
-      <div
-        className="flex-shrink-0 cursor-pointer border-b border-gray-200 p-4 text-center dark:border-gray-700"
-        onClick={onClose}
-      >
-        <span className="inline-block h-1.5 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
+      {/* Header */}
+      <div className="flex-shrink-0 border-b border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+        <div className="flex items-center justify-center">
+          <div
+            className="absolute left-1/2 top-2 h-1.5 w-10 -translate-x-1/2 cursor-pointer rounded-full bg-gray-300 dark:bg-gray-600"
+            onClick={onClose}
+          />
+          <h2 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
+            댓글
+          </h2>
+        </div>
       </div>
 
-      <div className="flex-grow space-y-4 overflow-y-auto p-4 no-scrollbar">
+      <div className="flex-1 space-y-4 overflow-y-auto p-4 pb-24 no-scrollbar">
         {/* Diary Content */}
         {diaryContent && (
           <div className="flex items-start">
@@ -534,7 +499,7 @@ const StoryCommentModal = ({
       </div>
 
       {/* Comment Input - 항상 하단에 고정 */}
-      <div className="flex-shrink-0 border-t border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+      <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
         <CommentInput
           inputRef={inputRef as React.RefObject<HTMLInputElement>}
           onSubmit={handleSubmitComment}
