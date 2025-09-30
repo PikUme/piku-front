@@ -60,6 +60,25 @@ const FeedClient = () => {
     };
   }, [selectedDiary, handleCloseModal, isCommentViewOpen]);
 
+  // StoryCommentModal이 열렸을 때 배경 스크롤 방지
+  useEffect(() => {
+    if (commentModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      // selectedDiary가 있을 때는 스크롤을 막아야 하므로 조건 확인
+      if (!selectedDiary || isCommentViewOpen) {
+        document.body.style.overflow = 'auto';
+      }
+    }
+
+    return () => {
+      // 컴포넌트 언마운트 시에만 auto로 복원
+      if (!selectedDiary && !commentModalOpen) {
+        document.body.style.overflow = 'auto';
+      }
+    };
+  }, [commentModalOpen, selectedDiary, isCommentViewOpen]);
+
   const handleContentClick = async (diaryId: number) => {
     if (isClient) {
       setIsLoadingDetail(true);
@@ -214,7 +233,7 @@ const FeedClient = () => {
           />
         ))}
       {commentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/60" onClick={handleCloseCommentModal}>
+        <div className="fixed inset-0 z-50 bg-black/60" onClick={handleCloseCommentModal}>
           <StoryCommentModal
             diaryId={commentModalOpen.diaryId}
             initialCommentCount={commentModalOpen.commentCount}
