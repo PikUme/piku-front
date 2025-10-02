@@ -24,6 +24,7 @@ interface PikuCalendarProps {
   handlers: SwipeableHandlers;
   today: Date;
   onDayClick: (diaryId: number) => void;
+  onMonthChange?: (date: Date) => void;
   isMyCalendar: boolean;
 }
 
@@ -34,6 +35,7 @@ const PikuCalendar = ({
   handlers,
   today,
   onDayClick,
+  onMonthChange,
   isMyCalendar,
 }: PikuCalendarProps) => {
   const router = useRouter();
@@ -51,16 +53,16 @@ const PikuCalendar = ({
     isCurrentMonth: boolean,
     isFuture: boolean
   ) => {
-    if (!isCurrentMonth || isFuture) return 'text-gray-300';
+    if (!isCurrentMonth || isFuture) return 'text-gray-300 dark:text-gray-600';
     const dayOfWeek = getDay(day);
-    if (dayOfWeek === 0) return 'text-red-500'; // Sunday
-    if (dayOfWeek === 6) return 'text-blue-500'; // Saturday
-    return 'text-black';
+    if (dayOfWeek === 0) return 'text-red-500 dark:text-red-400'; // Sunday
+    if (dayOfWeek === 6) return 'text-blue-500 dark:text-blue-400'; // Saturday
+    return 'text-black dark:text-white';
   };
 
   return (
     <main {...handlers} className="flex-grow flex flex-col p-2">
-      <div className="grid grid-cols-7 text-center text-sm text-gray-500">
+      <div className="grid grid-cols-7 text-center text-sm text-gray-500 dark:text-gray-400">
         {dayNames.map(day => (
           <div key={day} className="py-2">
             {day}
@@ -84,6 +86,9 @@ const PikuCalendar = ({
               onDayClick(pikuData.id);
             } else if (canCreate) {
               router.push(`/diary/new/${dateKey}`);
+            } else if (!isCurrentMonth && onMonthChange) {
+              // 이전/다음 달 날짜 클릭 시 해당 월로 변경
+              onMonthChange(day);
             }
           };
 
@@ -94,8 +99,8 @@ const PikuCalendar = ({
               className={`relative flex justify-center items-center overflow-hidden rounded-md  ${
                 isCurrentDay ? 'border-yellow-400 border-2' : ''
               } ${
-                !isCurrentMonth ? 'bg-gray-50' : 'bg-white'
-              } ${((canCreate || canView)) ? 'cursor-pointer hover:bg-gray-100' : ''}`}
+                !isCurrentMonth ? 'bg-gray-50 dark:bg-gray-800' : 'bg-white dark:bg-gray-900'
+              } ${((canCreate || canView) || (!isCurrentMonth && onMonthChange)) ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700' : ''}`}
             >
               {pikuData && isCurrentMonth ? (
                 <img

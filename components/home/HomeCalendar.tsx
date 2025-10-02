@@ -176,6 +176,7 @@ const HomeCalendar = ({
             handlers={swipeHandlers}
             today={today}
             onDayClick={handleDayClick}
+            onMonthChange={setCurrentDate}
             isMyCalendar={isOwner}
           />
         </motion.div>
