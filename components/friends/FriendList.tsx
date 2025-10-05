@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import UserProfile from '@/components/common/UserProfile';
 import { Friend } from '@/types/friend';
 import { deleteFriend, getFriends } from '@/lib/api/friend';
+import FriendActionConfirmModal from '@/components/feed/FriendActionConfirmModal';
 
 const PAGE_SIZE = 20;
 
@@ -14,6 +15,11 @@ const FriendList = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);
+  
+  // 모달 상태 관리
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+  const [isActionLoading, setIsActionLoading] = useState(false);
   
   const lastFriendElementRef = useCallback((node: HTMLLIElement | null) => {
     if (isLoading) return;
@@ -49,13 +55,25 @@ const FriendList = () => {
     fetchFriends(page);
   }, [fetchFriends, page, hasNext, initialLoad]);
 
-  const handleDeleteFriend = async (userId: string) => {
+  const handleDeleteFriend = (friend: Friend) => {
+    setSelectedFriend(friend);
+    setIsModalOpen(true);
+  };
+
+  const handleConfirmDeleteFriend = async () => {
+    if (!selectedFriend) return;
+    
+    setIsActionLoading(true);
     try {
-      await deleteFriend(userId);
-      setFriends(prevFriends => prevFriends.filter(friend => friend.userId !== userId));
+      await deleteFriend(selectedFriend.userId);
+      setFriends(prevFriends => prevFriends.filter(friend => friend.userId !== selectedFriend.userId));
+      setIsModalOpen(false);
+      setSelectedFriend(null);
     } catch (error) {
       console.error("친구 삭제에 실패했습니다:", error);
       alert("친구 삭제에 실패했습니다.");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -88,7 +106,7 @@ const FriendList = () => {
                 />
               </div>
               <button
-                onClick={() => handleDeleteFriend(friend.userId)}
+                onClick={() => handleDeleteFriend(friend)}
                 className="border rounded-md px-3 py-1 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
               >
                 친구 끊기
@@ -102,6 +120,20 @@ const FriendList = () => {
           친구를 불러오는 중...
         </div>
       )}
+      
+      {/* 친구 끊기 확인 모달 */}
+      <FriendActionConfirmModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedFriend(null);
+        }}
+        onConfirm={handleConfirmDeleteFriend}
+        actionType="unfriend"
+        nickname={selectedFriend?.nickname || ''}
+        avatar={selectedFriend?.avatar || '/default-avatar.png'}
+        isLoading={isActionLoading}
+      />
     </>
   );
 };

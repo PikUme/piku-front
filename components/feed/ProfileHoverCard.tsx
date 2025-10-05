@@ -12,6 +12,7 @@ import {
 } from '@/lib/api/friend';
 import useAuthStore from '../store/authStore';
 import { useRouter } from 'next/navigation';
+import FriendActionConfirmModal from './FriendActionConfirmModal';
 
 interface ProfileHoverCardProps {
   userId: string;
@@ -31,6 +32,10 @@ const ProfileHoverCard = ({
   const [isActionLoading, setIsActionLoading] = useState(false);
   const currentUserId = useAuthStore(state => state.user?.id);
   const router = useRouter();
+
+  // 모달 상태 관리
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalActionType, setModalActionType] = useState<'cancel' | 'unfriend'>('unfriend');
 
   const fetchProfile = async () => {
     if (!isLoading) setIsLoading(true);
@@ -67,11 +72,34 @@ const ProfileHoverCard = ({
 
   const handleAddFriend = () => handleFriendAction(() => sendFriendRequest(userId));
   const handleRemoveFriend = () => {
-    if (window.confirm('정말로 친구를 끊으시겠습니까?')) {
-      handleFriendAction(() => deleteFriend(userId));
+    setModalActionType('unfriend');
+    setIsModalOpen(true);
+  };
+  const handleCancelRequest = () => {
+    setModalActionType('cancel');
+    setIsModalOpen(true);
+  };
+
+  const handleConfirmAction = async () => {
+    setIsActionLoading(true);
+    try {
+      if (modalActionType === 'unfriend') {
+        await deleteFriend(userId);
+      } else if (modalActionType === 'cancel') {
+        await cancelFriendRequest(userId);
+      }
+      await fetchProfile(); // 자신의 상태 갱신
+      onStatusChange(); // 부모(피드) 상태 갱신 요청
+      setIsModalOpen(false);
+    } catch (error: any) {
+      console.error('Friend action failed', error);
+      if (error?.response?.status != 403) {
+        alert('요청 처리 중 오류가 발생했습니다.');
+      }
+    } finally {
+      setIsActionLoading(false);
     }
   };
-  const handleCancelRequest = () => handleFriendAction(() => cancelFriendRequest(userId));
 
   const renderButton = () => {
     if (!profile) return null;
@@ -144,21 +172,34 @@ const ProfileHoverCard = ({
   };
 
   return (
-    <div className="w-64 rounded-xl border border-gray-200 bg-white/80 p-4 shadow-2xl backdrop-blur-lg dark:border-gray-700 dark:bg-gray-900/80 dark:shadow-black/50">
-      <div className="flex items-center gap-3">
-        <Image
-          src={avatar || 'https://via.placeholder.com/48'}
-          alt={nickname}
-          width={60}
-          height={60}
-          className="rounded-full w-12 h-12"
-        />
-        <div>
-          <p className="font-semibold">{nickname}</p>
+    <>
+      <div className="w-64 rounded-xl border border-gray-200 bg-white/80 p-4 shadow-2xl backdrop-blur-lg dark:border-gray-700 dark:bg-gray-900/80 dark:shadow-black/50">
+        <div className="flex items-center gap-3">
+          <Image
+            src={avatar || 'https://via.placeholder.com/48'}
+            alt={nickname}
+            width={60}
+            height={60}
+            className="rounded-full w-12 h-12"
+          />
+          <div>
+            <p className="font-semibold">{nickname}</p>
+          </div>
         </div>
+        {renderContent()}
       </div>
-      {renderContent()}
-    </div>
+      
+      {/* 친구 관련 확인 모달 */}
+      <FriendActionConfirmModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={handleConfirmAction}
+        actionType={modalActionType}
+        nickname={nickname}
+        avatar={avatar}
+        isLoading={isActionLoading}
+      />
+    </>
   );
 };
 

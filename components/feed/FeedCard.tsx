@@ -152,20 +152,20 @@ const FeedCard = ({
             FriendshipStatus.SENT,
           );
         break;
-      case FriendshipStatus.FRIEND:
-        text = '친구 끊기';
-        action = () => {
-          setConfirmModalState({
-            actionType: 'unfriend',
-            onConfirm: () =>
-              handleFriendAction(
-                () => deleteFriend(post.userId),
-                FriendshipStatus.NONE,
-              ),
-          });
-          setIsConfirmModalOpen(true);
-        };
-        break;
+      // case FriendshipStatus.FRIEND:
+      //   text = '친구 끊기';
+      //   action = () => {
+      //     setConfirmModalState({
+      //       actionType: 'unfriend',
+      //       onConfirm: () =>
+      //         handleFriendAction(
+      //           () => deleteFriend(post.userId),
+      //           FriendshipStatus.NONE,
+      //         ),
+      //     });
+      //     setIsConfirmModalOpen(true);
+      //   };
+      //   break;
       case FriendshipStatus.SENT:
         text = '요청 취소';
         action = () => {
