@@ -13,6 +13,7 @@ import {
 } from '@/lib/api/friend';
 import { FriendshipStatus, UserProfile } from '@/types/friend';
 import { UserProfileResponseDTO, DiaryMonthCountDTO } from '@/types/profile';
+import FriendActionConfirmModal from '@/components/feed/FriendActionConfirmModal';
 
 interface ProfileClientProps {
   profileData: UserProfileResponseDTO &
@@ -26,9 +27,28 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
   
   // 친구 상태를 로컬 상태로 관리
   const [currentFriendStatus, setCurrentFriendStatus] = useState(profileData.friendStatus);
+  
+  // 모달 상태 관리
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   const handleEditProfile = () => {
     router.push('/profile/edit');
+  };
+
+  const handleConfirmRemoveFriend = async () => {
+    setIsActionLoading(true);
+    try {
+      await deleteFriend(profileData.userId!);
+      setCurrentFriendStatus(FriendshipStatus.NONE);
+      setIsModalOpen(false);
+      router.refresh();
+    } catch (error) {
+      console.error('친구 삭제 실패:', error);
+      // TODO: 사용자에게 에러 알림
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
   const handleMonthClick = (month: number) => {
@@ -58,8 +78,9 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
 
     const handleAddFriend = () =>
       handleApiCall(() => sendFriendRequest(profileData.userId!), FriendshipStatus.SENT);
-    const handleRemoveFriend = () =>
-      handleApiCall(() => deleteFriend(profileData.userId!), FriendshipStatus.NONE);
+    const handleRemoveFriend = () => {
+      setIsModalOpen(true);
+    };
     const handleCancelRequest = () =>
       handleApiCall(() => cancelFriendRequest(profileData.userId!), FriendshipStatus.NONE);
     const handleAcceptRequest = () =>
@@ -217,6 +238,17 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
           </div>
         </div>
       </div>
+
+      {/* 친구 끊기 확인 모달 */}
+      <FriendActionConfirmModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={handleConfirmRemoveFriend}
+        actionType="unfriend"
+        nickname={profileData.nickname}
+        avatar={profileData.avatar || '/default-avatar.png'}
+        isLoading={isActionLoading}
+      />
     </div>
   );
 };
