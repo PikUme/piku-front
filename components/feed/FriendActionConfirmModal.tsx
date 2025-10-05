@@ -54,13 +54,13 @@ const FriendActionConfirmModal = ({
           <button
             onClick={onConfirm}
             disabled={isLoading}
-            className="w-full py-3 font-semibold text-red-500 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:cursor-not-allowed disabled:text-gray-400"
+            className="w-full py-3 font-semibold text-red-500 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:cursor-not-allowed disabled:text-gray-400 cursor-pointer"
           >
             {isLoading ? '처리 중...' : buttonTexts[actionType]}
           </button>
           <button
             onClick={onClose}
-            className="w-full border-t border-gray-200 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700"
+            className="w-full border-t border-gray-200 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700 cursor-pointer"
           >
             취소
           </button>
