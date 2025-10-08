@@ -52,19 +52,37 @@ const LayoutWrapper = ({ children }: { children: React.ReactNode }) => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {isLoggedIn && <FCMInitializer />}
-      {isLoggedIn && <SSEInitializer />}
-      <MobileHeader />
-      <div className="flex flex-1">
-        {isLoggedIn ? <Sidebar /> : <GuestSidebar />}
-        <main className="w-full pt-14 xl:ml-64 transition-all duration-300 md:grid md:grid-cols-8 md:gap-4 xl:pt-0">
-          <div className="md:col-span-4 md:col-start-3 h-full">{children}</div>
-        </main>
+    <>
+      <style jsx global>{`
+        .layout-container {
+          height: 100vh;
+          height: 100dvh; /* iOS Safari를 위한 동적 뷰포트 높이 */
+        }
+        
+        .main-content-wrapper {
+          padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+        }
+        
+        @media (min-width: 1280px) {
+          .main-content-wrapper {
+            padding-bottom: 0;
+          }
+        }
+      `}</style>
+      <div className="flex flex-col overflow-hidden layout-container">
+        {isLoggedIn && <FCMInitializer />}
+        {isLoggedIn && <SSEInitializer />}
+        <MobileHeader />
+        <div className="flex flex-1 overflow-hidden pt-14 xl:pt-0 main-content-wrapper">
+          {isLoggedIn ? <Sidebar /> : <GuestSidebar />}
+          <main className="w-full flex-1 xl:ml-64 transition-all duration-300 md:grid md:grid-cols-8 md:gap-4 overflow-hidden">
+            <div className="md:col-span-4 md:col-start-3 h-full overflow-hidden">{children}</div>
+          </main>
+        </div>
+        {isLoggedIn ? <BottomNav /> : <GuestBottomNav />}
+        <PWAInstallPrompt />
       </div>
-      {isLoggedIn ? <BottomNav /> : <GuestBottomNav />}
-      <PWAInstallPrompt />
-    </div>
+    </>
   );
 };
 

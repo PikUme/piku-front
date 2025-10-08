@@ -147,13 +147,13 @@ const HomeCalendar = ({
 
   return (
     <div
-      className="flex flex-col overflow-hidden xl:pb-0 h-full"
+      className="flex flex-col h-full overflow-hidden"
       ref={containerRef}
     >
       <AnimatePresence initial={false} custom={direction}>
         <motion.div
           key={viewedUser ? viewedUser.userId : user.id}
-          className="h-full flex flex-col"
+          className="h-full flex flex-col overflow-hidden"
           variants={slideVariants}
           custom={direction}
           initial="initial"
