@@ -61,15 +61,15 @@ const PikuCalendar = ({
   };
 
   return (
-    <main {...handlers} className="flex-grow flex flex-col p-2">
-      <div className="grid grid-cols-7 text-center text-sm text-gray-500 dark:text-gray-400">
+    <main {...handlers} className="flex-1 flex flex-col p-2 min-h-0 overflow-hidden">
+      <div className="grid grid-cols-7 text-center text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
         {dayNames.map(day => (
           <div key={day} className="py-2">
             {day}
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 flex-grow gap-1">
+      <div className="grid grid-cols-7 flex-1 gap-1 min-h-0">
         {days.map((day, index) => {
           const dateKey = format(day, 'yyyy-MM-dd');
           const pikuData = pikus[dateKey];
