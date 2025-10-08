@@ -26,7 +26,7 @@ const HomeCalendarHeader = ({
   onDateChange,
 }: HomeCalendarHeaderProps) => {
   return (
-    <div className="space-y-4 p-4 md:p-6">
+    <div className="space-y-4 p-4 md:p-6 flex-shrink-0">
       {/* <div className="flex items-center justify-between md:hidden">
         <h1 className="text-2xl font-bold">PikUme</h1>
       </div> */}
