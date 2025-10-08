@@ -115,13 +115,13 @@ const BottomNav = () => {
 
   // PWA를 사용하는 iOS 모바일에서 BottomNav 스타일 조정
   const getBottomNavClass = () => {
-    let baseClass = "flex justify-around items-center border-t xl:hidden sticky bottom-0 bg-white z-10";
+    let baseClass = "flex justify-around items-center border-t xl:hidden bg-white dark:bg-black fixed bottom-0 left-0 right-0 z-20";
     
     if (isPWAiOS && isMobile) {
       // PWA를 사용하는 iOS에서 크기 증가 및 safe area 고려
-      return `${baseClass} p-4 pb-6 min-h-[80px]`;
+      return `${baseClass} p-4 pt-2 min-h-[80px]`;
     }
-    return `${baseClass} p-2`;
+    return `${baseClass} p-2 pt-2`;
   };
 
   // PWA를 사용하는 iOS 모바일에서 아이콘 크기 조정
@@ -154,8 +154,11 @@ const BottomNav = () => {
         .animate-slide-up {
           animation: slide-up 0.25s ease-out;
         }
+        .bottom-nav {
+          padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+        }
       `}</style>
-      <footer className={getBottomNavClass()}>
+      <footer className={`${getBottomNavClass()} bottom-nav`}>
         <Link href="/" className={getLinkClass('/')}>
           <Home className={getIconSize()} />
           <span className={getTextSize()}>홈</span>
