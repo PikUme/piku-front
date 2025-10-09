@@ -69,11 +69,11 @@ const LayoutWrapper = ({ children }: { children: React.ReactNode }) => {
           }
         }
       `}</style>
-      <div className="flex flex-col overflow-hidden layout-container">
+      <div className="flex flex-col layout-container">
         {isLoggedIn && <FCMInitializer />}
         {isLoggedIn && <SSEInitializer />}
         <MobileHeader />
-        <div className="flex flex-1 overflow-hidden pt-14 xl:pt-0 main-content-wrapper">
+        <div className="flex flex-1 pt-14 xl:pt-0 main-content-wrapper">
           {isLoggedIn ? <Sidebar /> : <GuestSidebar />}
           <main className="w-full flex-1 xl:ml-64 transition-all duration-300 md:grid md:grid-cols-8 md:gap-4 overflow-hidden">
             <div className="md:col-span-4 md:col-start-3 h-full overflow-hidden">{children}</div>
