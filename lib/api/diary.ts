@@ -85,6 +85,11 @@ export const updateDiary = async (
   return Promise.resolve(); // 임시 반환
 };
 
+export const getRemainingAiRequests = async (): Promise<number> => {
+  const response = await api.get('/diary/ai/generate');
+  return response.data.remainingRequests;
+};
+
 export const generateAiPhotos = async (content: string) => {
    if (!content || content.trim().length === 0) {
     return Promise.resolve(null);
