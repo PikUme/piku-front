@@ -437,8 +437,10 @@ const DiaryDetailModal = ({ diary, onClose }: DiaryDetailModalProps) => {
   if (!diary) return null;
 
   const handleEditClick = () => {
-    router.push(`/diary/edit/${diary.diaryId}`);
-    onClose();
+    setIsMenuOpen(false);
+    setIsNotReadyModalOpen(true);
+    // router.push(`/diary/edit/${diary.diaryId}`);
+    // onClose();
   };
 
   const handleShareClick = () => {
