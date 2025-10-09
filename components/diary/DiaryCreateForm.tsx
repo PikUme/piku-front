@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createDiary, generateAiPhotos } from '@/lib/api/diary';
+import { createDiary, generateAiPhotos, getRemainingAiRequests } from '@/lib/api/diary';
 import useAuthStore from '../store/authStore';
 import imageCompression from 'browser-image-compression';
 import TextareaAutosize from 'react-textarea-autosize';
@@ -28,7 +28,6 @@ import {
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import ImagePreviewModal from '../common/ImagePreviewModal';
 
-const MAX_AI_PHOTOS = 3;
 const MAX_TOTAL_PHOTOS = 5;
 
 // PhotoItem 컴포넌트 분리
@@ -138,6 +137,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [remainingRequests, setRemainingRequests] = useState<number | null>(null);
   const { user, isLoggedIn } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -171,6 +171,22 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
       router.push('/login');
     }
   }, [isLoggedIn, router]);
+
+  // AI 사진 생성 가능 횟수 가져오기
+  useEffect(() => {
+    const fetchRemainingRequests = async () => {
+      if (isLoggedIn) {
+        try {
+          const remaining = await getRemainingAiRequests();
+          setRemainingRequests(remaining);
+        } catch (error) {
+          console.error('AI 사진 생성 가능 횟수 조회 실패:', error);
+          setRemainingRequests(0);
+        }
+      }
+    };
+    fetchRemainingRequests();
+  }, [isLoggedIn]);
 
 
 
@@ -367,18 +383,24 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
       alert(`사진은 최대 ${MAX_TOTAL_PHOTOS}장까지 추가할 수 있습니다.`);
       return;
     }
-    const currentAiPhotosCount = allPhotos.filter(p => p.type === 'ai').length;
-    if (currentAiPhotosCount >= MAX_AI_PHOTOS) {
-      alert(`AI 사진은 최대 ${MAX_AI_PHOTOS}장까지 생성할 수 있습니다.`);
+    if (remainingRequests === null || remainingRequests <= 0) {
+      alert('AI 사진 생성 가능 횟수를 모두 사용했습니다.');
       return;
     }
+    
+    const content = getValues('content');
+    if (!content || content.trim().length === 0) {
+      alert('일기 내용을 먼저 입력해주세요.');
+      return;
+    }
+
     setIsGeneratingAiPhotos(true);
+    
+    // 낙관적 업데이트: 요청 전에 횟수 감소
+    const previousRemaining = remainingRequests;
+    setRemainingRequests(prev => (prev !== null ? prev - 1 : 0));
+    
     try {
-      const content = getValues('content');
-      if (!content || content.trim().length === 0) {
-        alert('일기 내용을 먼저 입력해주세요.');
-        return;
-      }
       const newAiPhoto = await generateAiPhotos(content);
       if (newAiPhoto) {
         const unifiedPhoto: UnifiedPhoto = { ...newAiPhoto, type: 'ai' };
@@ -386,6 +408,8 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
       }
     } catch (error) {
       console.error('Failed to generate AI photos:', error);
+      // 실패 시 횟수 복구
+      setRemainingRequests(previousRemaining);
       alert('AI 사진 생성에 실패했습니다.');
     } finally {
       setIsGeneratingAiPhotos(false);
@@ -474,7 +498,6 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
     }[privacy] || '';
 
   const userPhotosCount = allPhotos.filter(p => p.type === 'user').length;
-  const aiPhotosCount = allPhotos.filter(p => p.type === 'ai').length;
   const totalPhotosCount = allPhotos.length;
 
 
@@ -507,7 +530,8 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
                     onClick={handleGenerateAiPhotos}
                     disabled={
                         isGeneratingAiPhotos ||
-                        aiPhotosCount >= MAX_AI_PHOTOS ||
+                        remainingRequests === null ||
+                        remainingRequests <= 0 ||
                         totalPhotosCount >= MAX_TOTAL_PHOTOS
                     }
                     className="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 border-2 border-dashed rounded-md flex flex-col justify-center items-center text-gray-400 hover:bg-gray-100 cursor-pointer disabled:cursor-not-allowed disabled:bg-gray-200 dark:text-gray-500 dark:hover:bg-gray-800 dark:disabled:bg-gray-700 dark:border-gray-600"
@@ -519,7 +543,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
                             <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
                             <span className="text-xs sm:text-sm mt-1">AI 사진</span>
                             <span className="text-[11px] sm:text-xs">
-                                ({aiPhotosCount}/{MAX_AI_PHOTOS})
+                                (횟수: {remainingRequests ?? '...'})
                             </span>
                         </>
                     )}
