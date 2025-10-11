@@ -53,7 +53,7 @@ const LoginClient = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-black">
+    <div className="flex flex-col items-center justify-center h-full bg-white dark:bg-black">
       <div className="w-full max-w-md px-8">
         <div className="w-full mb-10">
           <div className="relative text-center">
