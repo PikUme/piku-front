@@ -111,7 +111,7 @@ const DiaryStoryModal = ({
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent">
         <div className="flex items-center" onClick={handleProfileClick}>
-          <img
+          <Image
             src={diary.avatar || DEFAULT_AVATAR}
             alt={diary.nickname}
             width={32}

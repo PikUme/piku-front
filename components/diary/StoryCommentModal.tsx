@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { motion, PanInfo } from 'framer-motion';
 import { MessageCircle, ChevronUp } from 'lucide-react';
 import type { Comment } from '@/types/comment';
@@ -448,7 +449,7 @@ const StoryCommentModal = ({
         {/* Diary Content */}
         {diaryContent && (
           <div className="flex items-start">
-            <img
+            <Image
               src={diaryContent.avatar || DEFAULT_AVATAR}
               alt={diaryContent.nickname}
               width={32}

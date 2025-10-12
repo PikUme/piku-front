@@ -538,7 +538,7 @@ const DiaryDetailModal = ({ diary, onClose }: DiaryDetailModalProps) => {
             >
               <div className="flex items-center">
                 <Link href={profileUrl}>
-                  <img
+                  <Image
                     src={diary.avatar || DEFAULT_AVATAR}
                     alt={diary.nickname}
                     width={32}
@@ -610,7 +610,7 @@ const DiaryDetailModal = ({ diary, onClose }: DiaryDetailModalProps) => {
               <div className="flex items-start">
                 <div>
                   <Link href={profileUrl}>
-                    <img
+                    <Image
                       src={diary.avatar || DEFAULT_AVATAR}
                       alt={diary.nickname}
                       width={32}
