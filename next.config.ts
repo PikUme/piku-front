@@ -90,6 +90,11 @@ const nextConfig: NextConfig = {
         port: '8080',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'storage.pikume.com',
+        pathname: '/**',
+      },
     ],
   },
   // PWA 호환성을 위한 추가 헤더

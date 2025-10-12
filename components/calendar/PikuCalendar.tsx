@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import {
   format,
   startOfMonth,
@@ -103,10 +104,12 @@ const PikuCalendar = ({
               } ${((canCreate || canView) || (!isCurrentMonth && onMonthChange)) ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700' : ''}`}
             >
               {pikuData && isCurrentMonth ? (
-                <img
+                <Image
                   src={pikuData.imageUrl}
                   alt={`piku for ${dateKey}`}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 12vw, (max-width: 1200px) 8vw, 6vw"
                 />
               ) : (
                 <span
