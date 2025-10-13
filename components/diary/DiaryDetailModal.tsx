@@ -455,19 +455,15 @@ const DiaryDetailModal = ({ diary, onClose }: DiaryDetailModalProps) => {
 
   const handlePrevImage = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (diary.imgUrls && diary.imgUrls.length > 0) {
-      setCurrentImageIndex(prev =>
-        prev === 0 ? diary.imgUrls.length - 1 : prev - 1,
-      );
+    if (diary.imgUrls && diary.imgUrls.length > 0 && currentImageIndex > 0) {
+      setCurrentImageIndex(prev => prev - 1);
     }
   };
 
   const handleNextImage = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (diary.imgUrls && diary.imgUrls.length > 0) {
-      setCurrentImageIndex(prev =>
-        prev === diary.imgUrls.length - 1 ? 0 : prev + 1,
-      );
+    if (diary.imgUrls && diary.imgUrls.length > 0 && currentImageIndex < diary.imgUrls.length - 1) {
+      setCurrentImageIndex(prev => prev + 1);
     }
   };
 
@@ -511,18 +507,22 @@ const DiaryDetailModal = ({ diary, onClose }: DiaryDetailModalProps) => {
           />
           {diary.imgUrls && diary.imgUrls.length > 1 && (
             <>
-              <button
-                onClick={handlePrevImage}
-                className="absolute left-4 top-1/2 z-10 -translate-y-1/2 cursor-pointer rounded-full bg-black/50 p-2 text-white transition-opacity hover:bg-black/80"
-              >
-                <ChevronLeft size={24} className="cursor-pointer" />
-              </button>
-              <button
-                onClick={handleNextImage}
-                className="absolute right-4 top-1/2 z-10 -translate-y-1/2 cursor-pointer rounded-full bg-black/50 p-2 text-white transition-opacity hover:bg-black/80"
-              >
-                <ChevronRight size={24} className="cursor-pointer" />
-              </button>
+              {currentImageIndex > 0 && (
+                <button
+                  onClick={handlePrevImage}
+                  className="absolute left-4 top-1/2 z-10 -translate-y-1/2 cursor-pointer rounded-full bg-black/50 p-2 text-white transition-opacity hover:bg-black/80"
+                >
+                  <ChevronLeft size={24} className="cursor-pointer" />
+                </button>
+              )}
+              {currentImageIndex < diary.imgUrls.length - 1 && (
+                <button
+                  onClick={handleNextImage}
+                  className="absolute right-4 top-1/2 z-10 -translate-y-1/2 cursor-pointer rounded-full bg-black/50 p-2 text-white transition-opacity hover:bg-black/80"
+                >
+                  <ChevronRight size={24} className="cursor-pointer" />
+                </button>
+              )}
             </>
           )}
         </div>

@@ -73,19 +73,15 @@ const FeedCard = ({
 
   const handlePrevImage = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (post.imgUrls && post.imgUrls.length > 0) {
-      setCurrentImageIndex(prev =>
-        prev === 0 ? post.imgUrls.length - 1 : prev - 1,
-      );
+    if (post.imgUrls && post.imgUrls.length > 0 && currentImageIndex > 0) {
+      setCurrentImageIndex(prev => prev - 1);
     }
   };
 
   const handleNextImage = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (post.imgUrls && post.imgUrls.length > 0) {
-      setCurrentImageIndex(prev =>
-        prev === post.imgUrls.length - 1 ? 0 : prev + 1,
-      );
+    if (post.imgUrls && post.imgUrls.length > 0 && currentImageIndex < post.imgUrls.length - 1) {
+      setCurrentImageIndex(prev => prev + 1);
     }
   };
 
@@ -269,18 +265,22 @@ const FeedCard = ({
           </div>
           {post.imgUrls && post.imgUrls.length > 1 && (
             <>
-              <button
-                onClick={handlePrevImage}
-                className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white transition-colors hover:bg-black/75"
-              >
-                <ChevronLeft size={20} className='cursor-pointer'/>
-              </button>
-              <button
-                onClick={handleNextImage}
-                className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white transition-colors hover:bg-black/75"
-              >
-                <ChevronRight size={20} className='cursor-pointer'/>
-              </button>
+              {currentImageIndex > 0 && (
+                <button
+                  onClick={handlePrevImage}
+                  className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white transition-colors hover:bg-black/75"
+                >
+                  <ChevronLeft size={20} className='cursor-pointer'/>
+                </button>
+              )}
+              {currentImageIndex < post.imgUrls.length - 1 && (
+                <button
+                  onClick={handleNextImage}
+                  className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white transition-colors hover:bg-black/75"
+                >
+                  <ChevronRight size={20} className='cursor-pointer'/>
+                </button>
+              )}
               <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 space-x-1.5">
                 {post.imgUrls.map((_, index) => (
                   <div
