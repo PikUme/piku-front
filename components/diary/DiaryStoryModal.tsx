@@ -66,18 +66,14 @@ const DiaryStoryModal = ({
   }, [isCommentViewOpen]);
 
   const handlePrevImage = () => {
-    if (diary.imgUrls && diary.imgUrls.length > 0) {
-      setCurrentImageIndex(prev =>
-        prev === 0 ? diary.imgUrls.length - 1 : prev - 1,
-      );
+    if (diary.imgUrls && diary.imgUrls.length > 0 && currentImageIndex > 0) {
+      setCurrentImageIndex(prev => prev - 1);
     }
   };
 
   const handleNextImage = () => {
-    if (diary.imgUrls && diary.imgUrls.length > 0) {
-      setCurrentImageIndex(prev =>
-        prev === diary.imgUrls.length - 1 ? 0 : prev + 1,
-      );
+    if (diary.imgUrls && diary.imgUrls.length > 0 && currentImageIndex < diary.imgUrls.length - 1) {
+      setCurrentImageIndex(prev => prev + 1);
     }
   };
 
@@ -156,18 +152,22 @@ const DiaryStoryModal = ({
       {/* Image Navigation */}
       {diary.imgUrls && diary.imgUrls.length > 1 && (
         <>
-          <button
-            onClick={handlePrevImage}
-            className="absolute left-2 top-1/2 z-10 -translate-y-1/2 cursor-pointer rounded-full bg-black/30 p-2 text-white transition-opacity hover:bg-black/60"
-          >
-            <ChevronLeft size={24} />
-          </button>
-          <button
-            onClick={handleNextImage}
-            className="absolute right-2 top-1/2 z-10 -translate-y-1/2 cursor-pointer rounded-full bg-black/30 p-2 text-white transition-opacity hover:bg-black/60"
-          >
-            <ChevronRight size={24} />
-          </button>
+          {currentImageIndex > 0 && (
+            <button
+              onClick={handlePrevImage}
+              className="absolute left-2 top-1/2 z-10 -translate-y-1/2 cursor-pointer rounded-full bg-black/30 p-2 text-white transition-opacity hover:bg-black/60"
+            >
+              <ChevronLeft size={24} />
+            </button>
+          )}
+          {currentImageIndex < diary.imgUrls.length - 1 && (
+            <button
+              onClick={handleNextImage}
+              className="absolute right-2 top-1/2 z-10 -translate-y-1/2 cursor-pointer rounded-full bg-black/30 p-2 text-white transition-opacity hover:bg-black/60"
+            >
+              <ChevronRight size={24} />
+            </button>
+          )}
         </>
       )}
 
