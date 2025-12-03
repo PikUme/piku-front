@@ -578,14 +578,14 @@ const DiaryDetailModal = ({ diary, onClose }: DiaryDetailModalProps) => {
                   ref={menuRef}
                   className="absolute right-0 z-20 mt-2 w-32 rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
                 >
-                  {user?.id === diary.userId && (
+                  {/* {user?.id === diary.userId && (
                     <button
                       onClick={handleEditClick}
                       className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                     >
                       일기 수정
                     </button>
-                  )}
+                  )} */}
                   <button
                     onClick={handleShareClick}
                     className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
