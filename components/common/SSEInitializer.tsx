@@ -1,27 +1,41 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import useAuthStore from '../store/authStore';
 import { getServerURL } from '@/lib/utils/url';
 import { AUTH_TOKEN_KEY } from '@/lib/constants';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import useNotificationStore from '../store/notificationStore';
 
+const RECONNECT_DELAY = 3000; // 3초 후 재연결
+
 const SSEInitializer = () => {
   const { isLoggedIn } = useAuthStore();
   const { setUnreadCount, incrementUnreadCount } = useNotificationStore();
+  const eventSourceRef = useRef<EventSourcePolyfill | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) {
       return;
     }
 
-    let eventSource: EventSourcePolyfill;
+    let isMounted = true;
     let isFirstMessage = true;
 
+    const clearReconnectTimeout = () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+    };
+
     const connect = () => {
-      // 이미 연결되어 있다면 중복 연결 방지
-      if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
+      // 언마운트 체크
+      if (!isMounted) return;
+
+      // 중복 연결 방지
+      if (eventSourceRef.current && eventSourceRef.current.readyState !== EventSource.CLOSED) {
         return;
       }
 
@@ -29,7 +43,7 @@ const SSEInitializer = () => {
       if (!token) return;
 
       const sseUrl = `${getServerURL()}/sse/subscribe`;
-      eventSource = new EventSourcePolyfill(sseUrl, {
+      eventSourceRef.current = new EventSourcePolyfill(sseUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -37,12 +51,11 @@ const SSEInitializer = () => {
         heartbeatTimeout: 86400000, // 24시간
       });
 
-      isFirstMessage = true; // 재연결 시 초기 메시지 처리를 위해 리셋
+      isFirstMessage = true; // 재연결 시 초기 메세지 처리
 
-      eventSource.onopen = () => {
-      };
+      eventSourceRef.current.onopen = () => {};
 
-      eventSource.onmessage = (event: any) => {
+      eventSourceRef.current.onmessage = (event: any) => {
         if (isFirstMessage) {
           const count = parseInt(event.data, 10);
           if (!isNaN(count)) {
@@ -54,8 +67,19 @@ const SSEInitializer = () => {
         }
       };
 
-      eventSource.onerror = (error: any) => {
-        eventSource.close();
+      eventSourceRef.current.onerror = () => {
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+          eventSourceRef.current = null;
+        }
+
+        // 언마운트되지 않았으면 재연결 시도
+        if (isMounted) {
+          clearReconnectTimeout();
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connect();
+          }, RECONNECT_DELAY);
+        }
       };
     };
 
@@ -70,12 +94,15 @@ const SSEInitializer = () => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      if (eventSource) {
-        eventSource.close();
+      isMounted = false;
+      clearReconnectTimeout();
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isLoggedIn, setUnreadCount, incrementUnreadCount]);
+  }, [isLoggedIn]);
 
   return null;
 };
