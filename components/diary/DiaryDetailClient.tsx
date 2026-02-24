@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useMediaQuery } from 'react-responsive';
+import { useRouter } from 'next/navigation';
 import type { DiaryDetail } from '@/types/diary';
 import { getDiaryById } from '@/lib/api/diary';
 import { createComment, getRootComments } from '@/lib/api/comment';
@@ -30,6 +31,7 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const { user, isLoggedIn } = useAuthStore();
+  const router = useRouter();
   const serverUrl = getServerURL();
   const isDesktop = useMediaQuery({ query: '(min-width: 1024px)' });
 
@@ -50,9 +52,11 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
   }, [diaryId]);
 
   const openCommentModal = () => {
-    // 데스크탑이 아닐 때만 댓글 입력창 클릭으로 모달이 열리도록 처리
-    // 또는 데스크탑일 경우 아이콘 클릭으로만 열리도록 처리
     setIsCommentModalOpen(true);
+  };
+
+  const handleDiaryDeleted = () => {
+    router.back();
   };
 
   const getDisplayContent = (content: string) => {
@@ -177,6 +181,7 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
             <DiaryDetailModal
               diary={diary}
               onClose={() => setIsCommentModalOpen(false)}
+              onDelete={handleDiaryDeleted}
             />
           ) : (
             <CommentModal
