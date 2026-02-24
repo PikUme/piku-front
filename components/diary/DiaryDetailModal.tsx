@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+
 import Link from 'next/link';
 import {
   X,
@@ -26,6 +26,7 @@ import {
   deleteComment,
   updateComment,
 } from '@/lib/api/comment';
+import { deleteDiary } from '@/lib/api/diary';
 import { formatTimeAgo, formatYearMonthDay } from '@/lib/utils/date';
 import { getServerURL } from '@/lib/utils/url';
 import useAuthStore from '@/components/store/authStore';
@@ -36,6 +37,7 @@ import MotionProfileHoverCard from '@/components/feed/ProfileHoverCard';
 interface DiaryDetailModalProps {
   diary: DiaryDetail;
   onClose: () => void;
+  onDelete?: (diaryId: number) => void;
 }
 
 interface CommentRepliesState {
@@ -46,7 +48,7 @@ interface CommentRepliesState {
   isShown: boolean;
 }
 
-const DiaryDetailModal = ({ diary, onClose }: DiaryDetailModalProps) => {
+const DiaryDetailModal = ({ diary, onClose, onDelete }: DiaryDetailModalProps) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -65,7 +67,7 @@ const DiaryDetailModal = ({ diary, onClose }: DiaryDetailModalProps) => {
     null,
   );
   const [isNotReadyModalOpen, setIsNotReadyModalOpen] = useState(false);
-  const router = useRouter();
+
   const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -453,6 +455,21 @@ const DiaryDetailModal = ({ diary, onClose }: DiaryDetailModalProps) => {
     setIsNotReadyModalOpen(true);
   };
 
+  const handleDeleteDiary = async () => {
+    if (!confirm('정말 일기를 삭제하시겠습니까?')) return;
+    setIsMenuOpen(false);
+    try {
+      await deleteDiary(diary.diaryId);
+      if (onDelete) {
+        onDelete(diary.diaryId);
+      } else {
+        onClose();
+      }
+    } catch (e) {
+      alert('일기 삭제에 실패했습니다.');
+    }
+  };
+
   const handlePrevImage = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (diary.imgUrls && diary.imgUrls.length > 0 && currentImageIndex > 0) {
@@ -586,6 +603,14 @@ const DiaryDetailModal = ({ diary, onClose }: DiaryDetailModalProps) => {
                       일기 수정
                     </button>
                   )} */}
+                  {user?.id === diary.userId && (
+                    <button
+                      onClick={handleDeleteDiary}
+                      className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      일기 삭제
+                    </button>
+                  )}
                   <button
                     onClick={handleShareClick}
                     className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"

@@ -39,6 +39,11 @@ const FeedClient = () => {
     setSelectedDiary(null);
   }, []);
 
+  const handleDeleteDiaryFromFeed = useCallback((diaryId: number) => {
+    setFeed(prev => prev.filter(post => post.diaryId !== diaryId));
+    setSelectedDiary(null);
+  }, []);
+
   useEffect(() => {
     const handlePopState = () => {
       if (!isCommentViewOpen) {
@@ -224,12 +229,17 @@ const FeedClient = () => {
       )}
       {selectedDiary &&
         (isDesktop ? (
-          <DiaryDetailModal diary={selectedDiary} onClose={handleCloseModal} />
+          <DiaryDetailModal
+            diary={selectedDiary}
+            onClose={handleCloseModal}
+            onDelete={handleDeleteDiaryFromFeed}
+          />
         ) : (
           <DiaryStoryModal
             diary={selectedDiary}
             onClose={handleCloseModal}
             onCommentViewToggle={setIsCommentViewOpen}
+            onDelete={handleDeleteDiaryFromFeed}
           />
         ))}
       {commentModalOpen && (
