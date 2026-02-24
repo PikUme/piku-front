@@ -132,4 +132,13 @@ export const getDiaryById = async (diaryId: number): Promise<DiaryDetail> => {
     console.error('일기 상세 조회 API 오류:', error);
     throw error;
   }
-}; 
+};
+
+export const deleteDiary = async (diaryId: number): Promise<void> => {
+  try {
+    await api.delete(`/diary/${diaryId}`);
+  } catch (error) {
+    console.error('일기 삭제 API 오류:', error);
+    throw error;
+  }
+};

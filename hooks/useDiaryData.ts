@@ -64,11 +64,22 @@ export const useDiaryData = (
     setSelectedDiary(null);
   }, []);
 
+  const removeDiary = useCallback((diaryId: number) => {
+    setPikus(prev => {
+      const next = { ...prev };
+      const dateKey = Object.keys(next).find(k => next[k].id === diaryId);
+      if (dateKey) delete next[dateKey];
+      return next;
+    });
+    setSelectedDiary(null);
+  }, []);
+
   return {
     pikus,
     selectedDiary,
     isLoading,
     loadDiaryDetail,
     closeDiaryDetail,
+    removeDiary,
   };
-}; 
+};

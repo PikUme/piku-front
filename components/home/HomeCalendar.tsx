@@ -72,6 +72,7 @@ const HomeCalendar = ({
     isLoading,
     loadDiaryDetail,
     closeDiaryDetail,
+    removeDiary,
   } = useDiaryData(currentDate, user, viewedUser);
 
   useEffect(() => {
@@ -184,12 +185,17 @@ const HomeCalendar = ({
 
       {selectedDiary &&
         (isDesktopOrLaptop ? (
-          <DiaryDetailModal diary={selectedDiary} onClose={closeDiaryDetail} />
+          <DiaryDetailModal
+            diary={selectedDiary}
+            onClose={closeDiaryDetail}
+            onDelete={removeDiary}
+          />
         ) : (
           <DiaryStoryModal
             diary={selectedDiary}
             onClose={closeDiaryDetail}
             onCommentViewToggle={setIsCommentViewOpen}
+            onDelete={removeDiary}
           />
         ))}
 
