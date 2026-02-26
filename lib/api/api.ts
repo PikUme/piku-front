@@ -1,7 +1,11 @@
 // api.ts
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { getServerURL } from '@/lib/utils/url';
-import { AUTH_TOKEN_KEY } from '@/lib/constants';
+import {
+  getAccessToken,
+  refreshAccessToken,
+  handleAuthFailure,
+} from '@/lib/auth/tokenManager';
 
 /**
  * 프로젝트 전역으로 사용될 Axios 인스턴스.
@@ -28,7 +32,7 @@ api.interceptors.request.use(config => {
     return config;
   }
 
-  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  const token = getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -38,30 +42,9 @@ api.interceptors.request.use(config => {
 /**
  * 응답 인터셉터 (Response Interceptor)
  * - API 응답을 받은 후 실행됩니다.
- * - 401 Unauthorized 에러 발생 시, 토큰 재발급 로직을 수행합니다.
+ * - 401 Unauthorized 에러 발생 시, tokenManager를 통해 토큰 재발급을 수행합니다.
+ * - 리프레시 토큰까지 만료된 경우, handleAuthFailure()로 로그아웃 처리합니다.
  */
-
-// 토큰 재발급 요청이 진행 중인지 여부를 나타내는 플래그
-let isRefreshing = false;
-// 토큰 재발급 중 실패한 요청들을 저장하는 큐
-let failedQueue: {
-  resolve: (value?: unknown) => void;
-  reject: (reason?: any) => void;
-}[] = [];
-
-// 큐에 쌓인 요청들을 처리하는 함수
-const processQueue = (error: Error | null, token: string | null = null) => {
-  failedQueue.forEach(prom => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-
-  failedQueue = [];
-};
-
 api.interceptors.response.use(
   response => response,
   async (error: AxiosError) => {
@@ -69,13 +52,9 @@ api.interceptors.response.use(
       _retry?: boolean;
     };
 
-    // 403 에러인 경우 로그인 페이지로 리다이렉트
+    // 403 에러인 경우 인증 실패 처리
     if (error.response?.status === 403) {
-      localStorage.removeItem(AUTH_TOKEN_KEY);
-      if (typeof window !== 'undefined') {
-        alert('로그인이 필요합니다.');
-        window.location.href = '/login';
-      }
+      await handleAuthFailure();
       return Promise.reject(error);
     }
 
@@ -83,62 +62,23 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry &&
       originalRequest.url !== '/auth/login' &&
       originalRequest.url !== '/auth/reissue') {
-      // 이미 토큰 재발급이 진행 중인 경우, 현재 요청을 큐에 추가
-      if (isRefreshing) {
-        return new Promise(function (resolve, reject) {
-          failedQueue.push({ resolve, reject });
-        })
-          .then(token => {
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = 'Bearer ' + token;
-            }
-            return api(originalRequest);
-          })
-          .catch(err => {
-            return Promise.reject(err);
-          });
-      }
 
-      // 재시도 플래그를 설정하여 무한 재발급 요청 방지
       originalRequest._retry = true;
-      isRefreshing = true;
 
       try {
-        // 리프레시 토큰을 사용하여 새로운 액세스 토큰 발급 요청
-        const response = await axios.post(
-          `${getServerURL()}/auth/reissue`,
-          {},
-          { withCredentials: true },
-        );
-
-        const authHeader = response.headers['authorization'];
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-          throw new Error('New access token not found in response header.');
-        }
-        const newAccessToken = authHeader.slice(7);
-        localStorage.setItem(AUTH_TOKEN_KEY, newAccessToken);
+        // tokenManager가 중복 요청 방지 및 토큰 갱신을 처리
+        const newAccessToken = await refreshAccessToken();
 
         // 새로 발급받은 토큰으로 원래 요청의 헤더를 수정
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         }
 
-        // 큐에 쌓여있던 다른 요청들을 새로운 토큰으로 처리
-        processQueue(null, newAccessToken);
-
         // 원래 요청을 다시 시도
         return api(originalRequest);
       } catch (refreshError) {
-        // 토큰 재발급 실패 시
-        processQueue(refreshError as Error, null);
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        if (typeof window !== 'undefined') {
-          // 로그인 페이지로 리다이렉트
-          window.location.href = '/login';
-        }
+        // refreshAccessToken 내에서 handleAuthFailure()가 이미 호출됨
         return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
     }
 

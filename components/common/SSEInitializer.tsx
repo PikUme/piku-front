@@ -3,9 +3,13 @@
 import { useEffect, useRef } from 'react';
 import useAuthStore from '../store/authStore';
 import { getServerURL } from '@/lib/utils/url';
-import { AUTH_TOKEN_KEY } from '@/lib/constants';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import useNotificationStore from '../store/notificationStore';
+import {
+  getAccessToken,
+  refreshAccessToken,
+  handleAuthFailure,
+} from '@/lib/auth/tokenManager';
 
 const RECONNECT_DELAY = 3000; // 3초 후 재연결
 
@@ -30,7 +34,7 @@ const SSEInitializer = () => {
       }
     };
 
-    const connect = () => {
+    const connect = (token: string) => {
       // 언마운트 체크
       if (!isMounted) return;
 
@@ -38,9 +42,6 @@ const SSEInitializer = () => {
       if (eventSourceRef.current && eventSourceRef.current.readyState !== EventSource.CLOSED) {
         return;
       }
-
-      const token = localStorage.getItem(AUTH_TOKEN_KEY);
-      if (!token) return;
 
       const sseUrl = `${getServerURL()}/sse/subscribe`;
       eventSourceRef.current = new EventSourcePolyfill(sseUrl, {
@@ -68,26 +69,41 @@ const SSEInitializer = () => {
       };
 
       eventSourceRef.current.onerror = () => {
+        // 기존 연결 정리
         if (eventSourceRef.current) {
           eventSourceRef.current.close();
           eventSourceRef.current = null;
         }
 
-        // 언마운트되지 않았으면 재연결 시도
-        if (isMounted) {
-          clearReconnectTimeout();
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
-          }, RECONNECT_DELAY);
-        }
+        if (!isMounted) return;
+
+        // 토큰 리프레시 시도 후 재연결
+        clearReconnectTimeout();
+        refreshAccessToken()
+          .then((newToken) => {
+            // 리프레시 성공 → 새 토큰으로 즉시 재연결
+            if (isMounted) {
+              connect(newToken);
+            }
+          })
+          .catch(() => {
+            // 리프레시 토큰도 만료 → handleAuthFailure()가 이미 호출됨
+            // (tokenManager 내부에서 로그아웃 + 리다이렉트 처리 완료)
+          });
       };
     };
 
-    connect();
+    // 초기 연결
+    const token = getAccessToken();
+    if (!token) return;
+    connect(token);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        connect();
+        const currentToken = getAccessToken();
+        if (currentToken) {
+          connect(currentToken);
+        }
       }
     };
 
