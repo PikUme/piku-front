@@ -30,6 +30,17 @@ import ImagePreviewModal from '../common/ImagePreviewModal';
 
 const MAX_TOTAL_PHOTOS = 5;
 
+const _PK = '_pk_v';
+const _PM: Record<string, PrivacyStatus> = { '0': 'PUBLIC', '1': 'FRIENDS', '2': 'PRIVATE' };
+const _PR: Record<PrivacyStatus, string> = { PUBLIC: '0', FRIENDS: '1', PRIVATE: '2' };
+
+const getSavedPrivacy = (): PrivacyStatus => {
+  if (typeof window === 'undefined') return 'PUBLIC';
+  const v = localStorage.getItem(_PK);
+  if (v === null) return 'PUBLIC';
+  return _PM[v] ?? 'PUBLIC';
+};
+
 // PhotoItem 컴포넌트 분리
 const PhotoItem = ({
   photo,
@@ -128,7 +139,7 @@ interface DiaryCreateFormProps {
 const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
   const router = useRouter();
   const [allPhotos, setAllPhotos] = useState<UnifiedPhoto[]>([]);
-  const [privacy, setPrivacy] = useState<PrivacyStatus>('PUBLIC');
+  const [privacy, setPrivacy] = useState<PrivacyStatus>(getSavedPrivacy);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -357,6 +368,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
         },
         photos: userPhotoFiles,
       });
+      localStorage.setItem(_PK, _PR[privacy]);
       router.push('/');
     } catch (error: any) {
       console.error('Failed to create diary:', error);
