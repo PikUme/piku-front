@@ -48,6 +48,7 @@ const PikuCalendar = ({
   const { user } = useAuthStore();
   
   const dayNames = ['월', '화', '수', '목', '금', '토', '일'];
+  const rowCount = Math.ceil(days.length / 7);
 
   const getDayClassName = (
     day: Date,
@@ -70,7 +71,10 @@ const PikuCalendar = ({
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 flex-1 gap-1 min-h-0">
+      <div
+        className="grid grid-cols-7 flex-1 gap-1 min-h-0"
+        style={{ gridTemplateRows: `repeat(${rowCount}, 1fr)` }}
+      >
         {days.map((day, index) => {
           const dateKey = format(day, 'yyyy-MM-dd');
           const pikuData = pikus[dateKey];
