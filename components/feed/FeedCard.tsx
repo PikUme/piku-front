@@ -5,6 +5,7 @@ import { formatTimeAgo, formatYearMonthDayDots } from '@/lib/utils/date';
 import {
   BookmarkIcon,
   CommentIcon,
+  HeartIcon,
   MoreIcon,
   ShareIcon,
 } from '../icons/FeedIcons';
@@ -32,6 +33,7 @@ interface FeedCardProps {
   ) => void;
   onContentClick: () => void;
   onCommentClick: () => void;
+  onLikeToggle: (diaryId: number) => void;
   isMobile: boolean;
 }
 
@@ -40,6 +42,7 @@ const FeedCard = ({
   onFriendshipStatusChange,
   onContentClick,
   onCommentClick,
+  onLikeToggle,
   isMobile,
 }: FeedCardProps) => {
   const [comment, setComment] = useState('');
@@ -299,14 +302,21 @@ const FeedCard = ({
 
       <div className="p-3">
         <div className="flex justify-between">
-          <div className="flex space-x-1">
-              <button onClick={isMobile ? onCommentClick : onContentClick}>
+          <div className="flex space-x-3">
+            <button
+              className="flex items-center space-x-1"
+              onClick={() => onLikeToggle(post.diaryId)}
+            >
+              <HeartIcon filled={post.isLiked} />
+              <span className="font-bold">{post.likeCount}</span>
+            </button>
+            <button
+              className="flex items-center space-x-1"
+              onClick={isMobile ? onCommentClick : onContentClick}
+            >
               <CommentIcon />
-              </button>
-              <span className='font-bold'>{post.commentCount}</span>
-            {/* <button>
-              <ShareIcon />
-            </button> */}
+              <span className="font-bold">{post.commentCount}</span>
+            </button>
           </div>
           {/* <button>
             <BookmarkIcon />
