@@ -77,6 +77,8 @@ export interface FeedDiary {
   userId: string;
   createdAt: string; // LocalDateTime -> ISO String
   commentCount: number;
+  likeCount: number;
+  isLiked: boolean;
   friendStatus: FriendshipStatus;
 }
 
@@ -90,6 +92,12 @@ export interface Page<T> {
   last: boolean;
   numberOfElements: number;
   empty: boolean;
+}
+
+export interface CursorPage<T> {
+  items: T[];
+  nextCursor: string | null;
+  hasNext: boolean;
 }
 
 export interface MonthlyDiary {
