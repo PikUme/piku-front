@@ -3,20 +3,22 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useMediaQuery } from 'react-responsive';
 import FeedCard from './FeedCard';
-import { getFeed } from '@/lib/api/feed';
+import { getFeedCursor } from '@/lib/api/feed';
 import { getDiaryById } from '@/lib/api/diary';
 import { FeedDiary, DiaryDetail } from '@/types/diary';
 import { FriendshipStatus } from '@/types/friend';
 import DiaryDetailModal from '../diary/DiaryDetailModal';
 import DiaryStoryModal from '../diary/DiaryStoryModal';
 import StoryCommentModal from '../diary/StoryCommentModal';
+import { addLike, removeLike } from '@/lib/api/like';
+import { trackEvent, FEED_CLICK, FEED_LIKE } from '@/lib/analytics/events';
 
 const FeedClient = () => {
   const [feed, setFeed] = useState<FeedDiary[]>([]);
-  const [page, setPage] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [initialized, setInitialized] = useState(false);
+  const [error, setError] = useState<'initial' | 'next' | null>(null);
   const observer = useRef<IntersectionObserver | null>(null);
   const hasMounted = useRef(false);
 
@@ -65,19 +67,16 @@ const FeedClient = () => {
     };
   }, [selectedDiary, handleCloseModal, isCommentViewOpen]);
 
-  // StoryCommentModal이 열렸을 때 배경 스크롤 방지
   useEffect(() => {
     if (commentModalOpen) {
       document.body.style.overflow = 'hidden';
     } else {
-      // selectedDiary가 있을 때는 스크롤을 막아야 하므로 조건 확인
       if (!selectedDiary || isCommentViewOpen) {
         document.body.style.overflow = 'auto';
       }
     }
 
     return () => {
-      // 컴포넌트 언마운트 시에만 auto로 복원
       if (!selectedDiary && !commentModalOpen) {
         document.body.style.overflow = 'auto';
       }
@@ -90,6 +89,7 @@ const FeedClient = () => {
       try {
         const diaryDetail = await getDiaryById(diaryId);
         setSelectedDiary(diaryDetail);
+        trackEvent(FEED_CLICK, { diaryId });
       } catch (error) {
         console.error('Failed to fetch diary details', error);
         alert('일기 정보를 불러오는데 실패했습니다.');
@@ -100,10 +100,10 @@ const FeedClient = () => {
   };
 
   const handleCommentClick = (post: FeedDiary) => {
-    setCommentModalOpen({ 
-      diaryId: post.diaryId, 
+    setCommentModalOpen({
+      diaryId: post.diaryId,
       commentCount: post.commentCount,
-      post 
+      post,
     });
   };
 
@@ -113,7 +113,6 @@ const FeedClient = () => {
 
   const handleUpdateCommentCount = (count: number) => {
     if (commentModalOpen) {
-      // 피드에서 해당 일기의 댓글 수 업데이트
       setFeed(prevFeed =>
         prevFeed.map(post =>
           post.diaryId === commentModalOpen.diaryId
@@ -125,28 +124,27 @@ const FeedClient = () => {
   };
 
   const loadMore = useCallback(async () => {
-    // 함수 시작점에서 즉시 체크하여 레이스 컨디션 방지
-    if (loading || !hasMore) {
-      return;
-    }
+    if (loading || !hasMore) return;
     setLoading(true);
+    setError(null);
     try {
-      const pageData = await getFeed(page, 10);
+      const data = await getFeedCursor(nextCursor);
       setFeed(prevFeed => {
         const existingIds = new Set(prevFeed.map(p => p.diaryId));
-        const uniqueNewPosts = pageData.content.filter(
+        const uniqueNewItems = data.items.filter(
           p => !existingIds.has(p.diaryId),
         );
-        return [...prevFeed, ...uniqueNewPosts];
+        return [...prevFeed, ...uniqueNewItems];
       });
-      setHasMore(!pageData.last);
-      setPage(prevPage => prevPage + 1);
-    } catch (error) {
-      console.error('Error fetching feed:', error);
+      setNextCursor(data.nextCursor);
+      setHasMore(data.nextCursor != null && data.hasNext);
+    } catch (err) {
+      console.error('Error fetching feed:', err);
+      setError(feed.length === 0 ? 'initial' : 'next');
     } finally {
       setLoading(false);
     }
-  }, [page, loading, hasMore]); // page를 의존성에 명시적으로 추가
+  }, [nextCursor, loading, hasMore, feed.length]);
 
   const lastPostElementRef = useCallback(
     (node: HTMLDivElement) => {
@@ -164,15 +162,57 @@ const FeedClient = () => {
     [loading, hasMore, loadMore],
   );
 
-  // 최초 로딩을 위한 useEffect - 중복 요청 방지
   useEffect(() => {
-    if (!hasMounted.current && !initialized && !loading) {
+    if (!hasMounted.current && !loading) {
       hasMounted.current = true;
-      setInitialized(true);
       loadMore();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialized, loading]);
+  }, []);
+
+  const handleLikeToggle = async (diaryId: number) => {
+    const target = feed.find(p => p.diaryId === diaryId);
+    if (!target) return;
+
+    // optimistic update
+    setFeed(prevFeed =>
+      prevFeed.map(post =>
+        post.diaryId === diaryId
+          ? {
+              ...post,
+              isLiked: !post.isLiked,
+              likeCount: post.isLiked ? post.likeCount - 1 : post.likeCount + 1,
+            }
+          : post,
+      ),
+    );
+
+    try {
+      const response = target.isLiked
+        ? await removeLike(diaryId)
+        : await addLike(diaryId);
+      setFeed(prevFeed =>
+        prevFeed.map(post =>
+          post.diaryId === diaryId
+            ? { ...post, isLiked: response.isLiked, likeCount: response.likeCount }
+            : post,
+        ),
+      );
+      if (!target.isLiked) {
+        trackEvent(FEED_LIKE, { diaryId });
+      }
+    } catch (err) {
+      // rollback
+      setFeed(prevFeed =>
+        prevFeed.map(post =>
+          post.diaryId === diaryId
+            ? { ...post, isLiked: target.isLiked, likeCount: target.likeCount }
+            : post,
+        ),
+      );
+      console.error('Failed to toggle like:', err);
+    }
+  };
 
   const handleFriendshipStatusChange = (
     diaryId: number,
@@ -187,11 +227,24 @@ const FeedClient = () => {
     );
   };
 
-  // 초기 로딩 화면
-  if (page === 0 && loading) {
+  if (feed.length === 0 && loading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <p>피드를 불러오는 중...</p>
+      </div>
+    );
+  }
+
+  if (error === 'initial') {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4">
+        <p className="text-gray-500">피드를 불러오지 못했습니다.</p>
+        <button
+          onClick={loadMore}
+          className="rounded-lg bg-gray-800 px-4 py-2 text-white hover:bg-black"
+        >
+          다시 시도
+        </button>
       </div>
     );
   }
@@ -208,6 +261,7 @@ const FeedClient = () => {
             onFriendshipStatusChange={handleFriendshipStatusChange}
             onContentClick={() => handleContentClick(post.diaryId)}
             onCommentClick={() => handleCommentClick(post)}
+            onLikeToggle={handleLikeToggle}
             isMobile={!isDesktop}
           />
         </div>
@@ -220,6 +274,17 @@ const FeedClient = () => {
       {isLoadingDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <p className="text-white">일기 정보를 불러오는 중...</p>
+        </div>
+      )}
+      {error === 'next' && (
+        <div className="flex h-20 items-center justify-center gap-3">
+          <p className="text-gray-500">불러오기 실패</p>
+          <button
+            onClick={loadMore}
+            className="rounded-lg bg-gray-800 px-3 py-1.5 text-sm text-white hover:bg-black"
+          >
+            다시 시도
+          </button>
         </div>
       )}
       {!hasMore && feed.length > 0 && (
@@ -263,4 +328,4 @@ const FeedClient = () => {
   );
 };
 
-export default FeedClient; 
+export default FeedClient;
