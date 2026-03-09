@@ -16,6 +16,7 @@ import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { useSwipeable } from 'react-swipeable';
 import type { DiaryDetail } from '@/types/diary';
 import { formatTimeAgo, formatYearMonthDayDots } from '@/lib/utils/date';
+import { getPrivacyLabel } from '@/lib/utils/privacy';
 import { getServerURL } from '@/lib/utils/url';
 import useAuthStore from '@/components/store/authStore';
 import { deleteDiary } from '@/lib/api/diary';
@@ -155,6 +156,14 @@ const DiaryStoryModal = ({
           <p className="text-xs uppercase text-gray-300">
             {formatYearMonthDayDots(diary.date)}
           </p>
+          {user?.id === diary.userId && (
+            <>
+              <DotIcon className='text-gray-300'/>
+              <p className="text-xs text-gray-300">
+                {getPrivacyLabel(diary.status)}
+              </p>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {user?.id === diary.userId && (
