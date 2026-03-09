@@ -28,6 +28,7 @@ import {
 } from '@/lib/api/comment';
 import { deleteDiary } from '@/lib/api/diary';
 import { formatTimeAgo, formatYearMonthDay } from '@/lib/utils/date';
+import { getPrivacyLabel } from '@/lib/utils/privacy';
 import { getServerURL } from '@/lib/utils/url';
 import useAuthStore from '@/components/store/authStore';
 import CommentItem from './CommentItem';
@@ -573,6 +574,14 @@ const DiaryDetailModal = ({ diary, onClose, onDelete }: DiaryDetailModalProps) =
                 <p className="text-xs uppercase text-gray-400 dark:text-gray-300">
                   {displayDate}
                 </p>
+                {user?.id === diary.userId && (
+                  <>
+                    <DotIcon className='text-gray-500 dark:text-gray-400'/>
+                    <p className="text-xs text-gray-400 dark:text-gray-300">
+                      {getPrivacyLabel(diary.status)}
+                    </p>
+                  </>
+                )}
               </div>
               {isHeaderHovering && (
                 <MotionProfileHoverCard

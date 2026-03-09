@@ -14,6 +14,7 @@ import {
   PrivacyStatus,
   DiaryDetail,
 } from '@/types/diary';
+import { getPrivacyLabel, PRIVACY_OPTIONS } from '@/lib/utils/privacy';
 import { X, Globe, Lock, Users, Camera, Sparkles, XCircle } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import ImagePreviewModal from '../common/ImagePreviewModal';
@@ -216,12 +217,7 @@ const DiaryEditForm = ({ initialDiaryData }: DiaryEditFormProps) => {
             PRIVATE: <Lock size={16} />,
         }[privacy] || null;
 
-    const privacyText =
-        {
-            PUBLIC: '전체 공개',
-            FRIENDS: '친구 공개',
-            PRIVATE: '나만 보기',
-        }[privacy] || '';
+    const privacyText = getPrivacyLabel(privacy);
 
     const userPhotosCount = allPhotos.filter(p => p.type === 'user').length;
     const aiPhotosCount = allPhotos.filter(p => p.type === 'ai').length;
@@ -395,21 +391,19 @@ const DiaryEditForm = ({ initialDiaryData }: DiaryEditFormProps) => {
                             공개 범위 설정
                         </h2>
                         <div className="space-y-3">
-                            {(
-                                ['PUBLIC', 'FRIENDS', 'PRIVATE'] as PrivacyStatus[]
-                            ).map(status => (
+                            {PRIVACY_OPTIONS.map(option => (
                                 <button
-                                    key={status}
-                                    onClick={() => setTempPrivacy(status)}
+                                    key={option.value}
+                                    onClick={() => setTempPrivacy(option.value)}
                                     className={`w-full text-left p-4 rounded-lg flex items-center space-x-4 transition-colors ${
-                                        tempPrivacy === status
+                                        tempPrivacy === option.value
                                             ? 'bg-black text-white dark:bg-white dark:text-black'
                                             : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
                                     }`}
                                 >
                                     <div
                                         className={
-                                            tempPrivacy === status
+                                            tempPrivacy === option.value
                                                 ? 'text-white dark:text-black'
                                                 : 'text-gray-800 dark:text-gray-200'
                                         }
@@ -419,34 +413,21 @@ const DiaryEditForm = ({ initialDiaryData }: DiaryEditFormProps) => {
                                                 PUBLIC: <Globe size={24} />,
                                                 FRIENDS: <Users size={24}/>,
                                                 PRIVATE: <Lock size={24}/>,
-                                            }[status]
+                                            }[option.value]
                                         }
                                     </div>
                                     <div>
                                         <p className="font-semibold">
-                                            {
-                                                {
-                                                    PUBLIC: '전체 공개',
-                                                    FRIENDS: '친구 공개',
-                                                    PRIVATE: '나만 보기',
-                                                }[status]
-                                            }
+                                            {option.label}
                                         </p>
                                         <p
                                             className={`text-sm ${
-                                                tempPrivacy === status
+                                                tempPrivacy === option.value
                                                     ? 'text-gray-300 dark:text-gray-500'
                                                     : 'text-gray-500 dark:text-gray-400'
                                             }`}
                                         >
-                                            {
-                                                {
-                                                    PUBLIC: '모든 사용자가 볼 수 있습니다.',
-                                                    FRIENDS:
-                                                        '나를 팔로우하는 친구들만 볼 수 있습니다.',
-                                                    PRIVATE: '나만 볼 수 있습니다.',
-                                                }[status]
-                                            }
+                                            {option.description}
                                         </p>
                                     </div>
                                 </button>

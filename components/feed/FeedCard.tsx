@@ -1,7 +1,7 @@
 import { FeedDiary } from '@/types/diary';
 import { FriendshipStatus } from '@/types/friend';
 import Image from 'next/image';
-import { formatTimeAgo, formatYearMonthDayDots } from '@/lib/utils/date';
+import { formatYearMonthDayDots } from '@/lib/utils/date';
 import {
   BookmarkIcon,
   CommentIcon,
@@ -363,15 +363,17 @@ const FeedCard = ({
         )}
       </div>
 
+      {/*
       <div className="px-3 pt-1">
-          <div onClick={onContentClick} className="cursor-pointer">
-            <p className="text-sm text-gray-500">View comments</p>
-          </div>
+        <div onClick={onContentClick} className="cursor-pointer">
+          <p className="text-sm text-gray-500">View comments</p>
+        </div>
       </div>
 
       <div className="px-3 pt-1">
         <p className="text-xs text-gray-500">{formatTimeAgo(post.createdAt)}</p>
       </div>
+      */}
 
       <form
         onSubmit={handleCommentSubmit}
@@ -411,4 +413,4 @@ const FeedCard = ({
   );
 };
 
-export default FeedCard; 
+export default FeedCard;

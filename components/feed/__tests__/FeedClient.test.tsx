@@ -5,6 +5,7 @@ import { getFeedCursor } from '@/lib/api/feed';
 import { addLike, removeLike } from '@/lib/api/like';
 import { trackEvent } from '@/lib/analytics/events';
 import type { CursorPage, FeedDiary } from '@/types/diary';
+import { FriendshipStatus } from '@/types/friend';
 
 vi.mock('@/lib/api/feed', () => ({
   getFeedCursor: vi.fn(),
@@ -83,7 +84,7 @@ const makeFeedItem = (id: number): FeedDiary => ({
   commentCount: 0,
   likeCount: 0,
   isLiked: false,
-  friendStatus: 'NONE' as const,
+  friendStatus: FriendshipStatus.NONE,
 });
 
 const makeResponse = (
