@@ -241,7 +241,7 @@ const FeedClient = () => {
         <p className="text-gray-500">피드를 불러오지 못했습니다.</p>
         <button
           onClick={loadMore}
-          className="rounded-lg bg-gray-800 px-4 py-2 text-white hover:bg-black"
+          className="rounded-lg bg-gray-800 px-4 py-2 text-white hover:bg-black cursor-pointer"
         >
           다시 시도
         </button>
