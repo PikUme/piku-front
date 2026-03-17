@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useCallback } from 'react';
 import { deleteNotification, getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/api/notification';
 import { Notification } from '@/types/notification';
+import { getNotificationNavigationPath } from '@/lib/utils/notification';
 import { Trash2, Loader2, Check } from 'lucide-react';
 import useNotificationStore from '../store/notificationStore';
 import useAuthStore from '../store/authStore';
@@ -67,8 +68,8 @@ const NotificationsClient = () => {
       decrementUnreadCount();
     }
 
-    if (notification.diaryDate) {
-      const url = `/profile/${notification.diaryUserId}/calendar?date=${notification.diaryDate}&diaryId=${notification.relatedDiaryId}`;
+    const url = getNotificationNavigationPath(notification);
+    if (url) {
       router.push(url);
     }
   };
@@ -199,4 +200,3 @@ const NotificationsClient = () => {
 };
 
 export default NotificationsClient;
-
