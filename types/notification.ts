@@ -1,6 +1,7 @@
 export type NotificationType =
   | 'FRIEND_REQUEST'
   | 'FRIEND_ACCEPT'
+  | 'LIKE'
   | 'COMMENT'
   | 'REPLY'
   | 'FRIEND_DIARY';
