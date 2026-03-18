@@ -6,6 +6,10 @@ import { requestPermissionAndGetToken } from '@/lib/utils/fcm';
 import { registerFCMToken } from '@/lib/api/user';
 
 const FCMInitializer = () => {
+  if (process.env.NEXT_PUBLIC_E2E_TEST === '1') {
+    return null;
+  }
+
   const { isLoggedIn, user } = useAuthStore();
   const [isTokenRegistered, setIsTokenRegistered] = useState(false);
 
