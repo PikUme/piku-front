@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
@@ -28,6 +29,61 @@ interface PikuCalendarProps {
   onMonthChange?: (date: Date) => void;
   isMyCalendar: boolean;
 }
+
+interface CalendarDayImageProps {
+  dateKey: string;
+  imageUrl: string;
+}
+
+const CalendarDayImage = ({ dateKey, imageUrl }: CalendarDayImageProps) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsLoaded(false);
+
+    const preloadImage = new window.Image();
+    const markLoaded = () => setIsLoaded(true);
+
+    preloadImage.src = imageUrl;
+
+    if (preloadImage.complete) {
+      markLoaded();
+      return;
+    }
+
+    preloadImage.addEventListener('load', markLoaded);
+    preloadImage.addEventListener('error', markLoaded);
+
+    return () => {
+      preloadImage.removeEventListener('load', markLoaded);
+      preloadImage.removeEventListener('error', markLoaded);
+    };
+  }, [imageUrl]);
+
+  return (
+    <>
+      {!isLoaded && (
+        <div
+          data-testid={`calendar-skeleton-${dateKey}`}
+          className="absolute inset-0 animate-pulse bg-gray-200 dark:bg-gray-700"
+        />
+      )}
+      <Image
+        key={imageUrl}
+        data-testid={`calendar-image-${dateKey}`}
+        src={imageUrl}
+        alt={`piku for ${dateKey}`}
+        fill
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setIsLoaded(true)}
+        className={`object-cover transition-opacity duration-200 ${
+          isLoaded ? 'opacity-100' : 'opacity-0'
+        }`}
+        sizes="(max-width: 768px) 12vw, (max-width: 1200px) 8vw, 6vw"
+      />
+    </>
+  );
+};
 
 const PikuCalendar = ({
   targetUser,
@@ -101,6 +157,7 @@ const PikuCalendar = ({
             <div
               key={day.toString()}
               onClick={handleClick}
+              data-testid={`calendar-cell-${dateKey}`}
               className={`relative flex justify-center items-center overflow-hidden rounded-md  ${
                 isCurrentDay ? 'border-yellow-400 border-2' : ''
               } ${
@@ -108,12 +165,9 @@ const PikuCalendar = ({
               } ${((canCreate || canView) || (!isCurrentMonth && onMonthChange)) ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700' : ''}`}
             >
               {pikuData && isCurrentMonth ? (
-                <Image
-                  src={pikuData.imageUrl}
-                  alt={`piku for ${dateKey}`}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 12vw, (max-width: 1200px) 8vw, 6vw"
+                <CalendarDayImage
+                  dateKey={dateKey}
+                  imageUrl={pikuData.imageUrl}
                 />
               ) : (
                 <span
@@ -134,4 +188,4 @@ const PikuCalendar = ({
   );
 };
 
-export default PikuCalendar; 
+export default PikuCalendar;

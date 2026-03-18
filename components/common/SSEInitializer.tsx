@@ -14,6 +14,10 @@ import {
 const RECONNECT_DELAY = 3000; // 3초 후 재연결
 
 const SSEInitializer = () => {
+  if (process.env.NEXT_PUBLIC_E2E_TEST === '1') {
+    return null;
+  }
+
   const { isLoggedIn } = useAuthStore();
   const { setUnreadCount, incrementUnreadCount } = useNotificationStore();
   const eventSourceRef = useRef<EventSourcePolyfill | null>(null);
