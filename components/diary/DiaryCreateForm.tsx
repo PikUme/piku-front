@@ -4,10 +4,28 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createDiary, generateAiPhotos, getRemainingAiRequests } from '@/lib/api/diary';
+import {
+  createDiary,
+  generateAiPhotos,
+  getMonthlyDiaries,
+  getRemainingAiRequests,
+} from '@/lib/api/diary';
 import useAuthStore from '../store/authStore';
 import imageCompression from 'browser-image-compression';
 import TextareaAutosize from 'react-textarea-autosize';
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isAfter,
+  isSameMonth,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+} from 'date-fns';
 import {
   diarySchema,
   DiaryFormValues,
@@ -15,6 +33,7 @@ import {
   PrivacyStatus,
 } from '@/types/diary';
 import { getPrivacyLabel, PRIVACY_OPTIONS } from '@/lib/utils/privacy';
+import { getSeoulDate } from '@/lib/utils/date';
 import {
   X,
   Globe,
@@ -25,6 +44,10 @@ import {
   XCircle,
   LogIn,
   GripVertical,
+  CalendarDays,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import ImagePreviewModal from '../common/ImagePreviewModal';
@@ -41,6 +64,12 @@ const getSavedPrivacy = (): PrivacyStatus => {
   if (v === null) return 'PUBLIC';
   return _PM[v] ?? 'PUBLIC';
 };
+
+const parseRouteDate = (dateString: string) => new Date(`${dateString}T00:00:00`);
+const getDateKey = (dateValue: Date) => format(dateValue, 'yyyy-MM-dd');
+const getMonthKey = (dateValue: Date) => format(dateValue, 'yyyy-MM');
+const dayNames = ['월', '화', '수', '목', '금', '토', '일'];
+type MonthAvailabilityStatus = 'loading' | 'loaded' | 'error';
 
 // PhotoItem 컴포넌트 분리
 const PhotoItem = ({
@@ -142,6 +171,18 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
   const [allPhotos, setAllPhotos] = useState<UnifiedPhoto[]>([]);
   const [privacy, setPrivacy] = useState<PrivacyStatus>(getSavedPrivacy);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(date);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [displayMonth, setDisplayMonth] = useState(() =>
+    startOfMonth(parseRouteDate(date)),
+  );
+  const [occupiedDatesByMonth, setOccupiedDatesByMonth] = useState<
+    Record<string, string[]>
+  >({});
+  const [monthAvailabilityStatusByMonth, setMonthAvailabilityStatusByMonth] = useState<
+    Partial<Record<string, MonthAvailabilityStatus>>
+  >({});
+  const [isLoadingOccupiedDates, setIsLoadingOccupiedDates] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingAiPhotos, setIsGeneratingAiPhotos] = useState(false);
@@ -184,6 +225,11 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
     }
   }, [isLoggedIn, router]);
 
+  useEffect(() => {
+    setSelectedDate(date);
+    setDisplayMonth(startOfMonth(parseRouteDate(date)));
+  }, [date]);
+
   // AI 사진 생성 가능 횟수 가져오기
   useEffect(() => {
     const fetchRemainingRequests = async () => {
@@ -213,6 +259,60 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const monthKey = getMonthKey(displayMonth);
+  const today = startOfDay(getSeoulDate());
+  const currentMonthStart = startOfMonth(today);
+  const monthAvailabilityStatus = monthAvailabilityStatusByMonth[monthKey];
+
+  const loadMonthAvailability = async (targetMonth: Date, targetMonthKey: string) => {
+    if (!user?.id) {
+      return;
+    }
+
+    setIsLoadingOccupiedDates(true);
+    setMonthAvailabilityStatusByMonth(prev => ({
+      ...prev,
+      [targetMonthKey]: 'loading',
+    }));
+
+    try {
+      const diaries = await getMonthlyDiaries(
+        user.id,
+        targetMonth.getFullYear(),
+        targetMonth.getMonth() + 1,
+      );
+
+      setOccupiedDatesByMonth(prev => ({
+        ...prev,
+        [targetMonthKey]: diaries.map(diary => diary.date),
+      }));
+      setMonthAvailabilityStatusByMonth(prev => ({
+        ...prev,
+        [targetMonthKey]: 'loaded',
+      }));
+    } catch (error) {
+      console.error('작성된 날짜 조회 실패:', error);
+      setMonthAvailabilityStatusByMonth(prev => ({
+        ...prev,
+        [targetMonthKey]: 'error',
+      }));
+    } finally {
+      setIsLoadingOccupiedDates(false);
+    }
+  };
+
+  useEffect(() => {
+    if (
+      !user?.id ||
+      monthAvailabilityStatus === 'loading' ||
+      monthAvailabilityStatus === 'loaded' ||
+      monthAvailabilityStatus === 'error'
+    ) {
+      return;
+    }
+    void loadMonthAvailability(displayMonth, monthKey);
+  }, [displayMonth, monthAvailabilityStatus, monthKey, user?.id]);
 
   const handleDragStart = () => {
     setIsDragging(true);
@@ -364,7 +464,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
         diary: {
           status: privacy,
           content: data.content,
-          date,
+          date: selectedDate,
           imageInfos,
         },
         photos: userPhotoFiles,
@@ -482,6 +582,16 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
     setIsPreviewModalOpen(true);
   };
 
+  const handleSelectDate = (nextDate: string) => {
+    setSelectedDate(nextDate);
+    setDisplayMonth(startOfMonth(parseRouteDate(nextDate)));
+    setIsDatePickerOpen(false);
+
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `/diary/new/${nextDate}`);
+    }
+  };
+
   const removePhoto = (photoToRemove: UnifiedPhoto) => {
     if (photoToRemove.type === 'user' && photoToRemove.url.startsWith('blob:')) {
       URL.revokeObjectURL(photoToRemove.url);
@@ -489,12 +599,25 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
     setAllPhotos(allPhotos.filter(p => p.id !== photoToRemove.id));
   };
   
-  const formattedDate = new Date(date).toLocaleDateString('ko-KR', {
+  const formattedDate = parseRouteDate(selectedDate).toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     weekday: 'long',
   });
+  const monthStart = startOfMonth(displayMonth);
+  const monthEnd = endOfMonth(displayMonth);
+  const calendarDays = eachDayOfInterval({
+    start: startOfWeek(monthStart, { weekStartsOn: 1 }),
+    end: endOfWeek(monthEnd, { weekStartsOn: 1 }),
+  });
+  const occupiedDates = occupiedDatesByMonth[monthKey] ?? [];
+  const isMonthAvailabilityReady = monthAvailabilityStatus === 'loaded';
+  const hasMonthAvailabilityError = monthAvailabilityStatus === 'error';
+  const canGoNextMonth = !isAfter(
+    startOfMonth(addMonths(displayMonth, 1)),
+    currentMonthStart,
+  );
 
   const PrivacyIcon =
     {
@@ -630,8 +753,20 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
                 </button>
             </div>
 
-            <div className="flex items-center text-sm text-gray-500 mb-4">
-                <span>{formattedDate}</span>
+            <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                <button
+                    type="button"
+                    onClick={() => setIsDatePickerOpen(true)}
+                    aria-haspopup="dialog"
+                    className="flex items-center gap-2 cursor-pointer rounded-md px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                    <CalendarDays size={16} />
+                    <span>{formattedDate}</span>
+                    <ChevronDown size={16} />
+                </button>
+                <span className="text-xs text-gray-400">
+                    작성된 날짜는 선택할 수 없어요
+                </span>
             </div>
 
             <form
@@ -663,6 +798,122 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
         </main>
 
         <AnimatePresence>
+            {isDatePickerOpen && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/50 flex items-end justify-center z-50"
+                    onClick={() => setIsDatePickerOpen(false)}
+                >
+                    <motion.div
+                        initial={{ y: '100%' }}
+                        animate={{ y: 0 }}
+                        exit={{ y: '100%' }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                        className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-t-2xl p-4 z-50"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="w-12 h-1.5 bg-gray-200/50 dark:bg-gray-700/50 rounded-full mx-auto mb-4" />
+                        <div className="flex items-center justify-between mb-6">
+                            <button
+                                type="button"
+                                onClick={() => setDisplayMonth(prev => subMonths(prev, 1))}
+                                className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                            >
+                                <ChevronLeft size={20} />
+                            </button>
+                            <div className="text-center">
+                                <p className="text-lg font-bold text-black dark:text-white">
+                                    {format(displayMonth, 'yyyy년 M월')}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                    작성된 날짜와 미래 날짜는 비활성화됩니다
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setDisplayMonth(prev => addMonths(prev, 1))}
+                                disabled={!canGoNextMonth}
+                                className="rounded-full p-2 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed dark:hover:bg-gray-700 cursor-pointer"
+                            >
+                                <ChevronRight size={20} />
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-7 text-center text-sm text-gray-500 mb-3">
+                            {dayNames.map(dayName => (
+                                <div key={dayName} className="py-2">
+                                    {dayName}
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="grid grid-cols-7 gap-2">
+                            {calendarDays.map(day => {
+                                const dayKey = getDateKey(day);
+                                const isCurrentMonth = isSameMonth(day, displayMonth);
+                                const isSelected = dayKey === selectedDate;
+                                const isFutureDate = isAfter(startOfDay(day), today);
+                                const isOccupied =
+                                    occupiedDates.includes(dayKey) && !isSelected;
+                                const isDisabled =
+                                    !isCurrentMonth ||
+                                    isFutureDate ||
+                                    isOccupied ||
+                                    !isMonthAvailabilityReady;
+
+                                return (
+                                    <button
+                                        key={dayKey}
+                                        type="button"
+                                        aria-label={dayKey}
+                                        data-testid={`date-cell-${dayKey}`}
+                                        disabled={isDisabled}
+                                        onClick={() => handleSelectDate(dayKey)}
+                                        className={`relative h-11 rounded-lg text-sm transition-colors ${
+                                            isSelected
+                                                ? 'bg-blue-500 text-white font-semibold'
+                                                : isDisabled
+                                                    ? 'bg-gray-100 text-gray-300 dark:bg-gray-900 dark:text-gray-600 cursor-not-allowed'
+                                                    : 'bg-gray-50 text-gray-800 hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 cursor-pointer'
+                                        }`}
+                                    >
+                                        {format(day, 'd')}
+                                        {isOccupied && (
+                                            <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px]">
+                                                작성됨
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {isLoadingOccupiedDates && (
+                            <p className="mt-4 text-center text-sm text-gray-500">
+                                작성된 날짜를 확인하는 중...
+                            </p>
+                        )}
+                        {hasMonthAvailabilityError && (
+                            <div className="mt-4 text-center">
+                                <p className="text-sm text-red-500">
+                                    작성된 날짜를 확인하지 못했어요. 다시 시도해주세요.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                      void loadMonthAvailability(displayMonth, monthKey);
+                                    }}
+                                    className="mt-2 text-sm font-medium text-blue-500 cursor-pointer"
+                                >
+                                    다시 불러오기
+                                </button>
+                            </div>
+                        )}
+                    </motion.div>
+                </motion.div>
+            )}
             {isPrivacyModalOpen && (
                 <motion.div
                     initial={{ opacity: 0 }}
@@ -743,4 +994,4 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
   );
 };
 
-export default DiaryCreateForm; 
+export default DiaryCreateForm;
