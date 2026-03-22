@@ -4,6 +4,7 @@ import { describe, expect, it, beforeEach, vi } from 'vitest';
 import type { Page } from '@/types/api';
 import type { Notification } from '@/types/notification';
 import NotificationsClient from '../NotificationsClient';
+import { getDiaryById } from '@/lib/api/diary';
 import {
   deleteNotification,
   getNotifications,
@@ -27,6 +28,10 @@ vi.mock('@/lib/api/notification', () => ({
   markNotificationAsRead: vi.fn(),
   markAllNotificationsAsRead: vi.fn(),
   deleteNotification: vi.fn(),
+}));
+
+vi.mock('@/lib/api/diary', () => ({
+  getDiaryById: vi.fn(),
 }));
 
 vi.mock('../../store/notificationStore', () => ({
@@ -58,6 +63,7 @@ vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
 
 const mockGetNotifications = vi.mocked(getNotifications);
 const mockMarkNotificationAsRead = vi.mocked(markNotificationAsRead);
+const mockGetDiaryById = vi.mocked(getDiaryById);
 
 const makeNotification = (
   overrides: Partial<Notification> = {},
@@ -125,9 +131,25 @@ describe('NotificationsClient', () => {
     vi.mocked(deleteNotification).mockResolvedValue(undefined);
     vi.mocked(markAllNotificationsAsRead).mockResolvedValue(undefined);
     mockMarkNotificationAsRead.mockResolvedValue(undefined);
+    mockGetDiaryById.mockResolvedValue({
+      diaryId: 42,
+      content: 'content',
+      date: '2026-03-17',
+      status: 'PUBLIC',
+      createdAt: '2026-03-17T00:00:00',
+      updatedAt: '2026-03-17T00:00:00',
+      isLiked: false,
+      likeCount: 0,
+      commentCount: 0,
+      imgUrls: [],
+      nickname: 'tester',
+      avatar: '/avatar.png',
+      userId: 'user-1',
+      comments: [],
+    });
   });
 
-  it('LIKE 알림 클릭 시 일기 상세 페이지로 이동한다', async () => {
+  it('LIKE 알림 클릭 시 프로필 캘린더 상세 위치로 이동한다', async () => {
     mockGetNotifications.mockResolvedValue(
       makePage([makeNotification({ message: 'liked your diary' })]),
     );
@@ -137,9 +159,33 @@ describe('NotificationsClient', () => {
     fireEvent.click(await screen.findByText('liked your diary'));
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/diary/42');
+      expect(mockPush).toHaveBeenCalledWith(
+        '/profile/user-1/calendar?date=2026-03-17&diaryId=42',
+      );
       expect(mockMarkNotificationAsRead).toHaveBeenCalledWith(1);
       expect(mockDecrementUnreadCount).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('LIKE 알림에 프로필 메타가 없으면 일기 조회 후 프로필 캘린더 상세 위치로 이동한다', async () => {
+    mockGetNotifications.mockResolvedValue(
+      makePage([
+        makeNotification({
+          diaryDate: null,
+          diaryUserId: null,
+        }),
+      ]),
+    );
+
+    renderClient();
+
+    fireEvent.click(await screen.findByText('liked your diary'));
+
+    await waitFor(() => {
+      expect(mockGetDiaryById).toHaveBeenCalledWith(42);
+      expect(mockPush).toHaveBeenCalledWith(
+        '/profile/user-1/calendar?date=2026-03-17&diaryId=42',
+      );
     });
   });
 
@@ -159,9 +205,11 @@ describe('NotificationsClient', () => {
 
     fireEvent.click(await screen.findByText('posted a new diary'));
 
-    expect(mockPush).toHaveBeenCalledWith(
-      '/profile/user-1/calendar?date=2026-03-17&diaryId=77',
-    );
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(
+        '/profile/user-1/calendar?date=2026-03-17&diaryId=77',
+      );
+    });
   });
 
   it('읽은 알림 클릭 시 읽음 처리 요청 없이 이동만 한다', async () => {
@@ -180,7 +228,9 @@ describe('NotificationsClient', () => {
     fireEvent.click(await screen.findByText('already read'));
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/diary/42');
+      expect(mockPush).toHaveBeenCalledWith(
+        '/profile/user-1/calendar?date=2026-03-17&diaryId=42',
+      );
     });
     expect(mockMarkNotificationAsRead).not.toHaveBeenCalled();
     expect(mockDecrementUnreadCount).not.toHaveBeenCalled();
