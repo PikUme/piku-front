@@ -19,20 +19,20 @@ const makeNotification = (
 });
 
 describe('getNotificationNavigationPath', () => {
-  it('LIKE 알림은 일기 상세 페이지로 이동한다', () => {
+  it('LIKE 알림은 프로필 캘린더 상세 위치로 이동한다', () => {
     const path = getNotificationNavigationPath(
       makeNotification({ type: 'LIKE', relatedDiaryId: 42 }),
     );
 
-    expect(path).toBe('/diary/42');
+    expect(path).toBe('/profile/user-1/calendar?date=2026-03-17&diaryId=42');
   });
 
-  it('COMMENT 알림은 일기 상세 페이지로 이동한다', () => {
+  it('COMMENT 알림은 프로필 캘린더 상세 위치로 이동한다', () => {
     const path = getNotificationNavigationPath(
       makeNotification({ type: 'COMMENT', relatedDiaryId: 84 }),
     );
 
-    expect(path).toBe('/diary/84');
+    expect(path).toBe('/profile/user-1/calendar?date=2026-03-17&diaryId=84');
   });
 
   it('그 외 일기 알림은 캘린더 위치로 이동한다', () => {
@@ -51,5 +51,18 @@ describe('getNotificationNavigationPath', () => {
     );
 
     expect(path).toBeNull();
+  });
+
+  it('LIKE 알림에서 프로필 정보가 없으면 일기 상세 페이지로 fallback 한다', () => {
+    const path = getNotificationNavigationPath(
+      makeNotification({
+        type: 'LIKE',
+        relatedDiaryId: 42,
+        diaryDate: null,
+        diaryUserId: null,
+      }),
+    );
+
+    expect(path).toBe('/diary/42');
   });
 });

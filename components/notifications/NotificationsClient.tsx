@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useCallback } from 'react';
 import { deleteNotification, getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/api/notification';
+import { getDiaryById } from '@/lib/api/diary';
 import { Notification } from '@/types/notification';
 import { getNotificationNavigationPath } from '@/lib/utils/notification';
 import { Trash2, Loader2, Check } from 'lucide-react';
@@ -62,13 +63,43 @@ const NotificationsClient = () => {
     },
   });
 
-  const handleNotificationClick = (notification: Notification) => {
+  const buildDiaryCalendarPath = (userId: string, date: string, diaryId: number) => {
+    const params = new URLSearchParams({
+      date,
+      diaryId: String(diaryId),
+    });
+
+    return `/profile/${userId}/calendar?${params.toString()}`;
+  };
+
+  const resolveNotificationNavigationPath = async (notification: Notification) => {
+    const path = getNotificationNavigationPath(notification);
+    if (path && !path.startsWith('/diary/')) {
+      return path;
+    }
+
+    if (
+      (notification.type === 'LIKE' || notification.type === 'COMMENT') &&
+      notification.relatedDiaryId !== null
+    ) {
+      try {
+        const diary = await getDiaryById(notification.relatedDiaryId);
+        return buildDiaryCalendarPath(diary.userId, diary.date, diary.diaryId);
+      } catch (error) {
+        console.error('알림 경로용 일기 정보 조회 실패:', error);
+      }
+    }
+
+    return path;
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
     if (!notification.isRead) {
       readMutation.mutate(notification.id);
       decrementUnreadCount();
     }
 
-    const url = getNotificationNavigationPath(notification);
+    const url = await resolveNotificationNavigationPath(notification);
     if (url) {
       router.push(url);
     }
@@ -147,7 +178,9 @@ const NotificationsClient = () => {
                     ? 'bg-white dark:bg-gray-800'
                     : 'bg-blue-50 dark:bg-blue-900/50'
                 } hover:bg-gray-100 dark:hover:bg-gray-700`}
-                onClick={() => handleNotificationClick(notification)}
+                onClick={() => {
+                  void handleNotificationClick(notification);
+                }}
               >
                 <div className="flex items-center flex-1">
                   {notification.avatarUrl && (
