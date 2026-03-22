@@ -79,6 +79,18 @@ export const getDaysInMonth = (year: number, month: number) => {
   return new Date(year, month, 0).getDate();
 }; 
 
+export const formatDateParam = (
+  year: number,
+  month: number,
+  day: number = 1,
+): string => {
+  return [
+    String(year).padStart(4, '0'),
+    String(month).padStart(2, '0'),
+    String(day).padStart(2, '0'),
+  ].join('-');
+};
+
 export const getSeoulDate = (): Date => {
   const now = new Date();
   const utc = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
