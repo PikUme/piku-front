@@ -11,6 +11,7 @@ import {
   rejectFriendRequest,
   sendFriendRequest,
 } from '@/lib/api/friend';
+import { formatDateParam } from '@/lib/utils/date';
 import { FriendshipStatus, UserProfile } from '@/types/friend';
 import { UserProfileResponseDTO, DiaryMonthCountDTO } from '@/types/profile';
 import FriendActionConfirmModal from '@/components/feed/FriendActionConfirmModal';
@@ -51,12 +52,11 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
     }
   };
 
-  const handleMonthClick = (month: number) => {
+  const handleMonthClick = (year: number, month: number) => {
     if (!profileData.userId) return;
-    const year = new Date().getFullYear();
-    const date = new Date(year, month - 1, 1);
+    const dateParam = formatDateParam(year, month);
     router.push(
-      `/profile/${profileData.userId}/calendar?date=${date.toISOString()}`,
+      `/profile/${profileData.userId}/calendar?date=${dateParam}`,
     );
   };
 
@@ -198,9 +198,9 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
               profileData.monthlyDiaryCount.map(
                 (stat: DiaryMonthCountDTO) => (
                   <div
-                    key={stat.month}
+                    key={`${stat.year}-${stat.month}`}
                     className="flex items-center cursor-pointer hover:bg-gray-50"
-                    onClick={() => handleMonthClick(stat.month)}
+                    onClick={() => handleMonthClick(stat.year, stat.month)}
                   >
                     <div className="w-6 h-6 flex-shrink-0 mr-4 z-10">
                       <div className="w-5 h-5 bg-gray-300 rounded-full mx-auto my-1.5"></div>
