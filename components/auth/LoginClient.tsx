@@ -6,6 +6,7 @@ import { login } from '@/lib/api/auth';
 import Link from 'next/link';
 import useAuthStore from '@/components/store/authStore';
 import { AUTH_TOKEN_KEY } from '@/lib/constants';
+import { getApiErrorMessage } from '@/lib/utils/apiError';
 
 const LoginClient = () => {
   const [email, setEmail] = useState('');
@@ -44,9 +45,8 @@ const LoginClient = () => {
         // 성공 응답을 받았으나 토큰이나 유저 정보가 없는 경우
         throw new Error('인증 정보가 올바르지 않습니다.');
       }
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.response?.data || '로그인 중 오류가 발생했습니다.';
-      setMessage(errorMessage);
+    } catch (error: unknown) {
+      setMessage(getApiErrorMessage(error, '로그인 중 오류가 발생했습니다.'));
     } finally {
       setIsLoading(false);
     }
