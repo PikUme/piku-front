@@ -753,7 +753,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
                 </button>
             </div>
 
-            <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+            <div className="mb-4 flex items-center text-sm text-gray-500">
                 <button
                     type="button"
                     onClick={() => setIsDatePickerOpen(true)}
@@ -764,9 +764,6 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
                     <span>{formattedDate}</span>
                     <ChevronDown size={16} />
                 </button>
-                <span className="text-xs text-gray-400">
-                    작성된 날짜는 선택할 수 없어요
-                </span>
             </div>
 
             <form
@@ -826,9 +823,6 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
                             <div className="text-center">
                                 <p className="text-lg font-bold text-black dark:text-white">
                                     {format(displayMonth, 'yyyy년 M월')}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                    작성된 날짜와 미래 날짜는 비활성화됩니다
                                 </p>
                             </div>
                             <button
