@@ -1,3 +1,16 @@
+export interface ProblemDetail {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  instance: string;
+  fieldErrors?: Record<string, string>;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
 export interface Page<T> {
   content: T[];
   pageable: {
