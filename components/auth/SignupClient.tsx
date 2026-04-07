@@ -9,6 +9,7 @@ import {
   verifyCode,
   getAllowedEmailDomains,
 } from '@/lib/api/auth';
+import { getApiErrorMessage } from '@/lib/utils/apiError';
 import { useRouter } from 'next/navigation';
 import MobileView from './signup/MobileView';
 import DesktopView from './signup/DesktopView';
@@ -153,11 +154,11 @@ const SignupClient = () => {
     setMessage('');
     setIsSendingVerification(true);
     try {
-      await sendSignUpVerificationEmail(values.email);
+      const response = await sendSignUpVerificationEmail(values.email);
       setIsVerificationSent(true);
-      setMessage('인증코드가 발송되었습니다.');
-    } catch (error: any) {
-      setMessage(error.response?.data?.message || '인증코드 발송에 실패했습니다.');
+      setMessage(response.message || '인증코드가 발송되었습니다.');
+    } catch (error) {
+      setMessage(getApiErrorMessage(error, '인증코드 발송에 실패했습니다.'));
     } finally {
       setIsLoading(false);
       setIsSendingVerification(false);
@@ -172,12 +173,18 @@ const SignupClient = () => {
     setIsLoading(true);
     setVerificationMessage('');
     try {
-      await verifyCode({ email: values.email, code: values.verificationCode, type: 'SIGN_UP' });
+      const response = await verifyCode({
+        email: values.email,
+        code: values.verificationCode,
+        type: 'SIGN_UP',
+      });
       setIsEmailVerified(true);
-      setMessage('이메일 인증이 완료되었습니다.');
+      setMessage(response.message || '이메일 인증이 완료되었습니다.');
       setIsVerificationSent(false); // 인증 성공 시 입력창 숨김
-    } catch (error: any) {
-      setVerificationMessage(error.response?.data?.message || '인증코드가 올바르지 않습니다.');
+    } catch (error) {
+      setVerificationMessage(
+        getApiErrorMessage(error, '인증코드가 올바르지 않습니다.'),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -209,13 +216,15 @@ const SignupClient = () => {
     setIsLoading(true);
     try {
       const { verificationCode, passwordConfirm, ...signupData } = values;
-      await signup(signupData);
-      setMessage('회원가입이 완료되었습니다! 잠시 후 로그인 페이지로 이동합니다.');
+      const response = await signup(signupData);
+      setMessage(
+        response.message || '회원가입이 완료되었습니다! 잠시 후 로그인 페이지로 이동합니다.',
+      );
       setTimeout(() => {
         router.push('/login');
       }, 2000);
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || '회원가입에 실패했습니다.';
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, '회원가입에 실패했습니다.');
       setMessage(errorMessage);
       console.error('Signup failed:', error);
     } finally {

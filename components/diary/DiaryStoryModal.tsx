@@ -18,6 +18,7 @@ import type { DiaryDetail } from '@/types/diary';
 import { formatTimeAgo, formatYearMonthDayDots } from '@/lib/utils/date';
 import { getPrivacyLabel } from '@/lib/utils/privacy';
 import { getServerURL } from '@/lib/utils/url';
+import { getApiErrorMessage } from '@/lib/utils/apiError';
 import useAuthStore from '@/components/store/authStore';
 import { deleteDiary } from '@/lib/api/diary';
 import StoryCommentModal from './StoryCommentModal';
@@ -94,8 +95,8 @@ const DiaryStoryModal = ({
       } else {
         onClose();
       }
-    } catch (e) {
-      alert('일기 삭제에 실패했습니다.');
+    } catch (error) {
+      alert(getApiErrorMessage(error, '일기 삭제에 실패했습니다.'));
     }
   };
 

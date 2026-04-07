@@ -30,6 +30,7 @@ import { deleteDiary } from '@/lib/api/diary';
 import { formatTimeAgo, formatYearMonthDay } from '@/lib/utils/date';
 import { getPrivacyLabel } from '@/lib/utils/privacy';
 import { getServerURL } from '@/lib/utils/url';
+import { getApiErrorMessage } from '@/lib/utils/apiError';
 import useAuthStore from '@/components/store/authStore';
 import CommentItem from './CommentItem';
 import CommentInput from './CommentInput';
@@ -459,8 +460,8 @@ const DiaryDetailModal = ({ diary, onClose, onDelete }: DiaryDetailModalProps) =
       } else {
         onClose();
       }
-    } catch (e) {
-      alert('일기 삭제에 실패했습니다.');
+    } catch (error) {
+      alert(getApiErrorMessage(error, '일기 삭제에 실패했습니다.'));
     }
   };
 

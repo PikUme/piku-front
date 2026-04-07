@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import FeedClient from '../FeedClient';
 import { getFeedCursor } from '@/lib/api/feed';
+import { getDiaryById } from '@/lib/api/diary';
 import { addLike, removeLike } from '@/lib/api/like';
 import { trackEvent } from '@/lib/analytics/events';
 import type { CursorPage, FeedDiary } from '@/types/diary';
@@ -31,11 +32,20 @@ vi.mock('react-responsive', () => ({
 }));
 
 vi.mock('../FeedCard', () => ({
-  default: ({ post, onLikeToggle }: { post: FeedDiary; onLikeToggle: (id: number) => void }) => (
+  default: ({
+    post,
+    onLikeToggle,
+    onContentClick,
+  }: {
+    post: FeedDiary;
+    onLikeToggle: (id: number) => void;
+    onContentClick: () => void;
+  }) => (
     <div data-testid={`feed-card-${post.diaryId}`}>
       {post.content}
       <span data-testid={`like-count-${post.diaryId}`}>{post.likeCount}</span>
       <span data-testid={`like-status-${post.diaryId}`}>{post.isLiked ? 'liked' : 'not-liked'}</span>
+      <button data-testid={`content-btn-${post.diaryId}`} onClick={onContentClick}>open</button>
       <button data-testid={`like-btn-${post.diaryId}`} onClick={() => onLikeToggle(post.diaryId)}>like</button>
     </div>
   ),
@@ -70,6 +80,7 @@ class MockIntersectionObserver {
 vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
 
 const mockGetFeedCursor = vi.mocked(getFeedCursor);
+const mockGetDiaryById = vi.mocked(getDiaryById);
 
 const makeFeedItem = (id: number): FeedDiary => ({
   diaryId: id,
@@ -100,6 +111,7 @@ const makeResponse = (
 describe('FeedClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
 
   it('첫 로드 시 cursor 없이 요청한다', async () => {
@@ -244,6 +256,37 @@ describe('FeedClient', () => {
     await waitFor(() => {
       expect(screen.getByTestId('like-status-1')).toHaveTextContent('not-liked');
       expect(screen.getByTestId('like-count-1')).toHaveTextContent('0');
+    });
+  });
+
+  it('일기 상세 조회 실패 시 backend detail을 alert로 보여준다', async () => {
+    mockGetFeedCursor.mockResolvedValue(makeResponse([1], 'c1', true));
+    mockGetDiaryById.mockRejectedValue({
+      response: {
+        data: {
+          type: 'https://api.pikume.com/problems/diary/not-found',
+          title: 'Not Found',
+          status: 404,
+          detail: '존재하지 않는 일기입니다.',
+          instance: '/api/diary/1',
+        },
+      },
+    });
+
+    const alertSpy = vi.spyOn(window, 'alert');
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('content-btn-1')).toBeDefined();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('content-btn-1'));
+    });
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('존재하지 않는 일기입니다.');
     });
   });
 });

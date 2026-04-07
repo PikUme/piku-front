@@ -7,6 +7,11 @@ import {
   checkNicknameAvailability,
   updateUserProfile,
 } from '@/lib/api/user';
+import {
+  getApiErrorMessage,
+  getFieldError,
+  hasProblemType,
+} from '@/lib/utils/apiError';
 import useAuthStore from '../store/authStore';
 import CharacterSelection from '../auth/CharacterSelection';
 import { getFixedCharacters } from '@/lib/api/character';
@@ -14,6 +19,9 @@ import { getFixedCharacters } from '@/lib/api/character';
 interface ProfileEditClientProps {
   profileData: UserProfileResponseDTO;
 }
+
+const NICKNAME_CONFLICT =
+  'https://api.pikume.com/problems/user/nickname-conflict';
 
 const ProfileEditClient = ({
   profileData,
@@ -82,10 +90,10 @@ const ProfileEditClient = ({
       const { success, message } = await checkNicknameAvailability(nickname);
       setIsNicknameAvailable(success);
       setNicknameCheckMessage(message);
-    } catch (error: any) {
+    } catch (error) {
       setIsNicknameAvailable(false);
       setNicknameCheckMessage(
-        error.response?.data?.message || '닉네임 확인 중 오류가 발생했습니다.',
+        getApiErrorMessage(error, '닉네임 확인 중 오류가 발생했습니다.'),
       );
     }
   };
@@ -122,11 +130,28 @@ const ProfileEditClient = ({
           avatar: updatedProfile.avatar || user.avatar,
         };
         updateUserInStore(updatedUser);
-        alert('프로필이 성공적으로 변경되었습니다.');
+        alert(updatedProfile.message || '프로필이 성공적으로 변경되었습니다.');
         router.push(`/profile/${user.id}`);
       }
-    } catch (error: any) {
-      alert(`프로필 업데이트 중 오류 발생: ${error.response?.data?.message || error.message}`);
+    } catch (error) {
+      const nicknameFieldError =
+        getFieldError(error, 'newNickname') ?? getFieldError(error, 'nickname');
+
+      if (nicknameFieldError || hasProblemType(error, NICKNAME_CONFLICT)) {
+        setIsNicknameAvailable(false);
+        setNicknameCheckMessage(
+          nicknameFieldError ??
+            getApiErrorMessage(error, '닉네임 중복 확인이 필요합니다.'),
+        );
+        return;
+      }
+
+      alert(
+        `프로필 업데이트 중 오류 발생: ${getApiErrorMessage(
+          error,
+          '프로필 업데이트 중 오류가 발생했습니다.',
+        )}`,
+      );
     }
   };
 

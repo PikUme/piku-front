@@ -12,6 +12,7 @@ import DiaryStoryModal from '../diary/DiaryStoryModal';
 import StoryCommentModal from '../diary/StoryCommentModal';
 import { addLike, removeLike } from '@/lib/api/like';
 import { trackEvent, FEED_CLICK, FEED_LIKE } from '@/lib/analytics/events';
+import { getApiErrorMessage } from '@/lib/utils/apiError';
 
 const FeedClient = () => {
   const [feed, setFeed] = useState<FeedDiary[]>([]);
@@ -92,7 +93,7 @@ const FeedClient = () => {
         trackEvent(FEED_CLICK, { diaryId });
       } catch (error) {
         console.error('Failed to fetch diary details', error);
-        alert('일기 정보를 불러오는데 실패했습니다.');
+        alert(getApiErrorMessage(error, '일기 정보를 불러오는데 실패했습니다.'));
       } finally {
         setIsLoadingDetail(false);
       }
