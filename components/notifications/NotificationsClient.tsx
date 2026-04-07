@@ -8,9 +8,13 @@ import { deleteNotification, getNotifications, markNotificationAsRead, markAllNo
 import { getDiaryById } from '@/lib/api/diary';
 import { Notification } from '@/types/notification';
 import { getNotificationNavigationPath } from '@/lib/utils/notification';
+import { getApiErrorMessage, hasProblemType } from '@/lib/utils/apiError';
 import { Trash2, Loader2, Check } from 'lucide-react';
 import useNotificationStore from '../store/notificationStore';
 import useAuthStore from '../store/authStore';
+
+const RESOURCE_NOT_FOUND =
+  'https://api.pikume.com/problems/common/resource-not-found';
 
 const NotificationsClient = () => {
   const queryClient = useQueryClient();
@@ -95,8 +99,16 @@ const NotificationsClient = () => {
 
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.isRead) {
-      readMutation.mutate(notification.id);
-      decrementUnreadCount();
+      try {
+        await readMutation.mutateAsync(notification.id);
+        decrementUnreadCount();
+      } catch (error) {
+        if (hasProblemType(error, RESOURCE_NOT_FOUND)) {
+          queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        } else {
+          alert(getApiErrorMessage(error, '알림 읽음 처리에 실패했습니다.'));
+        }
+      }
     }
 
     const url = await resolveNotificationNavigationPath(notification);
@@ -112,6 +124,14 @@ const NotificationsClient = () => {
         if (!notification.isRead) {
           decrementUnreadCount();
         }
+      },
+      onError: (error) => {
+        if (hasProblemType(error, RESOURCE_NOT_FOUND)) {
+          queryClient.invalidateQueries({ queryKey: ['notifications'] });
+          return;
+        }
+
+        alert(getApiErrorMessage(error, '알림 삭제에 실패했습니다.'));
       },
     });
   };

@@ -32,6 +32,10 @@ import {
   UnifiedPhoto,
   PrivacyStatus,
 } from '@/types/diary';
+import {
+  getApiErrorMessage,
+  getFieldError,
+} from '@/lib/utils/apiError';
 import { getPrivacyLabel, PRIVACY_OPTIONS } from '@/lib/utils/privacy';
 import { getSeoulDate } from '@/lib/utils/date';
 import {
@@ -203,6 +207,8 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
     getValues,
     watch,
     setValue,
+    setError,
+    clearErrors,
   } = useForm<DiaryFormValues>({
     resolver: zodResolver(diarySchema),
     mode: 'onChange',
@@ -432,6 +438,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
       alert('사진을 1장 이상 등록해주세요.');
       return;
     }
+    clearErrors('content');
     setIsSubmitting(true);
 
     const userPhotoFiles: File[] = [];
@@ -471,21 +478,20 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
       });
       localStorage.setItem(_PK, _PR[privacy]);
       router.push('/');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to create diary:', error);
-      if (
-        error?.response?.status === 400 &&
-        error?.response?.data?.errors
-      ) {
-        const messages = Object.values(error.response.data.errors);
-        if (messages.length > 0 && typeof messages[0] === 'string') {
-          alert(messages[0]);
-        } else {
-          alert('일기 생성에 실패했습니다. 다시 시도해주세요.');
-        }
-      } else {
-        alert('일기 생성에 실패했습니다. 다시 시도해주세요.');
+
+      const contentFieldError = getFieldError(error, 'content');
+
+      if (contentFieldError) {
+        setError('content', {
+          type: 'server',
+          message: contentFieldError,
+        });
+        return;
       }
+
+      alert(getApiErrorMessage(error, '일기 생성에 실패했습니다. 다시 시도해주세요.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -523,7 +529,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
       console.error('Failed to generate AI photos:', error);
       // 실패 시 횟수 복구
       setRemainingRequests(previousRemaining);
-      alert('AI 사진 생성에 실패했습니다.');
+      alert(getApiErrorMessage(error, 'AI 사진 생성에 실패했습니다.'));
     } finally {
       setIsGeneratingAiPhotos(false);
     }

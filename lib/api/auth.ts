@@ -3,6 +3,7 @@ import { AUTH_TOKEN_KEY } from '@/lib/constants';
 import generateUUID from '@/lib/utils/uuidGenerator';
 import { PwdResetRequest } from '@/types/auth';
 import { EmailVerificationRequest } from '@/types/auth';
+import type { MessageResponse } from '@/types/api';
 
 interface SignupData {
   email: string;
@@ -11,17 +12,22 @@ interface SignupData {
   character: string;
 }
 
-export const signup = async (data: SignupData) => {
+export const signup = async (data: SignupData): Promise<MessageResponse> => {
   const { character, ...rest } = data;
-  const response = await api.post('/auth/signup', {
+  const response = await api.post<MessageResponse>('/auth/signup', {
     ...rest,
     fixedCharacterId: Number(character),
   });
   return response.data;
 };
 
-export const sendSignUpVerificationEmail = async (email: string) => {
-  const response = await api.post('/auth/send-verification/sign-up', { email });
+export const sendSignUpVerificationEmail = async (
+  email: string,
+): Promise<MessageResponse> => {
+  const response = await api.post<MessageResponse>(
+    '/auth/send-verification/sign-up',
+    { email },
+  );
   return response.data;
 };
 
@@ -30,18 +36,30 @@ export const getAllowedEmailDomains = async () => {
   return response.data;
 };
 
-export const verifyCode = async (data: EmailVerificationRequest) => {
-  const response = await api.post('/auth/verify-code', data);
+export const verifyCode = async (
+  data: EmailVerificationRequest,
+): Promise<MessageResponse> => {
+  const response = await api.post<MessageResponse>('/auth/verify-code', data);
   return response.data;
 };
 
-export const sendVerificationCode = async (email: string, type: 'SIGN_UP' | 'PASSWORD_RESET') => {
-  return await api.post('/auth/send-verification/password-reset', { email: email, type });
-}
+export const sendVerificationCode = async (
+  email: string,
+  type: 'SIGN_UP' | 'PASSWORD_RESET',
+): Promise<MessageResponse> => {
+  const response = await api.post<MessageResponse>(
+    '/auth/send-verification/password-reset',
+    { email, type },
+  );
+  return response.data;
+};
 
-export const resetPassword = async(data: PwdResetRequest) => {
-  return await api.post('/auth/password-reset', data);
-}
+export const resetPassword = async (
+  data: PwdResetRequest,
+): Promise<MessageResponse> => {
+  const response = await api.post<MessageResponse>('/auth/password-reset', data);
+  return response.data;
+};
 
 interface LoginData {
   email: string;
