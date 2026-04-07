@@ -64,6 +64,7 @@ vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
 const mockGetNotifications = vi.mocked(getNotifications);
 const mockMarkNotificationAsRead = vi.mocked(markNotificationAsRead);
 const mockGetDiaryById = vi.mocked(getDiaryById);
+const mockDeleteNotification = vi.mocked(deleteNotification);
 
 const makeNotification = (
   overrides: Partial<Notification> = {},
@@ -128,7 +129,7 @@ const renderClient = () => {
 describe('NotificationsClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(deleteNotification).mockResolvedValue(undefined);
+    mockDeleteNotification.mockResolvedValue(undefined);
     vi.mocked(markAllNotificationsAsRead).mockResolvedValue(undefined);
     mockMarkNotificationAsRead.mockResolvedValue(undefined);
     mockGetDiaryById.mockResolvedValue({
@@ -147,6 +148,7 @@ describe('NotificationsClient', () => {
       userId: 'user-1',
       comments: [],
     });
+    vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
 
   it('LIKE 알림 클릭 시 프로필 캘린더 상세 위치로 이동한다', async () => {
@@ -234,5 +236,66 @@ describe('NotificationsClient', () => {
     });
     expect(mockMarkNotificationAsRead).not.toHaveBeenCalled();
     expect(mockDecrementUnreadCount).not.toHaveBeenCalled();
+  });
+
+  it('읽음 처리 실패 시 unread count를 줄이지 않고 이동한다', async () => {
+    mockGetNotifications.mockResolvedValue(
+      makePage([makeNotification({ message: 'liked your diary' })]),
+    );
+    mockMarkNotificationAsRead.mockRejectedValue({
+      response: {
+        data: {
+          type: 'https://api.pikume.com/problems/common/resource-not-found',
+          title: 'Not Found',
+          status: 404,
+          detail: '알림을 찾을 수 없습니다.',
+          instance: '/api/sse/1',
+        },
+      },
+    });
+
+    renderClient();
+
+    fireEvent.click(await screen.findByText('liked your diary'));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(
+        '/profile/user-1/calendar?date=2026-03-17&diaryId=42',
+      );
+    });
+    expect(mockDecrementUnreadCount).not.toHaveBeenCalled();
+  });
+
+  it('알림 삭제 실패 시 ProblemDetail.detail을 alert로 보여준다', async () => {
+    mockGetNotifications.mockResolvedValue(
+      makePage([
+        makeNotification({
+          id: 4,
+          isRead: true,
+          message: 'delete me',
+        }),
+      ]),
+    );
+    mockDeleteNotification.mockRejectedValue({
+      response: {
+        data: {
+          type: 'https://api.pikume.com/problems/common/internal-server-error',
+          title: 'Internal Server Error',
+          status: 500,
+          detail: '알림 삭제에 실패했습니다.',
+          instance: '/api/sse/4',
+        },
+      },
+    });
+
+    const alertSpy = vi.spyOn(window, 'alert');
+
+    renderClient();
+
+    fireEvent.click((await screen.findAllByRole('button'))[0]);
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('알림 삭제에 실패했습니다.');
+    });
   });
 });

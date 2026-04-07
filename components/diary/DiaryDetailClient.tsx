@@ -20,6 +20,7 @@ import Image from 'next/image';
 import useAuthStore from '../store/authStore';
 import DiaryDetailModal from './DiaryDetailModal';
 import CommentModal from './CommentModal';
+import { getApiErrorMessage } from '@/lib/utils/apiError';
 
 interface DiaryDetailClientProps {
   diaryId: number;
@@ -28,6 +29,7 @@ interface DiaryDetailClientProps {
 const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
   const [diary, setDiary] = useState<DiaryDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const { user, isLoggedIn } = useAuthStore();
@@ -42,7 +44,7 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
         setDiary(diaryData);
       } catch (error) {
         console.error('Failed to fetch diary details:', error);
-        // TODO: Show error state to user
+        setErrorMessage(getApiErrorMessage(error, '일기를 찾을 수 없습니다.'));
       } finally {
         setIsLoading(false);
       }
@@ -82,7 +84,7 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
   if (!diary) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <p>일기를 찾을 수 없습니다.</p>
+        <p>{errorMessage || '일기를 찾을 수 없습니다.'}</p>
       </div>
     );
   }

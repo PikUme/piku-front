@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { sendVerificationCode, verifyCode, resetPassword } from '@/lib/api/auth';
+import { getApiErrorMessage } from '@/lib/utils/apiError';
 
 const PasswordResetClient = () => {
   const [email, setEmail] = useState('');
@@ -24,11 +25,13 @@ const PasswordResetClient = () => {
     setMessage('');
     setIsLoading(true);
     try {
-      await sendVerificationCode(email, 'PASSWORD_RESET');
+      const response = await sendVerificationCode(email, 'PASSWORD_RESET');
       setStep(2);
-      setMessage('인증 코드가 발송되었습니다. 이메일을 확인해주세요.');
-    } catch (err: any) {
-      setError(err.response?.data?.message || '인증 코드 발송에 실패했습니다.');
+      setMessage(
+        response.message || '인증 코드가 발송되었습니다. 이메일을 확인해주세요.',
+      );
+    } catch (error) {
+      setError(getApiErrorMessage(error, '인증 코드 발송에 실패했습니다.'));
     } finally {
       setIsLoading(false);
     }
@@ -43,11 +46,11 @@ const PasswordResetClient = () => {
     setMessage('');
     setIsLoading(true);
     try {
-      await verifyCode({ email, code, type: 'PASSWORD_RESET' });
+      const response = await verifyCode({ email, code, type: 'PASSWORD_RESET' });
       setStep(3);
-      setMessage('인증에 성공했습니다. 새 비밀번호를 입력해주세요.');
-    } catch (err: any) {
-      setError(err.response?.data?.message || '인증에 실패했습니다.');
+      setMessage(response.message || '인증에 성공했습니다. 새 비밀번호를 입력해주세요.');
+    } catch (error) {
+      setError(getApiErrorMessage(error, '인증에 실패했습니다.'));
     } finally {
       setIsLoading(false);
     }
@@ -64,13 +67,16 @@ const PasswordResetClient = () => {
     setIsLoading(true);
 
     try {
-      await resetPassword({ email, password });
-      setMessage('비밀번호가 성공적으로 변경되었습니다. 로그인 페이지로 이동합니다.');
+      const response = await resetPassword({ email, password });
+      setMessage(
+        response.message ||
+          '비밀번호가 성공적으로 변경되었습니다. 로그인 페이지로 이동합니다.',
+      );
       setTimeout(() => {
         router.push('/login');
       }, 2000);
-    } catch (err: any) {
-      setError(err.response?.data?.message || '비밀번호 변경에 실패했습니다.');
+    } catch (error) {
+      setError(getApiErrorMessage(error, '비밀번호 변경에 실패했습니다.'));
     } finally {
       setIsLoading(false);
     }
