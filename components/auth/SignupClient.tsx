@@ -289,7 +289,7 @@ const SignupClient = () => {
         </div>
         {message && (
           <p
-            className={`mt-4 text-center ${
+            className={`mt-4 whitespace-pre-line text-center ${
               message.includes('완료') || message.includes('발송') ? 'text-green-600' : 'text-red-600'
             }`}
           >

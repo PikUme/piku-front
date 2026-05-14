@@ -1,12 +1,15 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { NETWORK_ERROR_MESSAGE } from '@/lib/utils/apiError';
+import LoginClient from '../LoginClient';
 import SignupClient from '../SignupClient';
 import PasswordResetClient from '../PasswordResetClient';
 
-const { mockPush, mockBack, sendSignUpVerificationEmail, sendVerificationCode } =
+const { mockPush, mockBack, login, sendSignUpVerificationEmail, sendVerificationCode } =
   vi.hoisted(() => ({
     mockPush: vi.fn(),
     mockBack: vi.fn(),
+    login: vi.fn(),
     sendSignUpVerificationEmail: vi.fn(),
     sendVerificationCode: vi.fn(),
   }));
@@ -23,6 +26,7 @@ vi.mock('react-responsive', () => ({
 }));
 
 vi.mock('@/lib/api/auth', () => ({
+  login,
   signup: vi.fn(),
   sendSignUpVerificationEmail,
   verifyCode: vi.fn(),
@@ -34,6 +38,26 @@ vi.mock('@/lib/api/auth', () => ({
 describe('Auth Problem Details migration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('로그인 네트워크 오류 메시지는 줄바꿈을 보존해 보여준다', async () => {
+    login.mockRejectedValue(new Error('Network Error'));
+
+    render(<LoginClient />);
+
+    fireEvent.change(screen.getByLabelText('이메일'), {
+      target: { value: 'tester@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('비밀번호'), {
+      target: { value: 'password' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '로그인' }));
+
+    const message = await screen.findByText(
+      (_, element) => element?.textContent === NETWORK_ERROR_MESSAGE,
+    );
+
+    expect(message).toHaveClass('whitespace-pre-line');
   });
 
   it('회원가입 인증 메일 발송 실패 시 ProblemDetail.detail을 보여준다', async () => {
@@ -61,6 +85,23 @@ describe('Auth Problem Details migration', () => {
     ).toBeInTheDocument();
   });
 
+  it('회원가입 네트워크 오류 메시지는 줄바꿈을 보존해 보여준다', async () => {
+    sendSignUpVerificationEmail.mockRejectedValue(new Error('Network Error'));
+
+    render(<SignupClient />);
+
+    fireEvent.change(screen.getByPlaceholderText('이메일을 입력해주세요'), {
+      target: { value: 'tester@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '전송' }));
+
+    const message = await screen.findByText(
+      (_, element) => element?.textContent === NETWORK_ERROR_MESSAGE,
+    );
+
+    expect(message).toHaveClass('whitespace-pre-line');
+  });
+
   it('비밀번호 재설정 인증 코드 발송 성공 시 MessageResponse.message를 보여준다', async () => {
     sendVerificationCode.mockResolvedValue({
       message: '서버 응답 기준 인증 코드가 발송되었습니다.',
@@ -76,5 +117,22 @@ describe('Auth Problem Details migration', () => {
     expect(
       await screen.findByText('서버 응답 기준 인증 코드가 발송되었습니다.'),
     ).toBeInTheDocument();
+  });
+
+  it('비밀번호 재설정 네트워크 오류 메시지는 줄바꿈을 보존해 보여준다', async () => {
+    sendVerificationCode.mockRejectedValue(new Error('Network Error'));
+
+    render(<PasswordResetClient />);
+
+    fireEvent.change(screen.getByPlaceholderText('가입한 이메일을 입력하세요'), {
+      target: { value: 'tester@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '인증 코드 받기' }));
+
+    const error = await screen.findByText(
+      (_, element) => element?.textContent === NETWORK_ERROR_MESSAGE,
+    );
+
+    expect(error).toHaveClass('whitespace-pre-line');
   });
 });

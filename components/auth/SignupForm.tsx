@@ -121,7 +121,7 @@ const SignupForm = ({
                 인증
               </button>
             </div>
-            {verificationMessage && <p className="text-red-500 text-xs mt-1 pl-10">{verificationMessage}</p>}
+            {verificationMessage && <p className="whitespace-pre-line text-red-500 text-xs mt-1 pl-10">{verificationMessage}</p>}
           </div>
         )}
 
@@ -223,4 +223,4 @@ const SignupForm = ({
   );
 };
 
-export default SignupForm; 
+export default SignupForm;

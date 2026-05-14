@@ -7,6 +7,11 @@ interface ErrorWithResponse {
   };
 }
 
+export const NETWORK_ERROR_MESSAGE =
+  '서버 연결이 원활하지 않습니다.\n잠시 후 다시 시도해주세요.';
+
+const AXIOS_NETWORK_ERROR_MESSAGE = 'Network Error';
+
 const isProblemDetail = (value: unknown): value is ProblemDetail => {
   return (
     !!value &&
@@ -51,6 +56,10 @@ export const getApiErrorMessage = (
   }
 
   if (typeof candidate?.message === 'string' && candidate.message.trim()) {
+    if (candidate.message === AXIOS_NETWORK_ERROR_MESSAGE) {
+      return NETWORK_ERROR_MESSAGE;
+    }
+
     return candidate.message;
   }
 

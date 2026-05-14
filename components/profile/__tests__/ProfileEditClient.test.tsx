@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { NETWORK_ERROR_MESSAGE } from '@/lib/utils/apiError';
 import ProfileEditClient from '../ProfileEditClient';
 import type { UserProfileResponseDTO } from '@/types/profile';
 import { FriendshipStatus } from '@/types/friend';
@@ -86,6 +87,24 @@ describe('ProfileEditClient', () => {
     expect(
       await screen.findByText('이미 사용 중인 닉네임입니다.'),
     ).toBeInTheDocument();
+  });
+
+  it('닉네임 중복 확인 네트워크 오류 메시지는 줄바꿈을 보존해 보여준다', async () => {
+    checkNicknameAvailability.mockRejectedValue(new Error('Network Error'));
+
+    render(<ProfileEditClient profileData={profileData} />);
+
+    fireEvent.change(screen.getByLabelText('닉네임'), {
+      target: { value: '새닉네임' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '중복확인' }));
+
+    const messages = await screen.findAllByText(
+      (_, element) => element?.textContent === NETWORK_ERROR_MESSAGE,
+    );
+    const message = messages.find(element => element.tagName === 'P');
+
+    expect(message).toHaveClass('whitespace-pre-line');
   });
 
   it('프로필 저장 실패 시 ProblemDetail.detail을 alert로 보여준다', async () => {

@@ -84,7 +84,9 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
   if (!diary) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <p>{errorMessage || '일기를 찾을 수 없습니다.'}</p>
+        <p className="whitespace-pre-line text-center">
+          {errorMessage || '일기를 찾을 수 없습니다.'}
+        </p>
       </div>
     );
   }
