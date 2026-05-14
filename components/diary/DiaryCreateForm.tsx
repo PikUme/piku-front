@@ -46,7 +46,6 @@ import {
   Camera,
   Sparkles,
   XCircle,
-  LogIn,
   GripVertical,
   CalendarDays,
   ChevronDown,
@@ -226,12 +225,6 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
   }, [contentValue, setValue]);
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      router.push('/login');
-    }
-  }, [isLoggedIn, router]);
-
-  useEffect(() => {
     setSelectedDate(date);
     setDisplayMonth(startOfMonth(parseRouteDate(date)));
   }, [date]);
@@ -397,41 +390,6 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
       }
     };
   }, [isDragging]);
-
-  if (!isLoggedIn || !user) {
-    return (
-      <div className="flex flex-col bg-white dark:bg-black">
-        <header className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-900 dark:border-gray-700">
-          <button
-            onClick={() => router.back()}
-            className="cursor-pointer dark:text-white"
-          >
-            <X size={24} />
-          </button>
-          <h1 className="text-lg font-semibold dark:text-white">일기 작성</h1>
-          <div className="w-6" />
-        </header>
-
-        <main className="flex-grow flex flex-col items-center justify-center p-8 text-center">
-          <div className="bg-gray-100 dark:bg-gray-800 rounded-full p-6 mb-6">
-            <LogIn size={48} className="text-gray-400 dark:text-gray-500" />
-          </div>
-          <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">
-            로그인이 필요합니다
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-sm">
-            일기를 작성하려면 먼저 로그인해주세요.
-          </p>
-          <button
-            onClick={() => router.push('/login')}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-          >
-            로그인하기
-          </button>
-        </main>
-      </div>
-    );
-  }
 
   const onSubmit = async (data: DiaryFormValues) => {
     if (allPhotos.length === 0) {
@@ -782,21 +740,25 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
                     placeholder="오늘의 하루를 기록해보세요..."
                     minRows={5}
                 />
-                <div className="self-end text-sm text-gray-500">
-                  <span
-                    className={
-                      (contentValue?.length || 0) > 500 ? 'text-red-500' : ''
-                    }
-                  >
-                    {contentValue?.length || 0}
-                  </span>
-                  /500
+                <div className="flex min-h-5 items-center justify-between gap-4 text-sm">
+                    {errors.content ? (
+                        <p className="min-w-0 flex-1 text-red-500">
+                            {errors.content.message}
+                        </p>
+                    ) : (
+                        <span className="min-w-0 flex-1" aria-hidden="true" />
+                    )}
+                    <div className="shrink-0 text-gray-500">
+                      <span
+                        className={
+                          (contentValue?.length || 0) > 500 ? 'text-red-500' : ''
+                        }
+                      >
+                        {contentValue?.length || 0}
+                      </span>
+                      /500
+                    </div>
                 </div>
-                {errors.content && (
-                    <p className="text-red-500 text-sm mt-1">
-                        {errors.content.message}
-                    </p>
-                )}
             </form>
         </main>
 

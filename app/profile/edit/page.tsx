@@ -1,5 +1,10 @@
+import RequireAuth from '@/components/auth/RequireAuth';
 import ProfileEditPageClient from '@/components/profile/ProfileEditPageClient';
 
 export default function ProfileEditPage() {
-  return <ProfileEditPageClient />;
-} 
+  return (
+    <RequireAuth>
+      <ProfileEditPageClient />
+    </RequireAuth>
+  );
+}

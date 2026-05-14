@@ -23,6 +23,9 @@ API 응답 형식, 상태 관리 경계, 인증/알림/URL 처리 규칙이 바�
 - `authStore`, `notificationStore`처럼 화면 간 공유가 필요한 상태만 스토어에 둔다.
 
 ## 인증 계약
+- 인증 상태는 `checking`, `authenticated`, `anonymous` 상태로 구분한다.
+- `checking`은 토큰과 저장된 사용자 상태를 확인하는 중인 상태이며, 이때는 로그인 화면으로 리다이렉트하지 않는다.
+- 로그인이 필요한 화면은 공통 `RequireAuth` 가드를 통해 `anonymous`로 확정된 경우에만 로그인 화면으로 이동한다.
 - access token은 공통 토큰 관리 모듈을 통해 접근한다.
 - 일반 API의 401 응답은 재발급 시도를 거친다.
 - `/auth/login`, `/auth/reissue` 요청의 401 응답은 재발급 재시도 대상에서 제외한다.

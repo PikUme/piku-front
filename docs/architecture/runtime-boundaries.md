@@ -14,6 +14,7 @@
 
 ## 초기화 위치
 - 인증 토큰 접근은 `lib/auth/tokenManager.ts`와 `components/store/authStore.ts` 경계 안에서 처리한다.
+- 로그인 필요 화면의 진입 제어는 `components/auth/RequireAuth.tsx`에서 공통 처리한다.
 - SSE 초기화는 `components/common/SSEInitializer.tsx`에서 시작한다.
 - FCM 초기화는 `components/common/FCMInitializer.tsx`에서 시작한다.
 - PWA 관련 UI는 `components/common/PWAInstallPrompt.tsx`, `components/common/PWAInstallButton.tsx`를 통해 노출한다.
@@ -24,6 +25,7 @@
 - 브라우저 의존 초기화는 페이지 파일보다 전용 초기화 컴포넌트에 두는 편을 우선한다.
 
 ## 장애 시 기대 동작
+- 인증 상태가 `checking`인 동안에는 보호 라우트가 로그인 화면으로 이동하지 않아야 한다.
 - SSE 실패는 화면 전체를 깨뜨리지 않아야 한다.
 - FCM 초기화 실패는 알림 기능 저하로 끝나야 하며, 핵심 화면 진입을 막지 않아야 한다.
 - 이미지 로드 실패는 대체 UI 또는 안전한 비표시 상태로 수렴해야 한다.

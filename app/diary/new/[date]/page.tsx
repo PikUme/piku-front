@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import RequireAuth from '@/components/auth/RequireAuth';
 import DiaryCreateForm from '@/components/diary/DiaryCreateForm';
 import { isValidDate } from '@/lib/utils/date';
 
@@ -15,7 +16,11 @@ const DiaryCreatePage = async ({ params }: { params: Promise<{ date: string }> }
     notFound();
   }
 
-  return <DiaryCreateForm date={date} />;
+  return (
+    <RequireAuth>
+      <DiaryCreateForm date={date} />
+    </RequireAuth>
+  );
 };
 
 export default DiaryCreatePage;

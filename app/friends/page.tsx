@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import RequireAuth from '@/components/auth/RequireAuth';
+import FriendsClient from '@/components/friends/FriendsClient';
 
 export const metadata: Metadata = {
   title: '친구 - PikUme | 친구 추가 및 관리',
@@ -11,10 +13,13 @@ export const metadata: Metadata = {
     url: '/friends',
   },
 };
-import FriendsClient from '@/components/friends/FriendsClient';
 
 const FriendsPage = () => {
-  return <FriendsClient />;
+  return (
+    <RequireAuth>
+      <FriendsClient />
+    </RequireAuth>
+  );
 };
 
-export default FriendsPage; 
+export default FriendsPage;

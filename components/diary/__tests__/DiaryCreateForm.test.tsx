@@ -217,6 +217,19 @@ describe('DiaryCreateForm', () => {
     ).toBeInTheDocument();
   });
 
+  it('내용 validation 메시지와 글자 수를 textarea 아래 같은 줄 양끝에 보여준다', async () => {
+    render(<DiaryCreateForm date="2026-03-18" />);
+
+    fireEvent.click(screen.getByRole('button', { name: '완료' }));
+
+    const contentError = await screen.findByText('내용을 입력해주세요.');
+    const assistRow = contentError.parentElement;
+
+    expect(assistRow).toHaveClass('flex', 'items-center', 'justify-between');
+    expect(assistRow).toHaveTextContent('내용을 입력해주세요.');
+    expect(assistRow).toHaveTextContent('0/500');
+  });
+
   it('AI 생성 실패 시 ProblemDetail.detail을 alert로 보여준다', async () => {
     mockGenerateAiPhotos.mockRejectedValue({
       response: {
