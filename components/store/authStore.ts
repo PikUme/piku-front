@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getServerURL } from '@/lib/utils/url';
-import { User } from '@/types/auth';
+import { AuthStatus, User } from '@/types/auth';
 import { AUTH_TOKEN_KEY } from '@/lib/constants';
 
 interface AuthState {
+  authStatus: AuthStatus;
   isLoggedIn: boolean;
   user: User | null;
 
@@ -16,6 +17,7 @@ interface AuthState {
 const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
+      authStatus: 'checking',
       isLoggedIn: false,
       user: null,
 
@@ -24,10 +26,14 @@ const useAuthStore = create<AuthState>()(
         const avatar = rawAvatar && !rawAvatar.startsWith('http')
             ? `${getServerURL()}/${rawAvatar}`
             : rawAvatar;
-        set({isLoggedIn: true , user: { ...user, avatar }});
+        set({
+          authStatus: 'authenticated',
+          isLoggedIn: true,
+          user: { ...user, avatar },
+        });
       },
       logout: () => {
-        set({ isLoggedIn: false, user:null });
+        set({ authStatus: 'anonymous', isLoggedIn: false, user: null });
         if (typeof window !== 'undefined') {
           localStorage.removeItem(AUTH_TOKEN_KEY);
         }
@@ -37,13 +43,14 @@ const useAuthStore = create<AuthState>()(
         // (onRehydrateStorage 콜백을 통해)
         if (typeof window !== 'undefined') {
           const token = localStorage.getItem(AUTH_TOKEN_KEY); // 스토어의 현재 accessToken
-          if (token) {
-            set({ isLoggedIn: true });
+          const user = get().user;
+          if (token && user) {
+            set({ authStatus: 'authenticated', isLoggedIn: true });
             // refreshToken은 HttpOnly이므로 클라이언트에서 읽거나 설정하지 않음.
             // 로그인 시 스토어에 저장했던 refreshToken은 페이지 새로고침 후에는 null일 수 있음.
           } else {
             // accessToken이 없다면, refreshToken도 없고 로그아웃된 상태여야 함.
-            set({ isLoggedIn: false, user:null });
+            set({ authStatus: 'anonymous', isLoggedIn: false, user: null });
           }
         }
       }
@@ -67,4 +74,4 @@ const useAuthStore = create<AuthState>()(
   )
 );
 
-export default useAuthStore; 
+export default useAuthStore;

@@ -40,6 +40,8 @@ export interface User {
   avatar: string;
 }
 
+export type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
+
 export interface PwdResetRequest {
   email: string;
   password: string;
@@ -49,4 +51,4 @@ export interface EmailVerificationRequest {
   email: string;
   code: string;
   type: 'SIGN_UP' | 'PASSWORD_RESET';
-} 
+}
