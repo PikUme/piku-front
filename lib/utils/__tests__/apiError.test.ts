@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  NETWORK_ERROR_MESSAGE,
   getApiErrorMessage,
   getFieldError,
   getProblemDetail,
@@ -104,11 +105,24 @@ describe('apiError helpers', () => {
 
   it('응답 본문이 없으면 Error.message를 사용한다', () => {
     const message = getApiErrorMessage(
-      new Error('network error'),
+      new Error('알 수 없는 오류입니다.'),
       '로그인 중 오류가 발생했습니다.',
     );
 
-    expect(message).toBe('network error');
+    expect(message).toBe('알 수 없는 오류입니다.');
+  });
+
+  it('Network Error는 서버 연결 안내 문구로 변환한다', () => {
+    const AXIOS_NETWORK_ERROR_MESSAGE = 'Network Error';
+    const message = getApiErrorMessage(
+      new Error(AXIOS_NETWORK_ERROR_MESSAGE),
+      '로그인 중 오류가 발생했습니다.',
+    );
+
+    expect(message).toBe(NETWORK_ERROR_MESSAGE);
+    expect(message).toBe(
+      '서버 연결이 원활하지 않습니다.\n잠시 후 다시 시도해주세요.',
+    );
   });
 
   it('어떤 메시지도 없으면 fallback을 반환한다', () => {

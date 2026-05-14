@@ -113,7 +113,7 @@ const LoginClient = () => {
             </p>
           </div>
           {message && (
-            <p className={`mt-4 text-center ${message.includes('성공') ? 'text-green-600' : 'text-red-600'}`}>
+            <p className={`mt-4 whitespace-pre-line text-center ${message.includes('성공') ? 'text-green-600' : 'text-red-600'}`}>
               {message}
             </p>
           )}

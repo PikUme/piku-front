@@ -184,7 +184,7 @@ const ProfileEditClient = ({
                 />
                 {nicknameCheckMessage && (
                   <p
-                    className={`mt-1 text-xs ${
+                    className={`mt-1 whitespace-pre-line text-xs ${
                       isNicknameAvailable ? 'text-green-600' : 'text-red-600'
                     }`}
                   >

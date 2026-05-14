@@ -184,8 +184,8 @@ const PasswordResetClient = () => {
           </form>
         )}
         
-        {message && <p className="mt-4 text-center text-green-600">{message}</p>}
-        {error && <p className="mt-4 text-center text-red-600">{error}</p>}
+        {message && <p className="mt-4 whitespace-pre-line text-center text-green-600">{message}</p>}
+        {error && <p className="mt-4 whitespace-pre-line text-center text-red-600">{error}</p>}
       </div>
     </div>
   );
