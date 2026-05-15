@@ -83,5 +83,8 @@ describe('DiaryDetailClient', () => {
     expect(
       await screen.findByText('이 일기를 볼 권한이 없습니다.'),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: '일기를 찾을 수 없습니다.' }),
+    ).toHaveAttribute('src', '/404.png');
   });
 });

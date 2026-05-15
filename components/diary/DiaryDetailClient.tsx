@@ -29,7 +29,7 @@ interface DiaryDetailClientProps {
 const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
   const [diary, setDiary] = useState<DiaryDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState('');
+  // const [errorMessage, setErrorMessage] = useState('');
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const { user, isLoggedIn } = useAuthStore();
@@ -43,8 +43,7 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
         const diaryData = await getDiaryById(diaryId);
         setDiary(diaryData);
       } catch (error) {
-        console.error('Failed to fetch diary details:', error);
-        setErrorMessage(getApiErrorMessage(error, '일기를 찾을 수 없습니다.'));
+        // setErrorMessage(getApiErrorMessage(error, '일기를 찾을 수 없습니다.'));
       } finally {
         setIsLoading(false);
       }
@@ -83,10 +82,14 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
 
   if (!diary) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <p className="whitespace-pre-line text-center">
-          {errorMessage || '일기를 찾을 수 없습니다.'}
-        </p>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6 dark:bg-black">
+        <Image
+          src="/404.png"
+          alt="일기를 찾을 수 없습니다."
+          width={1536}
+          height={1024}
+          className="h-auto w-full max-w-2xl"
+        />
       </div>
     );
   }
