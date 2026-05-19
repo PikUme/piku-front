@@ -8,6 +8,10 @@ import { trackEvent } from '@/lib/analytics/events';
 import type { CursorPage, FeedDiary } from '@/types/diary';
 import { FriendshipStatus } from '@/types/friend';
 
+const mockViewport = vi.hoisted(() => ({
+  isDesktop: true,
+}));
+
 vi.mock('@/lib/api/feed', () => ({
   getFeedCursor: vi.fn(),
 }));
@@ -28,7 +32,7 @@ vi.mock('@/lib/analytics/events', () => ({
 }));
 
 vi.mock('react-responsive', () => ({
-  useMediaQuery: () => true,
+  useMediaQuery: () => mockViewport.isDesktop,
 }));
 
 vi.mock('../FeedCard', () => ({
@@ -36,16 +40,19 @@ vi.mock('../FeedCard', () => ({
     post,
     onLikeToggle,
     onContentClick,
+    onCommentClick,
   }: {
     post: FeedDiary;
     onLikeToggle: (id: number) => void;
     onContentClick: () => void;
+    onCommentClick: () => void;
   }) => (
     <div data-testid={`feed-card-${post.diaryId}`}>
       {post.content}
       <span data-testid={`like-count-${post.diaryId}`}>{post.likeCount}</span>
       <span data-testid={`like-status-${post.diaryId}`}>{post.isLiked ? 'liked' : 'not-liked'}</span>
       <button data-testid={`content-btn-${post.diaryId}`} onClick={onContentClick}>open</button>
+      <button data-testid={`comment-btn-${post.diaryId}`} onClick={onCommentClick}>comment</button>
       <button data-testid={`like-btn-${post.diaryId}`} onClick={() => onLikeToggle(post.diaryId)}>like</button>
     </div>
   ),
@@ -56,11 +63,30 @@ vi.mock('../../diary/DiaryDetailModal', () => ({
 }));
 
 vi.mock('../../diary/DiaryStoryModal', () => ({
-  default: () => null,
+  default: ({
+    onCommentViewToggle,
+  }: {
+    onCommentViewToggle?: (isOpen: boolean) => void;
+  }) => (
+    <div data-testid="diary-story-modal">
+      <button
+        data-testid="open-detail-comment"
+        onClick={() => onCommentViewToggle?.(true)}
+      >
+        open detail comment
+      </button>
+      <button
+        data-testid="close-detail-comment"
+        onClick={() => onCommentViewToggle?.(false)}
+      >
+        close detail comment
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('../../diary/StoryCommentModal', () => ({
-  default: () => null,
+  default: () => <div data-testid="story-comment-modal" />,
 }));
 
 // IntersectionObserver mock - class 형태로 정의
@@ -98,6 +124,12 @@ const makeFeedItem = (id: number): FeedDiary => ({
   friendStatus: FriendshipStatus.NONE,
 });
 
+const makeDiaryDetail = (id: number) => ({
+  ...makeFeedItem(id),
+  comments: [],
+  updatedAt: '2025-10-01T00:00:00',
+});
+
 const makeResponse = (
   ids: number[],
   nextCursor: string | null,
@@ -111,6 +143,7 @@ const makeResponse = (
 describe('FeedClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockViewport.isDesktop = true;
     vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
 
@@ -288,5 +321,87 @@ describe('FeedClient', () => {
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith('존재하지 않는 일기입니다.');
     });
+  });
+
+  it('모바일에서 피드 댓글 모달은 뒤로가기 시 피드로 돌아간다', async () => {
+    mockViewport.isDesktop = false;
+    mockGetFeedCursor.mockResolvedValue(makeResponse([1], 'c1', true));
+    const pushStateSpy = vi.spyOn(window.history, 'pushState');
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('comment-btn-1')).toBeDefined();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('comment-btn-1'));
+    });
+
+    expect(screen.getByTestId('story-comment-modal')).toBeInTheDocument();
+    expect(pushStateSpy).toHaveBeenCalledWith({ modal: 'feed-comment' }, '');
+
+    fireEvent.popState(window);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('story-comment-modal')).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId('feed-card-1')).toBeInTheDocument();
+  });
+
+  it('모바일에서 피드 사진 상세 모달은 뒤로가기 시 피드로 돌아간다', async () => {
+    mockViewport.isDesktop = false;
+    mockGetFeedCursor.mockResolvedValue(makeResponse([1], 'c1', true));
+    mockGetDiaryById.mockResolvedValue(makeDiaryDetail(1));
+    const pushStateSpy = vi.spyOn(window.history, 'pushState');
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('content-btn-1')).toBeDefined();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('content-btn-1'));
+    });
+
+    expect(await screen.findByTestId('diary-story-modal')).toBeInTheDocument();
+    expect(pushStateSpy).toHaveBeenCalledWith({ modal: 'feed-diary-detail' }, '');
+
+    fireEvent.popState(window);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('diary-story-modal')).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId('feed-card-1')).toBeInTheDocument();
+  });
+
+  it('모바일에서 상세 댓글을 수동으로 닫은 뒤 뒤로가기하면 상세 모달을 유지한다', async () => {
+    mockViewport.isDesktop = false;
+    mockGetFeedCursor.mockResolvedValue(makeResponse([1], 'c1', true));
+    mockGetDiaryById.mockResolvedValue(makeDiaryDetail(1));
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('content-btn-1')).toBeDefined();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('content-btn-1'));
+    });
+
+    expect(await screen.findByTestId('diary-story-modal')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('open-detail-comment'));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('close-detail-comment'));
+    });
+
+    fireEvent.popState(window, { state: { modal: 'feed-diary-detail' } });
+
+    expect(screen.getByTestId('diary-story-modal')).toBeInTheDocument();
   });
 });

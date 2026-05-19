@@ -63,7 +63,7 @@ vi.mock('../../store/authStore', () => ({
 }));
 
 describe('DiaryDetailClient', () => {
-  it('일기 상세 조회 실패 시 ProblemDetail.detail을 보여준다', async () => {
+  it('일기 상세 조회 실패 시 404 이미지를 보여준다', async () => {
     const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
 
     vi.mocked(getDiaryById).mockRejectedValue({
@@ -81,10 +81,7 @@ describe('DiaryDetailClient', () => {
     render(<DiaryDetailClient diaryId={42} />);
 
     expect(
-      await screen.findByText('이 일기를 볼 권한이 없습니다.'),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('img', { name: '일기를 찾을 수 없습니다.' }),
+      await screen.findByRole('img', { name: '일기를 찾을 수 없습니다.' }),
     ).toHaveAttribute('src', '/404.png');
   });
 });

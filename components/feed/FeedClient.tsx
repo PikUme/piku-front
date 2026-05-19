@@ -22,6 +22,8 @@ const FeedClient = () => {
   const [error, setError] = useState<'initial' | 'next' | null>(null);
   const observer = useRef<IntersectionObserver | null>(null);
   const hasMounted = useRef(false);
+  const hasDetailHistoryEntryRef = useRef(false);
+  const hasFeedCommentHistoryEntryRef = useRef(false);
 
   const [isClient, setIsClient] = useState(false);
   const [selectedDiary, setSelectedDiary] = useState<DiaryDetail | null>(null);
@@ -39,6 +41,7 @@ const FeedClient = () => {
   }, []);
 
   const handleCloseModal = useCallback(() => {
+    hasDetailHistoryEntryRef.current = false;
     setSelectedDiary(null);
   }, []);
 
@@ -48,15 +51,21 @@ const FeedClient = () => {
   }, []);
 
   useEffect(() => {
-    const handlePopState = () => {
-      if (!isCommentViewOpen) {
-        handleCloseModal();
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state?.modal === 'feed-diary-detail') {
+        return;
       }
+
+      hasDetailHistoryEntryRef.current = false;
+      handleCloseModal();
     };
 
-    if (selectedDiary && !isCommentViewOpen) {
+    if (selectedDiary) {
       document.body.style.overflow = 'hidden';
-      window.history.pushState({ modal: 'open' }, '');
+      if (!hasDetailHistoryEntryRef.current) {
+        window.history.pushState({ modal: 'feed-diary-detail' }, '');
+        hasDetailHistoryEntryRef.current = true;
+      }
       window.addEventListener('popstate', handlePopState);
     } else {
       document.body.style.overflow = 'auto';
@@ -66,7 +75,26 @@ const FeedClient = () => {
       document.body.style.overflow = 'auto';
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [selectedDiary, handleCloseModal, isCommentViewOpen]);
+  }, [selectedDiary, handleCloseModal]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      hasFeedCommentHistoryEntryRef.current = false;
+      setCommentModalOpen(null);
+    };
+
+    if (commentModalOpen && !isDesktop) {
+      if (!hasFeedCommentHistoryEntryRef.current) {
+        window.history.pushState({ modal: 'feed-comment' }, '');
+        hasFeedCommentHistoryEntryRef.current = true;
+      }
+      window.addEventListener('popstate', handlePopState);
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [commentModalOpen, isDesktop]);
 
   useEffect(() => {
     if (commentModalOpen) {
@@ -109,6 +137,7 @@ const FeedClient = () => {
   };
 
   const handleCloseCommentModal = () => {
+    hasFeedCommentHistoryEntryRef.current = false;
     setCommentModalOpen(null);
   };
 
