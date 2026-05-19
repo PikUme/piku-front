@@ -52,6 +52,7 @@ const DiaryStoryModal = ({
   const [isCommentViewOpen, setIsCommentViewOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const hasCommentHistoryEntryRef = useRef(false);
 
   const { user } = useAuthStore();
   const serverUrl = getServerURL();
@@ -67,13 +68,47 @@ const DiaryStoryModal = ({
   };
 
   const handleCloseCommentModal = () => {
+    if (hasCommentHistoryEntryRef.current) {
+      hasCommentHistoryEntryRef.current = false;
+      window.history.back();
+    }
     setIsCommentViewOpen(false);
+  };
+
+  const openCommentView = () => {
+    setIsCommentViewOpen(true);
   };
 
   useEffect(() => {
     onCommentViewToggle?.(isCommentViewOpen);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCommentViewOpen]);
+
+  useEffect(() => {
+    if (!isCommentViewOpen || hasCommentHistoryEntryRef.current) {
+      return;
+    }
+
+    window.history.pushState({ modal: 'diary-comment' }, '');
+    hasCommentHistoryEntryRef.current = true;
+  }, [isCommentViewOpen]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (!hasCommentHistoryEntryRef.current) {
+        return;
+      }
+
+      hasCommentHistoryEntryRef.current = false;
+      setIsCommentViewOpen(false);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -114,12 +149,12 @@ const DiaryStoryModal = ({
 
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (info.offset.y < -50 && info.velocity.y < -200) {
-      setIsCommentViewOpen(true);
+      openCommentView();
     }
   };
 
   const swipeHandlers = useSwipeable({
-    onSwipedUp: () => setIsCommentViewOpen(true),
+    onSwipedUp: () => openCommentView(),
     onSwipedLeft: () => handleNextImage(),
     onSwipedRight: () => handlePrevImage(),
     trackMouse: true,
@@ -240,7 +275,7 @@ const DiaryStoryModal = ({
        {!isCommentViewOpen && (
         <motion.div
           className="absolute bottom-0 left-0 right-0 z-20 flex cursor-pointer flex-col items-center p-4"
-          onClick={() => setIsCommentViewOpen(true)}
+          onClick={openCommentView}
           drag="y"
           dragConstraints={{ top: 0, bottom: 0 }}
           dragElastic={{ top: 0, bottom: 0.5 }}
