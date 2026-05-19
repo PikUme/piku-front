@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, act } from '@testing-library/react';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import type { Page } from '@/types/api';
 import type { Notification } from '@/types/notification';
@@ -15,8 +15,32 @@ import {
 const mockPush = vi.fn();
 const mockDecrementUnreadCount = vi.fn();
 
+const mockViewport = vi.hoisted(() => ({
+  isDesktop: true,
+}));
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
+}));
+
+vi.mock('react-responsive', () => ({
+  useMediaQuery: () => mockViewport.isDesktop,
+}));
+
+vi.mock('../../diary/DiaryDetailModal', () => ({
+  default: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="diary-detail-modal">
+      <button data-testid="close-detail-modal" onClick={onClose}>close</button>
+    </div>
+  ),
+}));
+
+vi.mock('../../diary/DiaryStoryModal', () => ({
+  default: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="diary-story-modal">
+      <button data-testid="close-story-modal" onClick={onClose}>close</button>
+    </div>
+  ),
 }));
 
 vi.mock('next/image', () => ({
@@ -129,6 +153,7 @@ const renderClient = () => {
 describe('NotificationsClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockViewport.isDesktop = true;
     mockDeleteNotification.mockResolvedValue(undefined);
     vi.mocked(markAllNotificationsAsRead).mockResolvedValue(undefined);
     mockMarkNotificationAsRead.mockResolvedValue(undefined);
@@ -297,5 +322,85 @@ describe('NotificationsClient', () => {
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith('알림 삭제에 실패했습니다.');
     });
+  });
+
+  it('REPLY 알림 클릭 시 페이지 이동 대신 일기 모달을 연다', async () => {
+    mockGetNotifications.mockResolvedValue(
+      makePage([
+        makeNotification({
+          type: 'REPLY',
+          message: 'replied to your comment',
+          relatedDiaryId: 42,
+        }),
+      ]),
+    );
+
+    renderClient();
+
+    await act(async () => {
+      fireEvent.click(await screen.findByText('replied to your comment'));
+    });
+
+    await waitFor(() => {
+      expect(mockGetDiaryById).toHaveBeenCalledWith(42);
+      expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
+    });
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('REPLY 알림 모달은 뒤로가기 시 알림 페이지로 돌아간다', async () => {
+    mockGetNotifications.mockResolvedValue(
+      makePage([
+        makeNotification({
+          type: 'REPLY',
+          message: 'replied to your comment',
+          relatedDiaryId: 42,
+        }),
+      ]),
+    );
+    const pushStateSpy = vi.spyOn(window.history, 'pushState');
+
+    renderClient();
+
+    await act(async () => {
+      fireEvent.click(await screen.findByText('replied to your comment'));
+    });
+
+    expect(await screen.findByTestId('diary-detail-modal')).toBeInTheDocument();
+    expect(pushStateSpy).toHaveBeenCalledWith(
+      { modal: 'notification-diary-detail' },
+      '',
+    );
+
+    fireEvent.popState(window);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('diary-detail-modal')).not.toBeInTheDocument();
+    });
+  });
+
+  it('모바일에서 REPLY 알림 클릭 시 DiaryStoryModal을 연다', async () => {
+    mockViewport.isDesktop = false;
+    mockGetNotifications.mockResolvedValue(
+      makePage([
+        makeNotification({
+          type: 'REPLY',
+          message: 'replied to your comment',
+          relatedDiaryId: 42,
+        }),
+      ]),
+    );
+
+    renderClient();
+
+    await act(async () => {
+      fireEvent.click(await screen.findByText('replied to your comment'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('diary-story-modal')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('diary-detail-modal')).not.toBeInTheDocument();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });

@@ -3,10 +3,14 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
+import { useMediaQuery } from 'react-responsive';
 import { deleteNotification, getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/api/notification';
 import { getDiaryById } from '@/lib/api/diary';
 import { Notification } from '@/types/notification';
+import type { DiaryDetail } from '@/types/diary';
+import DiaryDetailModal from '../diary/DiaryDetailModal';
+import DiaryStoryModal from '../diary/DiaryStoryModal';
 import { getNotificationNavigationPath } from '@/lib/utils/notification';
 import { getApiErrorMessage, hasProblemType } from '@/lib/utils/apiError';
 import { Trash2, Loader2, Check } from 'lucide-react';
@@ -23,6 +27,9 @@ const NotificationsClient = () => {
   const { decrementUnreadCount } = useNotificationStore();
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const [selectedDiary, setSelectedDiary] = useState<DiaryDetail | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const isDesktop = useMediaQuery({ query: '(min-width: 768px)' });
 
   const {
     data,
@@ -111,11 +118,61 @@ const NotificationsClient = () => {
       }
     }
 
+    // REPLY 알림은 모달로 일기를 보여준다
+    if (notification.type === 'REPLY' && notification.relatedDiaryId !== null) {
+      setIsLoadingDetail(true);
+      try {
+        const diary = await getDiaryById(notification.relatedDiaryId);
+        setSelectedDiary(diary);
+      } catch (error) {
+        console.error('일기 정보를 불러오는데 실패했습니다:', error);
+        alert(getApiErrorMessage(error, '일기 정보를 불러오는데 실패했습니다.'));
+      } finally {
+        setIsLoadingDetail(false);
+      }
+      return;
+    }
+
     const url = await resolveNotificationNavigationPath(notification);
     if (url) {
       router.push(url);
     }
   };
+
+  const hasDetailHistoryEntryRef = useRef(false);
+
+  const handleCloseModal = useCallback(() => {
+    hasDetailHistoryEntryRef.current = false;
+    setSelectedDiary(null);
+  }, []);
+
+  // 모달 열림 시 history 관리 + body overflow
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state?.modal === 'notification-diary-detail') {
+        return;
+      }
+
+      hasDetailHistoryEntryRef.current = false;
+      handleCloseModal();
+    };
+
+    if (selectedDiary) {
+      document.body.style.overflow = 'hidden';
+      if (!hasDetailHistoryEntryRef.current) {
+        window.history.pushState({ modal: 'notification-diary-detail' }, '');
+        hasDetailHistoryEntryRef.current = true;
+      }
+      window.addEventListener('popstate', handlePopState);
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+
+    return () => {
+      document.body.style.overflow = 'auto';
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [selectedDiary, handleCloseModal]);
 
   const handleDeleteClick = (e: React.MouseEvent, notification: Notification) => {
     e.stopPropagation();
@@ -248,6 +305,23 @@ const NotificationsClient = () => {
           )}
         </>
       )}
+      {isLoadingDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <p className="text-white">일기 정보를 불러오는 중...</p>
+        </div>
+      )}
+      {selectedDiary &&
+        (isDesktop ? (
+          <DiaryDetailModal
+            diary={selectedDiary}
+            onClose={handleCloseModal}
+          />
+        ) : (
+          <DiaryStoryModal
+            diary={selectedDiary}
+            onClose={handleCloseModal}
+          />
+        ))}
     </div>
   );
 };
