@@ -25,6 +25,11 @@ const LandingClient = () => {
             회원가입
           </button>
         </Link>
+        <Link href="/feed" passHref>
+          <button className="text-gray-600 w-full cursor-pointer">
+            피드 둘러보기
+          </button>
+        </Link>
       </div>
     </div>
   );
