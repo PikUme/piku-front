@@ -11,8 +11,19 @@ interface AuthState {
 
   login: (user: User) => void;
   logout: () => void;
-  checkAuth: () => void;
+  checkAuth: () => Promise<void>;
 }
+
+let authCheckPromise: Promise<void> | null = null;
+
+const normalizeUser = (user: User): User => {
+  const rawAvatar = user.avatar || (user as any).avatarUrl || '';
+  const avatar = rawAvatar && !rawAvatar.startsWith('http')
+    ? `${getServerURL()}/${rawAvatar}`
+    : rawAvatar;
+
+  return { ...user, avatar };
+};
 
 const useAuthStore = create<AuthState>()(
   persist(
@@ -22,14 +33,10 @@ const useAuthStore = create<AuthState>()(
       user: null,
 
       login: (user) => {
-        const rawAvatar = user.avatar || (user as any).avatarUrl || '';
-        const avatar = rawAvatar && !rawAvatar.startsWith('http')
-          ? `${getServerURL()}/${rawAvatar}`
-          : rawAvatar;
         set({
           authStatus: 'authenticated',
           isLoggedIn: true,
-          user: { ...user, avatar },
+          user: normalizeUser(user),
         });
       },
       logout: () => {
@@ -38,7 +45,7 @@ const useAuthStore = create<AuthState>()(
           localStorage.removeItem(AUTH_TOKEN_KEY);
         }
       },
-      checkAuth: () => {
+      checkAuth: async () => {
         // persist 미들웨어가 accessToken을 localStorage에서 로드한 후 호출되어야 함.
         // (onRehydrateStorage 콜백을 통해)
         if (typeof window !== 'undefined') {
@@ -48,10 +55,37 @@ const useAuthStore = create<AuthState>()(
             set({ authStatus: 'authenticated', isLoggedIn: true });
             // refreshToken은 HttpOnly이므로 클라이언트에서 읽거나 설정하지 않음.
             // 로그인 시 스토어에 저장했던 refreshToken은 페이지 새로고침 후에는 null일 수 있음.
-          } else {
-            // accessToken이 없다면, refreshToken도 없고 로그아웃된 상태여야 함.
-            set({ authStatus: 'anonymous', isLoggedIn: false, user: null });
+            return;
           }
+
+          if (!token) {
+            set({ authStatus: 'anonymous', isLoggedIn: false, user: null });
+            return;
+          }
+
+          if (authCheckPromise) {
+            return authCheckPromise;
+          }
+
+          set({ authStatus: 'checking' });
+          authCheckPromise = (async () => {
+            try {
+              const { getCurrentUser } = await import('@/lib/api/auth');
+              const currentUser = await getCurrentUser();
+              set({
+                authStatus: 'authenticated',
+                isLoggedIn: true,
+                user: normalizeUser(currentUser),
+              });
+            } catch {
+              localStorage.removeItem(AUTH_TOKEN_KEY);
+              set({ authStatus: 'anonymous', isLoggedIn: false, user: null });
+            } finally {
+              authCheckPromise = null;
+            }
+          })();
+
+          return authCheckPromise;
         }
       }
     }),

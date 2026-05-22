@@ -3,6 +3,7 @@ import { AUTH_TOKEN_KEY } from '@/lib/constants';
 import generateUUID from '@/lib/utils/uuidGenerator';
 import { PwdResetRequest } from '@/types/auth';
 import { EmailVerificationRequest } from '@/types/auth';
+import type { User } from '@/types/auth';
 import type { MessageResponse } from '@/types/api';
 
 interface SignupData {
@@ -79,6 +80,11 @@ export const login = async (data: LoginData) => {
     },
   });
   return response;
+};
+
+export const getCurrentUser = async (): Promise<User> => {
+  const response = await api.get('/auth/me');
+  return response.data.user;
 };
 
 export const logout = async (): Promise<void> => {
