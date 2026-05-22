@@ -169,6 +169,35 @@ describe('FeedClient', () => {
     });
   });
 
+  it('추천순과 최신순 서브헤더를 렌더링하고 추천순을 기본 선택한다', async () => {
+    mockGetFeedCursor.mockResolvedValue(makeResponse([1, 2, 3], 'cursor-1', true));
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('feed-sort-subheader')).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: '추천순' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '최신순' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('정렬 선택은 UI 상태만 바꾸고 feed API를 다시 호출하지 않는다', async () => {
+    mockGetFeedCursor.mockResolvedValue(makeResponse([1, 2, 3], 'cursor-1', true));
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(mockGetFeedCursor).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '최신순' }));
+
+    expect(screen.getByRole('button', { name: '추천순' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: '최신순' })).toHaveAttribute('aria-pressed', 'true');
+    expect(mockGetFeedCursor).toHaveBeenCalledTimes(1);
+  });
+
   it('중복 diaryId를 제거한다', async () => {
     mockGetFeedCursor.mockResolvedValueOnce(makeResponse([1, 2], 'cursor-1', true));
     mockGetFeedCursor.mockResolvedValueOnce(makeResponse([2, 3], 'cursor-2', false));

@@ -24,8 +24,8 @@ const useAuthStore = create<AuthState>()(
       login: (user) => {
         const rawAvatar = user.avatar || (user as any).avatarUrl || '';
         const avatar = rawAvatar && !rawAvatar.startsWith('http')
-            ? `${getServerURL()}/${rawAvatar}`
-            : rawAvatar;
+          ? `${getServerURL()}/${rawAvatar}`
+          : rawAvatar;
         set({
           authStatus: 'authenticated',
           isLoggedIn: true,

@@ -3,12 +3,18 @@
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
 import useNotificationStore from '../store/notificationStore';
+import { useHeaderVisibility } from '@/hooks/useHeaderVisibility';
 
 const MobileHeader = () => {
   const { unreadCount } = useNotificationStore();
+  const isHeaderVisible = useHeaderVisibility();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between h-14 px-4 bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800 xl:hidden">
+    <header
+      className={`fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 px-4 bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800 transition-transform duration-200 ease-out xl:hidden ${
+        isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
+      }`}
+    >
       <Link href="/" className="text-xl font-bold">
         PikUme
       </Link>

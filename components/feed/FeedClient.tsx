@@ -13,6 +13,7 @@ import StoryCommentModal from '../diary/StoryCommentModal';
 import { addLike, removeLike } from '@/lib/api/like';
 import { trackEvent, FEED_CLICK, FEED_LIKE } from '@/lib/analytics/events';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
+import FeedSortSubHeader, { type FeedSortOption } from './FeedSortSubHeader';
 
 const FeedClient = () => {
   const [feed, setFeed] = useState<FeedDiary[]>([]);
@@ -20,6 +21,7 @@ const FeedClient = () => {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<'initial' | 'next' | null>(null);
+  const [selectedSort, setSelectedSort] = useState<FeedSortOption>('recommended');
   const observer = useRef<IntersectionObserver | null>(null);
   const hasMounted = useRef(false);
   const hasDetailHistoryEntryRef = useRef(false);
@@ -280,27 +282,33 @@ const FeedClient = () => {
   }
 
   return (
-    <div className="mx-auto max-w-[600px] space-y-8">
-      {feed.map((post, index) => (
-        <div
-          key={post.diaryId}
-          ref={index === feed.length - 1 ? lastPostElementRef : null}
-        >
-          <FeedCard
-            post={post}
-            onFriendshipStatusChange={handleFriendshipStatusChange}
-            onContentClick={() => handleContentClick(post.diaryId)}
-            onCommentClick={() => handleCommentClick(post)}
-            onLikeToggle={handleLikeToggle}
-            isMobile={!isDesktop}
-          />
-        </div>
-      ))}
-      {loading && !isLoadingDetail && (
-        <div className="flex h-20 items-center justify-center">
-          <p>피드를 더 불러오는 중...</p>
-        </div>
-      )}
+    <div className="mx-auto max-w-[600px] pt-[3.75rem] xl:pt-0">
+      <FeedSortSubHeader
+        selectedSort={selectedSort}
+        onSortChange={setSelectedSort}
+      />
+      <div className="space-y-8">
+        {feed.map((post, index) => (
+          <div
+            key={post.diaryId}
+            ref={index === feed.length - 1 ? lastPostElementRef : null}
+          >
+            <FeedCard
+              post={post}
+              onFriendshipStatusChange={handleFriendshipStatusChange}
+              onContentClick={() => handleContentClick(post.diaryId)}
+              onCommentClick={() => handleCommentClick(post)}
+              onLikeToggle={handleLikeToggle}
+              isMobile={!isDesktop}
+            />
+          </div>
+        ))}
+        {loading && !isLoadingDetail && (
+          <div className="flex h-20 items-center justify-center">
+            <p>피드를 더 불러오는 중...</p>
+          </div>
+        )}
+      </div>
       {isLoadingDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <p className="text-white">일기 정보를 불러오는 중...</p>
