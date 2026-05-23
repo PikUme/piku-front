@@ -15,6 +15,17 @@ import { AUTH_TOKEN_KEY } from '@/lib/constants';
 // 현재 진행 중인 리프레시 Promise (싱글턴 패턴)
 let refreshPromise: Promise<string> | null = null;
 
+const getResponseStatus = (error: unknown): number | undefined => {
+  if (typeof error !== 'object' || error === null || !('response' in error)) {
+    return undefined;
+  }
+
+  return (error as { response?: { status?: number } }).response?.status;
+};
+
+const isAuthFailureStatus = (status: number | undefined): boolean =>
+  status === 401 || status === 403;
+
 /**
  * localStorage에서 현재 accessToken을 반환합니다.
  */
@@ -28,7 +39,8 @@ export const getAccessToken = (): string | null => {
  *
  * 이미 리프레시가 진행 중이면 기존 Promise를 반환하여 중복 요청을 방지합니다.
  * 성공 시 localStorage에 새 토큰을 저장하고 반환합니다.
- * 실패 시 handleAuthFailure()를 호출하고 에러를 throw합니다.
+ * 401/403 실패 시 handleAuthFailure()를 호출하고 에러를 throw합니다.
+ * 네트워크 오류나 5xx는 일시 장애로 보고 기존 토큰을 유지합니다.
  */
 export const refreshAccessToken = (): Promise<string> => {
   // 이미 리프레시 진행 중이면 같은 Promise 반환
@@ -54,8 +66,9 @@ export const refreshAccessToken = (): Promise<string> => {
 
       return newAccessToken;
     } catch (error) {
-      // 리프레시 토큰 만료 등 인증 완전 실패
-      await handleAuthFailure();
+      if (isAuthFailureStatus(getResponseStatus(error))) {
+        await handleAuthFailure();
+      }
       throw error;
     } finally {
       refreshPromise = null;
