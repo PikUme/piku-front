@@ -77,7 +77,8 @@ api.interceptors.response.use(
         // 원래 요청을 다시 시도
         return api(originalRequest);
       } catch (refreshError) {
-        // refreshAccessToken 내에서 handleAuthFailure()가 이미 호출됨
+        // 401/403 재발급 실패는 refreshAccessToken 내부에서 인증 정리됨.
+        // 네트워크 오류나 5xx는 기존 토큰을 보존한 채 호출자에게 전파됨.
         return Promise.reject(refreshError);
       }
     }

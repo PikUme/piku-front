@@ -8,10 +8,21 @@ import useNotificationStore from '../store/notificationStore';
 import {
   getAccessToken,
   refreshAccessToken,
-  handleAuthFailure,
 } from '@/lib/auth/tokenManager';
 
-const RECONNECT_DELAY = 3000; // 3초 후 재연결
+const INITIAL_RECONNECT_DELAY = 3000;
+const MAX_RECONNECT_DELAY = 30000;
+
+const getSseErrorStatus = (event: unknown): number | undefined => {
+  if (typeof event !== 'object' || event === null || !('status' in event)) {
+    return undefined;
+  }
+
+  return (event as { status?: number }).status;
+};
+
+const isAuthErrorStatus = (status: number | undefined): boolean =>
+  status === 401 || status === 403;
 
 const SSEInitializer = () => {
   if (process.env.NEXT_PUBLIC_E2E_TEST === '1') {
@@ -22,6 +33,7 @@ const SSEInitializer = () => {
   const { setUnreadCount, incrementUnreadCount } = useNotificationStore();
   const eventSourceRef = useRef<EventSourcePolyfill | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectDelayRef = useRef(INITIAL_RECONNECT_DELAY);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -36,6 +48,22 @@ const SSEInitializer = () => {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
+    };
+
+    const scheduleReconnect = () => {
+      clearReconnectTimeout();
+      const delay = reconnectDelayRef.current;
+      reconnectDelayRef.current = Math.min(
+        reconnectDelayRef.current * 2,
+        MAX_RECONNECT_DELAY,
+      );
+      reconnectTimeoutRef.current = setTimeout(() => {
+        reconnectTimeoutRef.current = null;
+        const currentToken = getAccessToken();
+        if (isMounted && currentToken) {
+          connect(currentToken);
+        }
+      }, delay);
     };
 
     const connect = (token: string) => {
@@ -58,7 +86,9 @@ const SSEInitializer = () => {
 
       isFirstMessage = true; // 재연결 시 초기 메세지 처리
 
-      eventSourceRef.current.onopen = () => {};
+      eventSourceRef.current.onopen = () => {
+        reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
+      };
 
       eventSourceRef.current.onmessage = (event: any) => {
         if (isFirstMessage) {
@@ -72,7 +102,7 @@ const SSEInitializer = () => {
         }
       };
 
-      eventSourceRef.current.onerror = () => {
+      eventSourceRef.current.onerror = (event: unknown) => {
         // 기존 연결 정리
         if (eventSourceRef.current) {
           eventSourceRef.current.close();
@@ -81,8 +111,13 @@ const SSEInitializer = () => {
 
         if (!isMounted) return;
 
-        // 토큰 리프레시 시도 후 재연결
-        clearReconnectTimeout();
+        const status = getSseErrorStatus(event);
+        if (!isAuthErrorStatus(status)) {
+          scheduleReconnect();
+          return;
+        }
+
+        // 인증 실패가 명확한 경우에만 토큰 리프레시 시도 후 재연결
         refreshAccessToken()
           .then((newToken) => {
             // 리프레시 성공 → 새 토큰으로 즉시 재연결
@@ -91,8 +126,9 @@ const SSEInitializer = () => {
             }
           })
           .catch(() => {
-            // 리프레시 토큰도 만료 → handleAuthFailure()가 이미 호출됨
-            // (tokenManager 내부에서 로그아웃 + 리다이렉트 처리 완료)
+            if (isMounted && getAccessToken()) {
+              scheduleReconnect();
+            }
           });
       };
     };
