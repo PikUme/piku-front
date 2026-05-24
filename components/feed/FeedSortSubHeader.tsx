@@ -1,15 +1,14 @@
 'use client';
 
 import { useHeaderVisibility } from '@/hooks/useHeaderVisibility';
-
-export type FeedSortOption = 'recommended' | 'latest';
+import { type FeedSortMode } from '@/lib/api/feed';
 
 interface FeedSortSubHeaderProps {
-  selectedSort: FeedSortOption;
-  onSortChange: (sort: FeedSortOption) => void;
+  selectedSort: FeedSortMode;
+  onSortChange: (sort: FeedSortMode) => void;
 }
 
-const SORT_OPTIONS: Array<{ value: FeedSortOption; label: string }> = [
+const SORT_OPTIONS: Array<{ value: FeedSortMode; label: string }> = [
   { value: 'recommended', label: '추천순' },
   { value: 'latest', label: '최신순' },
 ];

@@ -63,6 +63,42 @@ describe('getFeedCursor', () => {
     });
   });
 
+  it('recommended 정렬은 sort 파라미터를 보내지 않는다', async () => {
+    mockGet.mockResolvedValue({
+      data: { items: [], nextCursor: null, hasNext: false },
+    });
+
+    await getFeedCursor(null, 20, 'recommended');
+
+    expect(mockGet).toHaveBeenCalledWith('/diary', {
+      params: { limit: 20 },
+    });
+  });
+
+  it('latest 정렬은 sort=latest 파라미터를 포함한다', async () => {
+    mockGet.mockResolvedValue({
+      data: { items: [], nextCursor: null, hasNext: false },
+    });
+
+    await getFeedCursor(null, 20, 'latest');
+
+    expect(mockGet).toHaveBeenCalledWith('/diary', {
+      params: { limit: 20, sort: 'latest' },
+    });
+  });
+
+  it('latest 정렬에서 cursor와 sort를 함께 전달한다', async () => {
+    mockGet.mockResolvedValue({
+      data: { items: [], nextCursor: null, hasNext: false },
+    });
+
+    await getFeedCursor('cursor-abc', 20, 'latest');
+
+    expect(mockGet).toHaveBeenCalledWith('/diary', {
+      params: { cursor: 'cursor-abc', limit: 20, sort: 'latest' },
+    });
+  });
+
   it('응답 데이터를 올바르게 반환한다', async () => {
     const mockResponse = {
       items: [

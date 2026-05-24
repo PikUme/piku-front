@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useMediaQuery } from 'react-responsive';
 import FeedCard from './FeedCard';
-import { getFeedCursor } from '@/lib/api/feed';
+import { getFeedCursor, type FeedSortMode } from '@/lib/api/feed';
 import { getDiaryById } from '@/lib/api/diary';
 import { FeedDiary, DiaryDetail } from '@/types/diary';
 import { FriendshipStatus } from '@/types/friend';
@@ -13,15 +13,18 @@ import StoryCommentModal from '../diary/StoryCommentModal';
 import { addLike, removeLike } from '@/lib/api/like';
 import { trackEvent, FEED_CLICK, FEED_LIKE } from '@/lib/analytics/events';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
-import FeedSortSubHeader, { type FeedSortOption } from './FeedSortSubHeader';
+import FeedSortSubHeader from './FeedSortSubHeader';
 
 const FeedClient = () => {
   const [feed, setFeed] = useState<FeedDiary[]>([]);
+  const feedLengthRef = useRef(0);
+  feedLengthRef.current = feed.length;
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<'initial' | 'next' | null>(null);
-  const [selectedSort, setSelectedSort] = useState<FeedSortOption>('recommended');
+  const [selectedSort, setSelectedSort] = useState<FeedSortMode>('recommended');
+  const activeSortRef = useRef<FeedSortMode>('recommended');
   const observer = useRef<IntersectionObserver | null>(null);
   const hasMounted = useRef(false);
   const hasDetailHistoryEntryRef = useRef(false);
@@ -159,8 +162,10 @@ const FeedClient = () => {
     if (loading || !hasMore) return;
     setLoading(true);
     setError(null);
+    const sortAtStart = activeSortRef.current;
     try {
-      const data = await getFeedCursor(nextCursor);
+      const data = await getFeedCursor(nextCursor, 20, sortAtStart);
+      if (activeSortRef.current !== sortAtStart) return;
       setFeed(prevFeed => {
         const existingIds = new Set(prevFeed.map(p => p.diaryId));
         const uniqueNewItems = data.items.filter(
@@ -171,12 +176,15 @@ const FeedClient = () => {
       setNextCursor(data.nextCursor);
       setHasMore(data.nextCursor != null && data.hasNext);
     } catch (err) {
+      if (activeSortRef.current !== sortAtStart) return;
       console.error('Error fetching feed:', err);
-      setError(feed.length === 0 ? 'initial' : 'next');
+      setError(feedLengthRef.current === 0 ? 'initial' : 'next');
     } finally {
-      setLoading(false);
+      if (activeSortRef.current === sortAtStart) {
+        setLoading(false);
+      }
     }
-  }, [nextCursor, loading, hasMore, feed.length]);
+  }, [nextCursor, loading, hasMore]);
 
   const lastPostElementRef = useCallback(
     (node: HTMLDivElement) => {
@@ -200,6 +208,31 @@ const FeedClient = () => {
       loadMore();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSortChange = useCallback(async (sort: FeedSortMode) => {
+    setSelectedSort(sort);
+    activeSortRef.current = sort;
+    setFeed([]);
+    setNextCursor(null);
+    setHasMore(true);
+    setError(null);
+    setLoading(true);
+    try {
+      const data = await getFeedCursor(null, 20, sort);
+      if (activeSortRef.current !== sort) return;
+      setFeed(data.items);
+      setNextCursor(data.nextCursor);
+      setHasMore(data.nextCursor != null && data.hasNext);
+    } catch (err) {
+      if (activeSortRef.current !== sort) return;
+      console.error('Error fetching feed:', err);
+      setError('initial');
+    } finally {
+      if (activeSortRef.current === sort) {
+        setLoading(false);
+      }
+    }
   }, []);
 
   const handleLikeToggle = async (diaryId: number) => {
@@ -285,7 +318,7 @@ const FeedClient = () => {
     <div className="mx-auto max-w-[600px] pt-[3.75rem] xl:pt-0">
       <FeedSortSubHeader
         selectedSort={selectedSort}
-        onSortChange={setSelectedSort}
+        onSortChange={handleSortChange}
       />
       <div className="space-y-8">
         {feed.map((post, index) => (

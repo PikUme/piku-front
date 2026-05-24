@@ -42,6 +42,14 @@ API 응답 형식, 상태 관리 경계, 인증/알림/URL 처리 규칙이 바�
 - REPLY 알림은 페이지 이동 대신 일기 모달(데스크톱: `DiaryDetailModal`, 모바일: `DiaryStoryModal`)로 상세를 표시한다.
 - 브라우저 뒤로가기는 현재 열린 모달 계층만 닫는다. 피드와 알림 페이지 모두 동일한 규칙을 따른다. 예: 피드 댓글은 피드로, 피드 일기 상세는 피드로, 알림 일기 상세는 알림으로 돌아간다.
 
+## 피드 정렬 계약
+- `GET /api/diary`에 선택 쿼리 파라미터 `sort`를 보낸다.
+- `recommended`(기본값)은 `sort` 파라미터를 생략한다. `latest`는 `sort=latest`를 보낸다.
+- 다음 페이지 요청은 같은 `sort` 값에서 응답의 `nextCursor`를 전달한다.
+- 정렬 변경 시 기존 `cursor`를 버리고 새 정렬 모드의 첫 페이지부터 요청한다. `feed`, `nextCursor`, `hasMore`, `error` 상태를 모두 초기화한다.
+- 알 수 없는 `sort` 값은 `400 Bad Request`(`type: feed/invalid-sort`)로 반환된다.
+- 다른 정렬 모드의 cursor 재사용은 `400 Bad Request`(`type: feed/invalid-cursor`)로 반환된다.
+
 ## URL / 날짜 / 쿼리 파라미터 규칙
 - 날짜 쿼리는 `YYYY-MM-DD` 형식을 기본으로 사용한다.
 - ISO 전체 문자열을 직접 URL에 쓰지 않는다.
