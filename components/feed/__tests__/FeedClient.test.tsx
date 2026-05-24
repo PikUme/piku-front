@@ -147,13 +147,13 @@ describe('FeedClient', () => {
     vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
 
-  it('첫 로드 시 cursor 없이 요청한다', async () => {
+  it('첫 로드 시 cursor 없이 추천순으로 요청한다', async () => {
     mockGetFeedCursor.mockResolvedValue(makeResponse([1, 2, 3], 'cursor-1', true));
 
     render(<FeedClient />);
 
     await waitFor(() => {
-      expect(mockGetFeedCursor).toHaveBeenCalledWith(null);
+      expect(mockGetFeedCursor).toHaveBeenCalledWith(null, 20, 'recommended');
     });
   });
 
@@ -182,20 +182,32 @@ describe('FeedClient', () => {
     expect(screen.getByRole('button', { name: '최신순' })).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('정렬 선택은 UI 상태만 바꾸고 feed API를 다시 호출하지 않는다', async () => {
-    mockGetFeedCursor.mockResolvedValue(makeResponse([1, 2, 3], 'cursor-1', true));
+  it('정렬 변경 시 기존 목록을 초기화하고 새 정렬로 첫 페이지를 요청한다', async () => {
+    mockGetFeedCursor.mockResolvedValueOnce(makeResponse([1, 2, 3], 'cursor-1', true));
+    mockGetFeedCursor.mockResolvedValueOnce(makeResponse([10, 11], 'cursor-latest-1', true));
 
     render(<FeedClient />);
 
     await waitFor(() => {
-      expect(mockGetFeedCursor).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('feed-card-1')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '최신순' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '최신순' }));
+    });
 
+    await waitFor(() => {
+      expect(mockGetFeedCursor).toHaveBeenCalledWith(null, 20, 'latest');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('feed-card-10')).toBeInTheDocument();
+      expect(screen.getByTestId('feed-card-11')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId('feed-card-1')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '추천순' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: '최신순' })).toHaveAttribute('aria-pressed', 'true');
-    expect(mockGetFeedCursor).toHaveBeenCalledTimes(1);
   });
 
   it('중복 diaryId를 제거한다', async () => {
