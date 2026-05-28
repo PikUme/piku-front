@@ -1,12 +1,15 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 interface NotReadyModalProps {
   onClose: () => void;
 }
 
 const NotReadyModal = ({ onClose }: NotReadyModalProps) => {
+  useBodyScrollLock(true);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
@@ -42,4 +45,4 @@ const NotReadyModal = ({ onClose }: NotReadyModalProps) => {
   );
 };
 
-export default NotReadyModal; 
+export default NotReadyModal;

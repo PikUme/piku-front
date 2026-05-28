@@ -14,6 +14,7 @@ import {
 } from '@/lib/api/comment';
 import { formatTimeAgo } from '@/lib/utils/date';
 import { getServerURL } from '@/lib/utils/url';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import useAuthStore from '@/components/store/authStore';
 import CommentItem from './CommentItem';
 import CommentInput from './CommentInput';
@@ -57,6 +58,8 @@ const StoryCommentModal = ({
   onUpdateCommentCount,
   diaryContent,
 }: StoryCommentModalProps) => {
+  useBodyScrollLock(true);
+
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentReplies, setCommentReplies] = useState<
     Record<number, CommentRepliesState>

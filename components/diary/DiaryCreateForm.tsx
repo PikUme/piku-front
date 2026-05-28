@@ -32,6 +32,7 @@ import {
   UnifiedPhoto,
   PrivacyStatus,
 } from '@/types/diary';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import {
   getApiErrorMessage,
   getFieldError,
@@ -198,6 +199,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  useBodyScrollLock(isDatePickerOpen || isPrivacyModalOpen);
 
   const {
     register,

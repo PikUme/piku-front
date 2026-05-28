@@ -13,6 +13,7 @@ import StoryCommentModal from '../diary/StoryCommentModal';
 import { addLike, removeLike } from '@/lib/api/like';
 import { trackEvent, FEED_CLICK, FEED_LIKE } from '@/lib/analytics/events';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import FeedSortSubHeader from './FeedSortSubHeader';
 
 const FeedClient = () => {
@@ -33,13 +34,13 @@ const FeedClient = () => {
   const [isClient, setIsClient] = useState(false);
   const [selectedDiary, setSelectedDiary] = useState<DiaryDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
-  const [isCommentViewOpen, setIsCommentViewOpen] = useState(false);
   const [commentModalOpen, setCommentModalOpen] = useState<{
     diaryId: number;
     commentCount: number;
     post: FeedDiary;
   } | null>(null);
   const isDesktop = useMediaQuery({ query: '(min-width: 768px)' });
+  useBodyScrollLock(Boolean(selectedDiary || commentModalOpen || isLoadingDetail));
 
   useEffect(() => {
     setIsClient(true);
@@ -66,18 +67,14 @@ const FeedClient = () => {
     };
 
     if (selectedDiary) {
-      document.body.style.overflow = 'hidden';
       if (!hasDetailHistoryEntryRef.current) {
         window.history.pushState({ modal: 'feed-diary-detail' }, '');
         hasDetailHistoryEntryRef.current = true;
       }
       window.addEventListener('popstate', handlePopState);
-    } else {
-      document.body.style.overflow = 'auto';
     }
 
     return () => {
-      document.body.style.overflow = 'auto';
       window.removeEventListener('popstate', handlePopState);
     };
   }, [selectedDiary, handleCloseModal]);
@@ -100,22 +97,6 @@ const FeedClient = () => {
       window.removeEventListener('popstate', handlePopState);
     };
   }, [commentModalOpen, isDesktop]);
-
-  useEffect(() => {
-    if (commentModalOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      if (!selectedDiary || isCommentViewOpen) {
-        document.body.style.overflow = 'auto';
-      }
-    }
-
-    return () => {
-      if (!selectedDiary && !commentModalOpen) {
-        document.body.style.overflow = 'auto';
-      }
-    };
-  }, [commentModalOpen, selectedDiary, isCommentViewOpen]);
 
   const handleContentClick = async (diaryId: number) => {
     if (isClient) {
@@ -374,7 +355,6 @@ const FeedClient = () => {
           <DiaryStoryModal
             diary={selectedDiary}
             onClose={handleCloseModal}
-            onCommentViewToggle={setIsCommentViewOpen}
             onDelete={handleDeleteDiaryFromFeed}
           />
         ))}

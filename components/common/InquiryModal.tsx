@@ -3,12 +3,15 @@
 import { useState, useRef } from 'react';
 import { X, Image, Send } from 'lucide-react';
 import { submitInquiry } from '@/lib/api/inquiry';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 interface InquiryModalProps {
   onClose: () => void;
 }
 
 const InquiryModal = ({ onClose }: InquiryModalProps) => {
+  useBodyScrollLock(true);
+
   const [content, setContent] = useState('');
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -139,4 +142,4 @@ const InquiryModal = ({ onClose }: InquiryModalProps) => {
   );
 };
 
-export default InquiryModal; 
+export default InquiryModal;

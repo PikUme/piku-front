@@ -31,6 +31,7 @@ import { formatTimeAgo, formatYearMonthDay } from '@/lib/utils/date';
 import { getPrivacyLabel } from '@/lib/utils/privacy';
 import { getServerURL } from '@/lib/utils/url';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import useAuthStore from '@/components/store/authStore';
 import CommentItem from './CommentItem';
 import CommentInput from './CommentInput';
@@ -51,6 +52,8 @@ interface CommentRepliesState {
 }
 
 const DiaryDetailModal = ({ diary, onClose, onDelete }: DiaryDetailModalProps) => {
+  useBodyScrollLock(true);
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);

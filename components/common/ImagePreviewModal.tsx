@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 interface ImagePreviewModalProps {
   isOpen: boolean;
@@ -15,6 +16,8 @@ const ImagePreviewModal = ({
   onClose,
   imageUrl,
 }: ImagePreviewModalProps) => {
+  useBodyScrollLock(isOpen && !!imageUrl);
+
   if (!imageUrl) return null;
 
   return (
@@ -54,4 +57,4 @@ const ImagePreviewModal = ({
   );
 };
 
-export default ImagePreviewModal; 
+export default ImagePreviewModal;

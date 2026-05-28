@@ -13,6 +13,7 @@ import DiaryStoryModal from '@/components/diary/DiaryStoryModal';
 import { useFriendManagement } from '@/hooks/useFriendManagement';
 import { useDiaryData } from '@/hooks/useDiaryData';
 import { useCalendarNavigation } from '@/hooks/useCalendarNavigation';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import type { Friend } from '@/types/friend';
 
 interface HomeCalendarProps {
@@ -74,6 +75,7 @@ const HomeCalendar = ({
     closeDiaryDetail,
     removeDiary,
   } = useDiaryData(currentDate, user, viewedUser);
+  useBodyScrollLock(isLoading);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -208,4 +210,4 @@ const HomeCalendar = ({
   );
 };
 
-export default HomeCalendar; 
+export default HomeCalendar;
