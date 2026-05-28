@@ -13,6 +13,7 @@ import DiaryDetailModal from '../diary/DiaryDetailModal';
 import DiaryStoryModal from '../diary/DiaryStoryModal';
 import { getNotificationNavigationPath } from '@/lib/utils/notification';
 import { getApiErrorMessage, hasProblemType } from '@/lib/utils/apiError';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { Trash2, Loader2, Check } from 'lucide-react';
 import useNotificationStore from '../store/notificationStore';
 import useAuthStore from '../store/authStore';
@@ -30,6 +31,7 @@ const NotificationsClient = () => {
   const [selectedDiary, setSelectedDiary] = useState<DiaryDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const isDesktop = useMediaQuery({ query: '(min-width: 768px)' });
+  useBodyScrollLock(Boolean(selectedDiary || isLoadingDetail));
 
   const {
     data,
@@ -146,7 +148,7 @@ const NotificationsClient = () => {
     setSelectedDiary(null);
   }, []);
 
-  // 모달 열림 시 history 관리 + body overflow
+  // 모달 열림 시 history 관리
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       if (event.state?.modal === 'notification-diary-detail') {
@@ -158,18 +160,14 @@ const NotificationsClient = () => {
     };
 
     if (selectedDiary) {
-      document.body.style.overflow = 'hidden';
       if (!hasDetailHistoryEntryRef.current) {
         window.history.pushState({ modal: 'notification-diary-detail' }, '');
         hasDetailHistoryEntryRef.current = true;
       }
       window.addEventListener('popstate', handlePopState);
-    } else {
-      document.body.style.overflow = 'auto';
     }
 
     return () => {
-      document.body.style.overflow = 'auto';
       window.removeEventListener('popstate', handlePopState);
     };
   }, [selectedDiary, handleCloseModal]);

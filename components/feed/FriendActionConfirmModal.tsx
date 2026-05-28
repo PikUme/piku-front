@@ -1,4 +1,7 @@
+'use client';
+
 import Image from 'next/image';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 interface FriendActionConfirmModalProps {
   isOpen: boolean;
@@ -19,6 +22,8 @@ const FriendActionConfirmModal = ({
   avatar,
   isLoading,
 }: FriendActionConfirmModalProps) => {
+  useBodyScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   const messages = {
@@ -70,4 +75,4 @@ const FriendActionConfirmModal = ({
   );
 };
 
-export default FriendActionConfirmModal; 
+export default FriendActionConfirmModal;

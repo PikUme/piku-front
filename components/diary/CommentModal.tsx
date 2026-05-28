@@ -12,6 +12,7 @@ import {
   deleteComment,
   updateComment,
 } from '@/lib/api/comment';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import useAuthStore from '@/components/store/authStore';
 import CommentItem from './CommentItem';
 import CommentInput from './CommentInput';
@@ -37,6 +38,8 @@ const CommentModal = ({
   onClose,
   onUpdateCommentCount,
 }: CommentModalProps) => {
+  useBodyScrollLock(true);
+
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentReplies, setCommentReplies] = useState<
     Record<number, CommentRepliesState>
@@ -451,4 +454,4 @@ const CommentModal = ({
   );
 };
 
-export default CommentModal; 
+export default CommentModal;

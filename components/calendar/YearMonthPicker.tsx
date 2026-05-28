@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { setYear, setMonth } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 interface YearMonthPickerProps {
   currentDate: Date;
@@ -15,6 +16,8 @@ const YearMonthPicker = ({
   onDateChange,
   onClose,
 }: YearMonthPickerProps) => {
+  useBodyScrollLock(true);
+
   const [tempDate, setTempDate] = useState(currentDate);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -103,4 +106,4 @@ const YearMonthPicker = ({
   );
 };
 
-export default YearMonthPicker; 
+export default YearMonthPicker;

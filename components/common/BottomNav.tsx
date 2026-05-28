@@ -19,6 +19,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import useAuthStore from '../store/authStore';
 import { logout } from '@/lib/api/auth';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import InquiryModal from './InquiryModal';
 
 const BottomNav = () => {
@@ -34,6 +35,7 @@ const BottomNav = () => {
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  useBodyScrollLock(isModalOpen);
 
   useEffect(() => {
     // iOS 기기 감지
@@ -239,4 +241,4 @@ const BottomNav = () => {
   );
 };
 
-export default BottomNav; 
+export default BottomNav;

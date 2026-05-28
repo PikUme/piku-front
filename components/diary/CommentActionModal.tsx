@@ -1,5 +1,7 @@
 'use client';
 
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+
 interface CommentActionModalProps {
   onClose: () => void;
   onEdit: () => void;
@@ -15,6 +17,8 @@ const CommentActionModal = ({
   onReport,
   isOwner,
 }: CommentActionModalProps) => {
+  useBodyScrollLock(true);
+
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
@@ -58,4 +62,4 @@ const CommentActionModal = ({
   );
 };
 
-export default CommentActionModal; 
+export default CommentActionModal;
