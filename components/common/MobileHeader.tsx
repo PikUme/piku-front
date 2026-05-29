@@ -15,7 +15,7 @@ const MobileHeader = () => {
         isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
       }`}
     >
-      <Link href="/" className="text-xl font-bold">
+      <Link href="/" className="text-xl font-bold font-serif">
         PikUme
       </Link>
       <Link href="/notifications" className="relative p-1">
