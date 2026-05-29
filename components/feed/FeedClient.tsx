@@ -24,8 +24,8 @@ const FeedClient = () => {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<'initial' | 'next' | null>(null);
-  const [selectedSort, setSelectedSort] = useState<FeedSortMode>('recommended');
-  const activeSortRef = useRef<FeedSortMode>('recommended');
+  const [selectedSort, setSelectedSort] = useState<FeedSortMode>('latest');
+  const activeSortRef = useRef<FeedSortMode>('latest');
   const observer = useRef<IntersectionObserver | null>(null);
   const hasMounted = useRef(false);
   const hasDetailHistoryEntryRef = useRef(false);

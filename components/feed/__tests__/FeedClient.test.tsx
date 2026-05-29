@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent, within } from '@testing-library/react';
 import FeedClient from '../FeedClient';
 import { getFeedCursor } from '@/lib/api/feed';
 import { getDiaryById } from '@/lib/api/diary';
@@ -147,13 +147,13 @@ describe('FeedClient', () => {
     vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
 
-  it('첫 로드 시 cursor 없이 추천순으로 요청한다', async () => {
+  it('첫 로드 시 cursor 없이 최신순으로 요청한다', async () => {
     mockGetFeedCursor.mockResolvedValue(makeResponse([1, 2, 3], 'cursor-1', true));
 
     render(<FeedClient />);
 
     await waitFor(() => {
-      expect(mockGetFeedCursor).toHaveBeenCalledWith(null, 20, 'recommended');
+      expect(mockGetFeedCursor).toHaveBeenCalledWith(null, 20, 'latest');
     });
   });
 
@@ -169,7 +169,7 @@ describe('FeedClient', () => {
     });
   });
 
-  it('추천순과 최신순 서브헤더를 렌더링하고 추천순을 기본 선택한다', async () => {
+  it('최신순과 추천순 서브헤더를 렌더링하고 최신순을 기본 선택한다', async () => {
     mockGetFeedCursor.mockResolvedValue(makeResponse([1, 2, 3], 'cursor-1', true));
 
     render(<FeedClient />);
@@ -178,13 +178,15 @@ describe('FeedClient', () => {
       expect(screen.getByTestId('feed-sort-subheader')).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('button', { name: '추천순' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: '최신순' })).toHaveAttribute('aria-pressed', 'false');
+    const sortButtons = within(screen.getByTestId('feed-sort-subheader')).getAllByRole('button');
+    expect(sortButtons.map(button => button.textContent)).toEqual(['최신순', '추천순']);
+    expect(screen.getByRole('button', { name: '최신순' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '추천순' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('정렬 변경 시 기존 목록을 초기화하고 새 정렬로 첫 페이지를 요청한다', async () => {
     mockGetFeedCursor.mockResolvedValueOnce(makeResponse([1, 2, 3], 'cursor-1', true));
-    mockGetFeedCursor.mockResolvedValueOnce(makeResponse([10, 11], 'cursor-latest-1', true));
+    mockGetFeedCursor.mockResolvedValueOnce(makeResponse([10, 11], 'cursor-recommended-1', true));
 
     render(<FeedClient />);
 
@@ -193,11 +195,11 @@ describe('FeedClient', () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: '최신순' }));
+      fireEvent.click(screen.getByRole('button', { name: '추천순' }));
     });
 
     await waitFor(() => {
-      expect(mockGetFeedCursor).toHaveBeenCalledWith(null, 20, 'latest');
+      expect(mockGetFeedCursor).toHaveBeenCalledWith(null, 20, 'recommended');
     });
 
     await waitFor(() => {
@@ -206,36 +208,27 @@ describe('FeedClient', () => {
     });
 
     expect(screen.queryByTestId('feed-card-1')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '추천순' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByRole('button', { name: '최신순' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '최신순' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: '추천순' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('이미 선택된 정렬을 다시 누르면 재요청하지 않고 기존 목록을 유지한다', async () => {
-    mockGetFeedCursor.mockResolvedValueOnce(makeResponse([1, 2, 3], 'cursor-1', true));
     mockGetFeedCursor.mockResolvedValueOnce(makeResponse([10, 11], 'cursor-latest-1', true));
 
     render(<FeedClient />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('feed-card-1')).toBeInTheDocument();
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: '최신순' }));
-    });
 
     await waitFor(() => {
       expect(screen.getByTestId('feed-card-10')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: '최신순' })).toHaveAttribute('aria-pressed', 'true');
     });
 
-    expect(mockGetFeedCursor).toHaveBeenCalledTimes(2);
+    expect(mockGetFeedCursor).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '최신순' }));
     });
 
-    expect(mockGetFeedCursor).toHaveBeenCalledTimes(2);
+    expect(mockGetFeedCursor).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('feed-card-10')).toBeInTheDocument();
     expect(screen.getByTestId('feed-card-11')).toBeInTheDocument();
     expect(screen.queryByText('피드를 불러오는 중...')).not.toBeInTheDocument();

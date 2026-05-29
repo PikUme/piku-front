@@ -9,8 +9,8 @@ interface FeedSortSubHeaderProps {
 }
 
 const SORT_OPTIONS: Array<{ value: FeedSortMode; label: string }> = [
-  { value: 'recommended', label: '추천순' },
   { value: 'latest', label: '최신순' },
+  { value: 'recommended', label: '추천순' },
 ];
 
 const FeedSortSubHeader = ({
