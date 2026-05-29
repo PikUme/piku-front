@@ -44,7 +44,7 @@ API 응답 형식, 상태 관리 경계, 인증/알림/URL 처리 규칙이 바�
 
 ## 피드 정렬 계약
 - `GET /api/diary`에 선택 쿼리 파라미터 `sort`를 보낸다.
-- `recommended`(기본값)은 `sort` 파라미터를 생략한다. `latest`는 `sort=latest`를 보낸다.
+- 피드 화면의 기본 정렬은 `latest`이며 `sort=latest`를 보낸다. `recommended`는 `sort` 파라미터를 생략한다.
 - 다음 페이지 요청은 같은 `sort` 값에서 응답의 `nextCursor`를 전달한다.
 - 정렬 변경 시 기존 `cursor`를 버리고 새 정렬 모드의 첫 페이지부터 요청한다. `feed`, `nextCursor`, `hasMore`, `error` 상태를 모두 초기화한다.
 - 알 수 없는 `sort` 값은 `400 Bad Request`(`type: feed/invalid-sort`)로 반환된다.
