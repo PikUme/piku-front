@@ -192,6 +192,8 @@ const FeedClient = () => {
   }, []);
 
   const handleSortChange = useCallback(async (sort: FeedSortMode) => {
+    if (sort === activeSortRef.current) return;
+
     setSelectedSort(sort);
     activeSortRef.current = sort;
     setFeed([]);

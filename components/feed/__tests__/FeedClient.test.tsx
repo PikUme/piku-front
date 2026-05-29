@@ -210,6 +210,37 @@ describe('FeedClient', () => {
     expect(screen.getByRole('button', { name: '최신순' })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('이미 선택된 정렬을 다시 누르면 재요청하지 않고 기존 목록을 유지한다', async () => {
+    mockGetFeedCursor.mockResolvedValueOnce(makeResponse([1, 2, 3], 'cursor-1', true));
+    mockGetFeedCursor.mockResolvedValueOnce(makeResponse([10, 11], 'cursor-latest-1', true));
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('feed-card-1')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '최신순' }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('feed-card-10')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '최신순' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    expect(mockGetFeedCursor).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '최신순' }));
+    });
+
+    expect(mockGetFeedCursor).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId('feed-card-10')).toBeInTheDocument();
+    expect(screen.getByTestId('feed-card-11')).toBeInTheDocument();
+    expect(screen.queryByText('피드를 불러오는 중...')).not.toBeInTheDocument();
+  });
+
   it('중복 diaryId를 제거한다', async () => {
     mockGetFeedCursor.mockResolvedValueOnce(makeResponse([1, 2], 'cursor-1', true));
     mockGetFeedCursor.mockResolvedValueOnce(makeResponse([2, 3], 'cursor-2', false));
