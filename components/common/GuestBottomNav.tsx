@@ -12,7 +12,6 @@ import { usePathname } from 'next/navigation';
 const GuestBottomNav = () => {
   const [isPWAiOS, setIsPWAiOS] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [isSmallScreen, setIsSmallScreen] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -43,17 +42,12 @@ const GuestBottomNav = () => {
     };
 
     setIsPWAiOS(detectPWAiOS());
-    const checkSmallScreen = () => {
-      setIsSmallScreen(window.innerWidth < 500);
-    };
 
     setIsMobile(detectMobile());
-    checkSmallScreen();
 
     // 화면 크기 변경 감지
     const handleResize = () => {
       setIsMobile(detectMobile());
-      checkSmallScreen();
     };
 
     window.addEventListener('resize', handleResize);
@@ -62,7 +56,7 @@ const GuestBottomNav = () => {
 
   const getLinkClass = (path: string, exact = true) => {
     const isActive = exact ? pathname === path : pathname.startsWith(path);
-    const baseClass = `flex flex-col items-center text-sm ${
+    const baseClass = `flex flex-col items-center justify-center text-sm ${
       isActive ? '' : 'text-gray-400'
     }`;
     
@@ -93,14 +87,6 @@ const GuestBottomNav = () => {
     return "w-6 h-6";
   };
 
-  // PWA를 사용하는 iOS 모바일에서 텍스트 크기 조정
-  const getTextSize = () => {
-    if (isPWAiOS && isMobile) {
-      return "text-sm";
-    }
-    return "text-xs";
-  };
-
   return (
     <>
       <style jsx>{`
@@ -120,21 +106,17 @@ const GuestBottomNav = () => {
         }
       `}</style>
       <footer className={`${getBottomNavClass()} bottom-nav`}>
-        <Link href="/" className={getLinkClass('/')}>
+        <Link href="/" aria-label="홈" className={getLinkClass('/')}>
           <Compass className={getIconSize()} />
-          <span className={getTextSize()}>홈</span>
         </Link>
-        <Link href="/feed" className={getLinkClass('/feed')}>
+        <Link href="/feed" aria-label="피드" className={getLinkClass('/feed')}>
           <Compass className={getIconSize()} />
-          <span className={getTextSize()}>피드</span>
         </Link>
-        <Link href="/search" className={getLinkClass('/search')}>
+        <Link href="/search" aria-label="검색" className={getLinkClass('/search')}>
           <Search className={getIconSize()} />
-          <span className={getTextSize()}>검색</span>
         </Link>
-        <Link href="/login" className={getLinkClass('/login')}>
+        <Link href="/login" aria-label="로그인" className={getLinkClass('/login')}>
           <LogIn className={getIconSize()} />
-          <span className={getTextSize()}>로그인</span>
         </Link>
       </footer>
     </>
