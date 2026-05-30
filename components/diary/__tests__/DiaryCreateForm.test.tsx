@@ -217,6 +217,50 @@ describe('DiaryCreateForm', () => {
     ).toBeInTheDocument();
   });
 
+  it('일기 작성 서버 오류 시 ProblemDetail.detail을 alert로 보여준다', async () => {
+    mockCreateDiary.mockRejectedValue({
+      response: {
+        data: {
+          type: 'https://api.pikume.com/problems/common/internal-server-error',
+          title: 'Internal Server Error',
+          status: 500,
+          detail: '서버에 오류가 발생했습니다.',
+          instance: '/api/diary',
+        },
+      },
+    });
+
+    const alertSpy = vi.spyOn(window, 'alert');
+    const { container } = render(<DiaryCreateForm date="2026-03-18" />);
+
+    fireEvent.change(
+      screen.getByPlaceholderText('오늘의 하루를 기록해보세요...'),
+      {
+        target: { value: '테스트 일기' },
+      },
+    );
+
+    const fileInput = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement | null;
+
+    expect(fileInput).not.toBeNull();
+
+    fireEvent.change(fileInput!, {
+      target: {
+        files: [new File(['image'], 'photo.png', { type: 'image/png' })],
+      },
+    });
+
+    await screen.findByText('(1장)');
+
+    fireEvent.click(screen.getByRole('button', { name: '완료' }));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('서버에 오류가 발생했습니다.');
+    });
+  });
+
   it('내용 validation 메시지와 글자 수를 textarea 아래 같은 줄 양끝에 보여준다', async () => {
     render(<DiaryCreateForm date="2026-03-18" />);
 

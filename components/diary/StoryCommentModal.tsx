@@ -89,10 +89,6 @@ const StoryCommentModal = ({
       );
       setPage(pageToFetch + 1);
       setHasMore(!data.last);
-      if (isNewFetch) {
-        setTotalComments(data.totalElements);
-        onUpdateCommentCount(data.totalElements);
-      }
     } catch (error) {
       console.error('댓글을 불러오는데 실패했습니다:', error);
     } finally {
@@ -339,6 +335,10 @@ const StoryCommentModal = ({
     commentId: number,
     parentId: number | null,
   ) => {
+    const originalComments = comments;
+    const originalReplies = commentReplies;
+    const originalTotalComments = totalComments;
+
     // Optimistic update
     if (parentId) {
       setCommentReplies(prev => ({
@@ -365,6 +365,10 @@ const StoryCommentModal = ({
     } catch (error) {
       console.error('댓글 삭제 실패:', error);
       alert('댓글 삭제에 실패했습니다.');
+      setComments(originalComments);
+      setCommentReplies(originalReplies);
+      setTotalComments(originalTotalComments);
+      onUpdateCommentCount(originalTotalComments);
     }
   };
 

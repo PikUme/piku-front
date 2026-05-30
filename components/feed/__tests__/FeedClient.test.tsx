@@ -41,32 +41,73 @@ vi.mock('../FeedCard', () => ({
     onLikeToggle,
     onContentClick,
     onCommentClick,
+    onCommentCreated,
   }: {
     post: FeedDiary;
     onLikeToggle: (id: number) => void;
     onContentClick: () => void;
     onCommentClick: () => void;
+    onCommentCreated?: (id: number) => void;
   }) => (
     <div data-testid={`feed-card-${post.diaryId}`}>
       {post.content}
+      <span data-testid={`comment-count-${post.diaryId}`}>{post.commentCount}</span>
       <span data-testid={`like-count-${post.diaryId}`}>{post.likeCount}</span>
       <span data-testid={`like-status-${post.diaryId}`}>{post.isLiked ? 'liked' : 'not-liked'}</span>
       <button data-testid={`content-btn-${post.diaryId}`} onClick={onContentClick}>open</button>
       <button data-testid={`comment-btn-${post.diaryId}`} onClick={onCommentClick}>comment</button>
+      <button data-testid={`submit-comment-${post.diaryId}`} onClick={() => onCommentCreated?.(post.diaryId)}>submit comment</button>
       <button data-testid={`like-btn-${post.diaryId}`} onClick={() => onLikeToggle(post.diaryId)}>like</button>
     </div>
   ),
 }));
 
 vi.mock('../../diary/DiaryDetailModal', () => ({
-  default: () => null,
+  default: ({
+    diary,
+    onCommentCountChange,
+    onLikeChange,
+  }: {
+    diary: FeedDiary;
+    onCommentCountChange?: (diaryId: number, count: number) => void;
+    onLikeChange?: (
+      diaryId: number,
+      nextLike: { likeCount: number; isLiked: boolean },
+    ) => void;
+  }) => (
+    <div data-testid="diary-detail-modal">
+      <button
+        data-testid="detail-comment-count-update"
+        onClick={() => onCommentCountChange?.(diary.diaryId, 2)}
+      >
+        update detail comments
+      </button>
+      <button
+        data-testid="detail-like-update"
+        onClick={() =>
+          onLikeChange?.(diary.diaryId, { likeCount: 7, isLiked: true })
+        }
+      >
+        update detail like
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('../../diary/DiaryStoryModal', () => ({
   default: ({
     onCommentViewToggle,
+    onCommentCountChange,
+    onLikeChange,
+    diary,
   }: {
+    diary: FeedDiary;
     onCommentViewToggle?: (isOpen: boolean) => void;
+    onCommentCountChange?: (diaryId: number, count: number) => void;
+    onLikeChange?: (
+      diaryId: number,
+      nextLike: { likeCount: number; isLiked: boolean },
+    ) => void;
   }) => (
     <div data-testid="diary-story-modal">
       <button
@@ -80,6 +121,20 @@ vi.mock('../../diary/DiaryStoryModal', () => ({
         onClick={() => onCommentViewToggle?.(false)}
       >
         close detail comment
+      </button>
+      <button
+        data-testid="story-comment-count-update"
+        onClick={() => onCommentCountChange?.(diary.diaryId, 2)}
+      >
+        update story comments
+      </button>
+      <button
+        data-testid="story-like-update"
+        onClick={() =>
+          onLikeChange?.(diary.diaryId, { likeCount: 8, isLiked: true })
+        }
+      >
+        update story like
       </button>
     </div>
   ),
@@ -355,6 +410,90 @@ describe('FeedClient', () => {
       expect(screen.getByTestId('like-status-1')).toHaveTextContent('not-liked');
       expect(screen.getByTestId('like-count-1')).toHaveTextContent('0');
     });
+  });
+
+  it('피드 카드에서 댓글 생성 성공을 알리면 댓글 수를 증가시킨다', async () => {
+    mockGetFeedCursor.mockResolvedValue(makeResponse([1], 'c1', true));
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('comment-count-1')).toHaveTextContent('0');
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('submit-comment-1'));
+    });
+
+    expect(screen.getByTestId('comment-count-1')).toHaveTextContent('1');
+  });
+
+  it('피드에서 연 일기 상세의 댓글 수 변경을 피드 카드에 반영한다', async () => {
+    mockGetFeedCursor.mockResolvedValue(makeResponse([1], 'c1', true));
+    mockGetDiaryById.mockResolvedValue(makeDiaryDetail(1));
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('comment-count-1')).toHaveTextContent('0');
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('content-btn-1'));
+    });
+
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId('detail-comment-count-update'));
+    });
+
+    expect(screen.getByTestId('comment-count-1')).toHaveTextContent('2');
+  });
+
+  it('피드에서 연 데스크톱 상세의 좋아요 변경을 피드 카드에 반영한다', async () => {
+    mockGetFeedCursor.mockResolvedValue(makeResponse([1], 'c1', true));
+    mockGetDiaryById.mockResolvedValue(makeDiaryDetail(1));
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('like-status-1')).toHaveTextContent('not-liked');
+      expect(screen.getByTestId('like-count-1')).toHaveTextContent('0');
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('content-btn-1'));
+    });
+
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId('detail-like-update'));
+    });
+
+    expect(screen.getByTestId('like-status-1')).toHaveTextContent('liked');
+    expect(screen.getByTestId('like-count-1')).toHaveTextContent('7');
+  });
+
+  it('피드에서 연 모바일 상세의 좋아요 변경을 피드 카드에 반영한다', async () => {
+    mockViewport.isDesktop = false;
+    mockGetFeedCursor.mockResolvedValue(makeResponse([1], 'c1', true));
+    mockGetDiaryById.mockResolvedValue(makeDiaryDetail(1));
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('like-status-1')).toHaveTextContent('not-liked');
+      expect(screen.getByTestId('like-count-1')).toHaveTextContent('0');
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('content-btn-1'));
+    });
+
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId('story-like-update'));
+    });
+
+    expect(screen.getByTestId('like-status-1')).toHaveTextContent('liked');
+    expect(screen.getByTestId('like-count-1')).toHaveTextContent('8');
   });
 
   it('일기 상세 조회 실패 시 backend detail을 alert로 보여준다', async () => {

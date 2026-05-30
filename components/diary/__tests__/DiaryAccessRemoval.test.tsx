@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import DiaryDetailModal from '../DiaryDetailModal';
 import type { DiaryDetail } from '@/types/diary';
+import type { Comment, CommentPage } from '@/types/comment';
+import { deleteComment, getRootComments } from '@/lib/api/comment';
+import { addLike } from '@/lib/api/like';
 
 vi.mock('@/lib/api/comment', () => ({
   createComment: vi.fn(),
@@ -27,6 +30,11 @@ vi.mock('@/lib/api/diary', () => ({
   deleteDiary: vi.fn(),
 }));
 
+vi.mock('@/lib/api/like', () => ({
+  addLike: vi.fn(),
+  removeLike: vi.fn(),
+}));
+
 vi.mock('@/components/store/authStore', () => ({
   default: () => ({
     isLoggedIn: true,
@@ -44,7 +52,20 @@ vi.mock('@/components/feed/ProfileHoverCard', () => ({
 }));
 
 vi.mock('../CommentItem', () => ({
-  default: () => null,
+  default: ({
+    comment,
+    onDeleteComment,
+  }: {
+    comment: Comment;
+    onDeleteComment: (commentId: number, parentId: number | null) => void;
+  }) => (
+    <button
+      data-testid={`delete-comment-${comment.id}`}
+      onClick={() => onDeleteComment(comment.id, comment.parentId)}
+    >
+      댓글 삭제
+    </button>
+  ),
 }));
 
 vi.mock('../CommentInput', () => ({
@@ -67,6 +88,41 @@ const diary: DiaryDetail = {
   userId: 'user-1',
   comments: [],
 };
+
+const makeComment = (overrides: Partial<Comment> = {}): Comment => ({
+  id: 10,
+  diaryId: 1,
+  userId: 'user-1',
+  nickname: 'tester',
+  avatar: '',
+  content: '댓글',
+  parentId: null,
+  createdAt: '2026-04-05T10:10:00',
+  updatedAt: '2026-04-05T10:10:00',
+  replyCount: 0,
+  ...overrides,
+});
+
+const makePage = (content: Comment[], totalElements: number): CommentPage => ({
+  content,
+  pageable: {
+    pageNumber: 0,
+    pageSize: 10,
+    sort: { empty: true, sorted: false, unsorted: true },
+    offset: 0,
+    paged: true,
+    unpaged: false,
+  },
+  totalPages: 1,
+  totalElements,
+  size: 10,
+  number: 0,
+  sort: { empty: true, sorted: false, unsorted: true },
+  first: true,
+  last: true,
+  numberOfElements: content.length,
+  empty: content.length === 0,
+});
 
 describe('diary edit access removal', () => {
   beforeEach(() => {
@@ -94,5 +150,75 @@ describe('diary edit access removal', () => {
       expect(screen.getByText('일기 삭제')).toBeInTheDocument();
     });
     expect(screen.queryByText('일기 수정')).not.toBeInTheDocument();
+  });
+
+  it('초기 댓글 목록 조회의 루트 댓글 수로 부모 댓글 수를 덮어쓰지 않는다', async () => {
+    vi.mocked(getRootComments).mockResolvedValueOnce(makePage([], 2));
+    const onCommentCountChange = vi.fn();
+
+    render(
+      <DiaryDetailModal
+        diary={{ ...diary, commentCount: 5 }}
+        onClose={vi.fn()}
+        onCommentCountChange={onCommentCountChange}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getRootComments).toHaveBeenCalledWith(1, 0, 10);
+    });
+    expect(onCommentCountChange).not.toHaveBeenCalled();
+  });
+
+  it('좋아요 성공 시 부모 피드에 변경된 좋아요 상태를 알린다', async () => {
+    vi.mocked(addLike).mockResolvedValue({
+      diaryId: 1,
+      likeCount: 1,
+      isLiked: true,
+    });
+    const onLikeChange = vi.fn();
+    const { container } = render(
+      <DiaryDetailModal
+        diary={{ ...diary, userId: 'writer-id' }}
+        onClose={vi.fn()}
+        onLikeChange={onLikeChange}
+      />,
+    );
+
+    fireEvent.click(container.querySelectorAll('button')[2]);
+
+    await waitFor(() => {
+      expect(addLike).toHaveBeenCalledWith(1);
+      expect(onLikeChange).toHaveBeenCalledWith(1, {
+        likeCount: 1,
+        isLiked: true,
+      });
+    });
+  });
+
+  it('댓글 삭제 실패 시 부모 댓글 수를 원래 값으로 되돌린다', async () => {
+    vi.mocked(getRootComments).mockResolvedValueOnce(
+      makePage([makeComment()], 1),
+    );
+    vi.mocked(deleteComment).mockRejectedValueOnce(new Error('delete failed'));
+    vi.spyOn(window, 'alert').mockImplementation(() => {});
+    const onCommentCountChange = vi.fn();
+
+    render(
+      <DiaryDetailModal
+        diary={{ ...diary, commentCount: 1 }}
+        onClose={vi.fn()}
+        onCommentCountChange={onCommentCountChange}
+      />,
+    );
+
+    fireEvent.click(await screen.findByTestId('delete-comment-10'));
+
+    await waitFor(() => {
+      expect(deleteComment).toHaveBeenCalledWith(10);
+    });
+    await waitFor(() => {
+      expect(onCommentCountChange).toHaveBeenLastCalledWith(1, 1);
+    });
   });
 });
