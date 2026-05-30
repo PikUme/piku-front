@@ -1,9 +1,16 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DiaryStoryModal from '../DiaryStoryModal';
 import type { DiaryDetail } from '@/types/diary';
+import { addLike } from '@/lib/api/like';
 
 const mockPush = vi.fn();
+const useSwipeableMock = vi.hoisted(() =>
+  vi.fn((options: Record<string, unknown>) => {
+    void options;
+    return {};
+  }),
+);
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -45,7 +52,7 @@ vi.mock('framer-motion', async () => {
 });
 
 vi.mock('react-swipeable', () => ({
-  useSwipeable: () => ({}),
+  useSwipeable: useSwipeableMock,
 }));
 
 vi.mock('@/components/store/authStore', () => ({
@@ -61,6 +68,11 @@ vi.mock('@/components/store/authStore', () => ({
 
 vi.mock('@/lib/api/diary', () => ({
   deleteDiary: vi.fn(),
+}));
+
+vi.mock('@/lib/api/like', () => ({
+  addLike: vi.fn(),
+  removeLike: vi.fn(),
 }));
 
 vi.mock('../StoryCommentModal', () => ({
@@ -93,12 +105,30 @@ describe('DiaryStoryModal history navigation', () => {
     vi.clearAllMocks();
   });
 
+  it('좋아요와 댓글을 우측 하단 세로 액션 레일에 표시한다', () => {
+    render(<DiaryStoryModal diary={diary} onClose={vi.fn()} />);
+
+    const actionRail = screen.getByTestId('story-action-rail');
+    expect(actionRail).toHaveClass('right-4', 'bottom-8', 'flex-col');
+    expect(within(actionRail).getAllByRole('button')).toHaveLength(2);
+    expect(within(actionRail).getByRole('button', { name: '좋아요 0개' })).toBeInTheDocument();
+    expect(within(actionRail).getByRole('button', { name: '댓글 3개 보기' })).toBeInTheDocument();
+    expect(screen.queryByText('댓글 보기')).not.toBeInTheDocument();
+  });
+
+  it('위로 스와이프해서 댓글을 여는 핸들러는 등록하지 않는다', () => {
+    render(<DiaryStoryModal diary={diary} onClose={vi.fn()} />);
+
+    expect(useSwipeableMock).toHaveBeenCalled();
+    expect(useSwipeableMock.mock.calls.at(-1)?.[0]).not.toHaveProperty('onSwipedUp');
+  });
+
   it('댓글 화면에서 뒤로가기를 하면 댓글만 닫고 일기 상세를 유지한다', async () => {
     const pushStateSpy = vi.spyOn(window.history, 'pushState');
 
     render(<DiaryStoryModal diary={diary} onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getByText('댓글 보기'));
+    fireEvent.click(screen.getByRole('button', { name: '댓글 3개 보기' }));
 
     expect(await screen.findByTestId('story-comment-modal')).toBeInTheDocument();
     expect(pushStateSpy).toHaveBeenCalledWith({ modal: 'diary-comment' }, '');
@@ -108,7 +138,7 @@ describe('DiaryStoryModal history navigation', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('story-comment-modal')).not.toBeInTheDocument();
     });
-    expect(screen.getByText('댓글 보기')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '댓글 3개 보기' })).toBeInTheDocument();
   });
 
   it('댓글 화면을 수동으로 닫으면 댓글 히스토리 엔트리를 되돌린다', async () => {
@@ -116,7 +146,7 @@ describe('DiaryStoryModal history navigation', () => {
 
     render(<DiaryStoryModal diary={diary} onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getByText('댓글 보기'));
+    fireEvent.click(screen.getByRole('button', { name: '댓글 3개 보기' }));
 
     expect(await screen.findByTestId('story-comment-modal')).toBeInTheDocument();
 
@@ -126,5 +156,32 @@ describe('DiaryStoryModal history navigation', () => {
       expect(screen.queryByTestId('story-comment-modal')).not.toBeInTheDocument();
     });
     expect(backSpy).toHaveBeenCalledOnce();
+  });
+
+  it('좋아요 성공 시 부모 피드에 변경된 좋아요 상태를 알린다', async () => {
+    vi.mocked(addLike).mockResolvedValue({
+      diaryId: 1,
+      likeCount: 4,
+      isLiked: true,
+    });
+    const onLikeChange = vi.fn();
+
+    render(
+      <DiaryStoryModal
+        diary={{ ...diary, isLiked: false, likeCount: 3 }}
+        onClose={vi.fn()}
+        onLikeChange={onLikeChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '좋아요 3개' }));
+
+    await waitFor(() => {
+      expect(addLike).toHaveBeenCalledWith(1);
+      expect(onLikeChange).toHaveBeenCalledWith(1, {
+        likeCount: 4,
+        isLiked: true,
+      });
+    });
   });
 });
