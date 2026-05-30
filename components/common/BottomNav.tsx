@@ -10,14 +10,11 @@ import {
   Menu,
   Settings,
   LogOut,
-  X,
   HelpCircle,
-  Bell,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import useAuthStore from '../store/authStore';
+import { usePathname } from 'next/navigation';
 import { logout } from '@/lib/api/auth';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import InquiryModal from './InquiryModal';
@@ -32,8 +29,6 @@ const BottomNav = () => {
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [isPWAiOS, setIsPWAiOS] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [isSmallScreen, setIsSmallScreen] = useState(false);
-  const router = useRouter();
   const pathname = usePathname();
   useBodyScrollLock(isModalOpen);
 
@@ -65,17 +60,12 @@ const BottomNav = () => {
     };
 
     setIsPWAiOS(detectPWAiOS());
-    const checkSmallScreen = () => {
-      setIsSmallScreen(window.innerWidth < 500);
-    };
 
     setIsMobile(detectMobile());
-    checkSmallScreen();
 
     // 화면 크기 변경 감지
     const handleResize = () => {
       setIsMobile(detectMobile());
-      checkSmallScreen();
     };
 
     window.addEventListener('resize', handleResize);
@@ -88,7 +78,7 @@ const BottomNav = () => {
 
   const getLinkClass = (path: string, exact = true) => {
     const isActive = exact ? pathname === path : pathname.startsWith(path);
-    const baseClass = `flex flex-col items-center text-sm ${
+    const baseClass = `flex flex-col items-center justify-center text-sm ${
       isActive ? '' : 'text-gray-400'
     }`;
     
@@ -103,7 +93,7 @@ const BottomNav = () => {
   const getMoreLinkClass = () => {
     const isActive =
       pathname.startsWith('/profile') || pathname.startsWith('/settings');
-    const baseClass = `flex flex-col items-center text-sm cursor-pointer ${
+    const baseClass = `flex flex-col items-center justify-center text-sm cursor-pointer ${
       isActive ? '' : 'text-gray-400'
     }`;
     
@@ -134,14 +124,6 @@ const BottomNav = () => {
     return "w-6 h-6";
   };
 
-  // PWA를 사용하는 iOS 모바일에서 텍스트 크기 조정
-  const getTextSize = () => {
-    if (isPWAiOS && isMobile) {
-      return "text-sm";
-    }
-    return "text-xs";
-  };
-
   return (
     <>
       <style jsx>{`
@@ -161,32 +143,32 @@ const BottomNav = () => {
         }
       `}</style>
       <footer className={`${getBottomNavClass()} bottom-nav`}>
-        <Link href="/" className={getLinkClass('/')}>
+        <Link href="/" aria-label="홈" className={getLinkClass('/')}>
           <Home className={getIconSize()} />
-          <span className={getTextSize()}>홈</span>
         </Link>
-        <Link href="/feed" className={getLinkClass('/feed')}>
+        <Link href="/feed" aria-label="피드" className={getLinkClass('/feed')}>
           <Compass className={getIconSize()} />
-          <span className={getTextSize()}>피드</span>
         </Link>
-        <Link href="/search" className={getLinkClass('/search')}>
+        <Link href="/search" aria-label="검색" className={getLinkClass('/search')}>
           <Search className={getIconSize()} />
-          <span className={getTextSize()}>검색</span>
         </Link>
         <Link
           href={`/diary/new/${todayDate}`}
+          aria-label="오늘의 일기"
           className={getLinkClass('/diary/new', false)}
         >
           <PlusSquare className={getIconSize()} />
-          <span className={getTextSize()}>{isSmallScreen ? '일기' : '오늘의 일기'}</span>
         </Link>
-        <Link href="/friends" className={getLinkClass('/friends')}>
+        <Link href="/friends" aria-label="친구" className={getLinkClass('/friends')}>
           <Users className={getIconSize()} />
-          <span className={getTextSize()}>친구</span>
         </Link>
-        <button onClick={() => setIsModalOpen(true)} className={getMoreLinkClass()}>
+        <button
+          type="button"
+          aria-label="더보기"
+          onClick={() => setIsModalOpen(true)}
+          className={getMoreLinkClass()}
+        >
           <Menu className={getIconSize()} />
-          <span className={getTextSize()}>더보기</span>
         </button>
       </footer>
       {isModalOpen && (
