@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 
 import Link from 'next/link';
@@ -26,6 +26,8 @@ import {
   deleteComment,
   updateComment,
 } from '@/lib/api/comment';
+import { addLike, removeLike, type LikeResponse } from '@/lib/api/like';
+import { HeartIcon } from '@/components/icons/FeedIcons';
 import { deleteDiary } from '@/lib/api/diary';
 import { formatTimeAgo, formatYearMonthDay } from '@/lib/utils/date';
 import { getPrivacyLabel } from '@/lib/utils/privacy';
@@ -41,6 +43,11 @@ interface DiaryDetailModalProps {
   diary: DiaryDetail;
   onClose: () => void;
   onDelete?: (diaryId: number) => void;
+  onCommentCountChange?: (diaryId: number, count: number) => void;
+  onLikeChange?: (
+    diaryId: number,
+    nextLike: Pick<LikeResponse, 'likeCount' | 'isLiked'>,
+  ) => void;
 }
 
 interface CommentRepliesState {
@@ -51,10 +58,18 @@ interface CommentRepliesState {
   isShown: boolean;
 }
 
-const DiaryDetailModal = ({ diary, onClose, onDelete }: DiaryDetailModalProps) => {
+const DiaryDetailModal = ({
+  diary,
+  onClose,
+  onDelete,
+  onCommentCountChange,
+  onLikeChange,
+}: DiaryDetailModalProps) => {
   useBodyScrollLock(true);
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isLiked, setIsLiked] = useState(diary.isLiked);
+  const [likeCount, setLikeCount] = useState(diary.likeCount);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentReplies, setCommentReplies] = useState<
@@ -114,9 +129,6 @@ const DiaryDetailModal = ({ diary, onClose, onDelete }: DiaryDetailModalProps) =
       );
       setPage(pageToFetch + 1);
       setHasMore(!data.last);
-      if (isNewFetch) {
-        setTotalComments(data.totalElements);
-      }
     } catch (error) {
       console.error('댓글을 불러오는데 실패했습니다:', error);
     } finally {
@@ -287,9 +299,12 @@ const DiaryDetailModal = ({ diary, onClose, onDelete }: DiaryDetailModalProps) =
 
     const originalNewComment = newComment;
     const originalReplyTo = replyTo;
+    const originalTotalComments = totalComments;
+    const optimisticTotalComments = originalTotalComments + 1;
 
     // 낙관적 업데이트
-    setTotalComments(prev => prev + 1);
+    setTotalComments(optimisticTotalComments);
+    onCommentCountChange?.(diary.diaryId, optimisticTotalComments);
 
     if (isReply && parentId) {
       // 부모 댓글의 답글 수 업데이트
@@ -351,7 +366,8 @@ const DiaryDetailModal = ({ diary, onClose, onDelete }: DiaryDetailModalProps) =
     } catch (error) {
       console.error('댓글 작성 실패:', error);
       // 실패: 낙관적 업데이트 되돌리기
-      setTotalComments(prev => prev - 1);
+      setTotalComments(originalTotalComments);
+      onCommentCountChange?.(diary.diaryId, originalTotalComments);
       if (isReply && parentId) {
         setComments(prev =>
           prev.map(c =>
@@ -381,6 +397,10 @@ const DiaryDetailModal = ({ diary, onClose, onDelete }: DiaryDetailModalProps) =
     commentId: number,
     parentId: number | null,
   ) => {
+    const originalComments = comments;
+    const originalReplies = commentReplies;
+    const originalTotalComments = totalComments;
+
     // Optimistic update
     if (parentId) {
       setCommentReplies(prev => ({
@@ -398,14 +418,19 @@ const DiaryDetailModal = ({ diary, onClose, onDelete }: DiaryDetailModalProps) =
     } else {
       setComments(prev => prev.filter(c => c.id !== commentId));
     }
-    setTotalComments(prev => prev - 1);
+    const nextTotalComments = totalComments - 1;
+    setTotalComments(nextTotalComments);
+    onCommentCountChange?.(diary.diaryId, nextTotalComments);
 
     try {
       await deleteComment(commentId);
     } catch (error) {
       console.error('댓글 삭제 실패:', error);
       alert('댓글 삭제에 실패했습니다.');
-      // Revert optimistic update is complex, so we'll just log the error for now
+      setComments(originalComments);
+      setCommentReplies(originalReplies);
+      setTotalComments(originalTotalComments);
+      onCommentCountChange?.(diary.diaryId, originalTotalComments);
     }
   };
 
@@ -467,6 +492,32 @@ const DiaryDetailModal = ({ diary, onClose, onDelete }: DiaryDetailModalProps) =
       alert(getApiErrorMessage(error, '일기 삭제에 실패했습니다.'));
     }
   };
+
+  const handleLikeToggle = useCallback(async () => {
+    const prevIsLiked = isLiked;
+    const prevLikeCount = likeCount;
+
+    // Optimistic update
+    setIsLiked(!prevIsLiked);
+    setLikeCount(prevIsLiked ? prevLikeCount - 1 : prevLikeCount + 1);
+
+    try {
+      const response = prevIsLiked
+        ? await removeLike(diary.diaryId)
+        : await addLike(diary.diaryId);
+      setIsLiked(response.isLiked);
+      setLikeCount(response.likeCount);
+      onLikeChange?.(diary.diaryId, {
+        likeCount: response.likeCount,
+        isLiked: response.isLiked,
+      });
+    } catch (error) {
+      // Rollback
+      setIsLiked(prevIsLiked);
+      setLikeCount(prevLikeCount);
+      console.error('좋아요 처리에 실패했습니다:', error);
+    }
+  }, [isLiked, likeCount, diary.diaryId, onLikeChange]);
 
   const handlePrevImage = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -719,27 +770,18 @@ const DiaryDetailModal = ({ diary, onClose, onDelete }: DiaryDetailModalProps) =
           {/* Action Bar */}
           <div className="border-t border-gray-200 px-4 py-2 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <div className="flex space-x-4">
-                {/* <button className="hover:opacity-60 dark:text-white cursor-pointer">
-                  <Heart size={24} />
-                </button> */}
-                {/* <button className="hover:opacity-60 dark:text-white cursor-pointer">
-                  <MessageCircle size={24} />
-                </button> */}
-                {/* <button className="hover:opacity-60 dark:text-white cursor-pointer">
-                  <Send size={24} />
-                </button> */}
+              <div className="flex items-center space-x-4">
+                <button
+                  className="flex items-center space-x-1 cursor-pointer hover:opacity-70 transition-opacity"
+                  onClick={handleLikeToggle}
+                >
+                  <HeartIcon filled={isLiked} />
+                </button>
               </div>
-              {/* <button className="hover:opacity-60 dark:text-white cursor-pointer">
-                <Bookmark size={24} />
-              </button> */}
             </div>
-            {/* <p className="mt-2 text-sm font-bold dark:text-white">
-              좋아요 {diary.likeCount}개
-            </p> */}
-            {/* <p className="mt-1 text-xs uppercase text-gray-500 dark:text-gray-400">
-              {displayDate}
-            </p> */}
+            <p className="mt-1 text-sm font-bold dark:text-white">
+              좋아요 {likeCount}개
+            </p>
           </div>
 
           {/* Comment Input */}

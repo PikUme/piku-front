@@ -10,7 +10,7 @@ import { FriendshipStatus } from '@/types/friend';
 import DiaryDetailModal from '../diary/DiaryDetailModal';
 import DiaryStoryModal from '../diary/DiaryStoryModal';
 import StoryCommentModal from '../diary/StoryCommentModal';
-import { addLike, removeLike } from '@/lib/api/like';
+import { addLike, removeLike, type LikeResponse } from '@/lib/api/like';
 import { trackEvent, FEED_CLICK, FEED_LIKE } from '@/lib/analytics/events';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -41,6 +41,96 @@ const FeedClient = () => {
   } | null>(null);
   const isDesktop = useMediaQuery({ query: '(min-width: 768px)' });
   useBodyScrollLock(Boolean(selectedDiary || commentModalOpen || isLoadingDetail));
+
+  const applyDiaryCommentCount = useCallback((diaryId: number, count: number) => {
+    setFeed(prevFeed =>
+      prevFeed.map(post =>
+        post.diaryId === diaryId ? { ...post, commentCount: count } : post,
+      ),
+    );
+    setSelectedDiary(prevDiary =>
+      prevDiary?.diaryId === diaryId
+        ? { ...prevDiary, commentCount: count }
+        : prevDiary,
+    );
+    setCommentModalOpen(prevModal =>
+      prevModal?.diaryId === diaryId
+        ? {
+            ...prevModal,
+            commentCount: count,
+            post: { ...prevModal.post, commentCount: count },
+          }
+        : prevModal,
+    );
+  }, []);
+
+  const incrementDiaryCommentCount = useCallback((diaryId: number) => {
+    setFeed(prevFeed =>
+      prevFeed.map(post =>
+        post.diaryId === diaryId
+          ? { ...post, commentCount: post.commentCount + 1 }
+          : post,
+      ),
+    );
+    setSelectedDiary(prevDiary =>
+      prevDiary?.diaryId === diaryId
+        ? { ...prevDiary, commentCount: prevDiary.commentCount + 1 }
+        : prevDiary,
+    );
+    setCommentModalOpen(prevModal =>
+      prevModal?.diaryId === diaryId
+        ? {
+            ...prevModal,
+            commentCount: prevModal.commentCount + 1,
+            post: {
+              ...prevModal.post,
+              commentCount: prevModal.post.commentCount + 1,
+            },
+          }
+        : prevModal,
+    );
+  }, []);
+
+  const applyDiaryLikeState = useCallback(
+    (
+      diaryId: number,
+      nextLike: Pick<LikeResponse, 'likeCount' | 'isLiked'>,
+    ) => {
+      setFeed(prevFeed =>
+        prevFeed.map(post =>
+          post.diaryId === diaryId
+            ? {
+                ...post,
+                likeCount: nextLike.likeCount,
+                isLiked: nextLike.isLiked,
+              }
+            : post,
+        ),
+      );
+      setSelectedDiary(prevDiary =>
+        prevDiary?.diaryId === diaryId
+          ? {
+              ...prevDiary,
+              likeCount: nextLike.likeCount,
+              isLiked: nextLike.isLiked,
+            }
+          : prevDiary,
+      );
+      setCommentModalOpen(prevModal =>
+        prevModal?.diaryId === diaryId
+          ? {
+              ...prevModal,
+              post: {
+                ...prevModal.post,
+                likeCount: nextLike.likeCount,
+                isLiked: nextLike.isLiked,
+              },
+            }
+          : prevModal,
+      );
+    },
+    [],
+  );
 
   useEffect(() => {
     setIsClient(true);
@@ -127,17 +217,14 @@ const FeedClient = () => {
     setCommentModalOpen(null);
   };
 
-  const handleUpdateCommentCount = (count: number) => {
-    if (commentModalOpen) {
-      setFeed(prevFeed =>
-        prevFeed.map(post =>
-          post.diaryId === commentModalOpen.diaryId
-            ? { ...post, commentCount: count }
-            : post,
-        ),
-      );
-    }
-  };
+  const handleUpdateCommentCount = useCallback(
+    (count: number) => {
+      if (commentModalOpen) {
+        applyDiaryCommentCount(commentModalOpen.diaryId, count);
+      }
+    },
+    [applyDiaryCommentCount, commentModalOpen],
+  );
 
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
@@ -315,6 +402,7 @@ const FeedClient = () => {
               onContentClick={() => handleContentClick(post.diaryId)}
               onCommentClick={() => handleCommentClick(post)}
               onLikeToggle={handleLikeToggle}
+              onCommentCreated={incrementDiaryCommentCount}
               isMobile={!isDesktop}
             />
           </div>
@@ -352,12 +440,16 @@ const FeedClient = () => {
             diary={selectedDiary}
             onClose={handleCloseModal}
             onDelete={handleDeleteDiaryFromFeed}
+            onCommentCountChange={applyDiaryCommentCount}
+            onLikeChange={applyDiaryLikeState}
           />
         ) : (
           <DiaryStoryModal
             diary={selectedDiary}
             onClose={handleCloseModal}
             onDelete={handleDeleteDiaryFromFeed}
+            onCommentCountChange={applyDiaryCommentCount}
+            onLikeChange={applyDiaryLikeState}
           />
         ))}
       {commentModalOpen && (

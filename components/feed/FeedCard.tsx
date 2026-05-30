@@ -34,6 +34,7 @@ interface FeedCardProps {
   onContentClick: () => void;
   onCommentClick: () => void;
   onLikeToggle: (diaryId: number) => void;
+  onCommentCreated?: (diaryId: number) => void;
   isMobile: boolean;
 }
 
@@ -43,6 +44,7 @@ const FeedCard = ({
   onContentClick,
   onCommentClick,
   onLikeToggle,
+  onCommentCreated,
   isMobile,
 }: FeedCardProps) => {
   const [comment, setComment] = useState('');
@@ -106,6 +108,7 @@ const FeedCard = ({
     setIsSubmitting(true);
     try {
       await createComment({ diaryId: post.diaryId, content: trimmedComment });
+      onCommentCreated?.(post.diaryId);
       setComment('');
     } catch (error: any) {
       console.error('Failed to post comment:', error);
