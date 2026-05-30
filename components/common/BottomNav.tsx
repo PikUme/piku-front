@@ -13,7 +13,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { logout } from '@/lib/api/auth';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -29,6 +29,7 @@ const BottomNav = () => {
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [isPWAiOS, setIsPWAiOS] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const hasModalHistoryEntryRef = useRef(false);
   const pathname = usePathname();
   useBodyScrollLock(isModalOpen);
 
@@ -75,6 +76,53 @@ const BottomNav = () => {
   const handleLogout = async () => {
     await logout();
   };
+
+  const openMoreMenu = () => {
+    setIsModalOpen(true);
+  };
+
+  const openInquiryModal = () => {
+    setIsInquiryModalOpen(true);
+    setIsModalOpen(false);
+  };
+
+  const closeModalSurface = () => {
+    if (hasModalHistoryEntryRef.current) {
+      hasModalHistoryEntryRef.current = false;
+      window.history.back();
+    }
+    setIsModalOpen(false);
+    setIsInquiryModalOpen(false);
+  };
+
+  useEffect(() => {
+    const isAnyModalOpen = isModalOpen || isInquiryModalOpen;
+
+    if (!isAnyModalOpen || hasModalHistoryEntryRef.current) {
+      return;
+    }
+
+    window.history.pushState({ modal: 'bottom-nav-menu' }, '');
+    hasModalHistoryEntryRef.current = true;
+  }, [isModalOpen, isInquiryModalOpen]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (!hasModalHistoryEntryRef.current) {
+        return;
+      }
+
+      hasModalHistoryEntryRef.current = false;
+      setIsModalOpen(false);
+      setIsInquiryModalOpen(false);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   const getLinkClass = (path: string, exact = true) => {
     const isActive = exact ? pathname === path : pathname.startsWith(path);
@@ -165,7 +213,7 @@ const BottomNav = () => {
         <button
           type="button"
           aria-label="더보기"
-          onClick={() => setIsModalOpen(true)}
+          onClick={openMoreMenu}
           className={getMoreLinkClass()}
         >
           <Menu className={getIconSize()} />
@@ -174,7 +222,7 @@ const BottomNav = () => {
       {isModalOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-40"
-          onClick={() => setIsModalOpen(false)}
+          onClick={closeModalSurface}
         >
           <div
             className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 rounded-t-2xl p-4 shadow-lg animate-slide-up"
@@ -198,10 +246,7 @@ const BottomNav = () => {
                 <span>설정</span>
               </Link>
               <button
-                onClick={() => {
-                  setIsInquiryModalOpen(true);
-                  setIsModalOpen(false);
-                }}
+                onClick={openInquiryModal}
                 className="flex items-center p-3 text-lg rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-left w-full"
               >
                 <HelpCircle className="w-6 h-6 mr-4" />
@@ -218,7 +263,7 @@ const BottomNav = () => {
           </div>
         </div>
       )}
-      {isInquiryModalOpen && <InquiryModal onClose={() => setIsInquiryModalOpen(false)} />}
+      {isInquiryModalOpen && <InquiryModal onClose={closeModalSurface} />}
     </>
   );
 };

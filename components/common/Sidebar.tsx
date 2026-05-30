@@ -29,6 +29,7 @@ const Sidebar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const hasInquiryHistoryEntryRef = useRef(false);
   const router = useRouter();
   const { unreadCount } = useNotificationStore();
 
@@ -47,6 +48,46 @@ const Sidebar = () => {
   const handleLogout = async () => {
     await logout();
   };
+
+  const openInquiryModal = () => {
+    setIsInquiryModalOpen(true);
+    setIsMenuOpen(false);
+  };
+
+  const closeInquiryModal = () => {
+    if (hasInquiryHistoryEntryRef.current) {
+      hasInquiryHistoryEntryRef.current = false;
+      window.history.back();
+    }
+    setIsInquiryModalOpen(false);
+  };
+
+  useEffect(() => {
+    if (!isInquiryModalOpen || hasInquiryHistoryEntryRef.current) {
+      return;
+    }
+
+    window.history.pushState({ modal: 'sidebar-inquiry' }, '');
+    hasInquiryHistoryEntryRef.current = true;
+  }, [isInquiryModalOpen]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (!hasInquiryHistoryEntryRef.current) {
+        return;
+      }
+
+      hasInquiryHistoryEntryRef.current = false;
+      setIsInquiryModalOpen(false);
+      setIsMenuOpen(false);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   return (
     <>
@@ -166,10 +207,7 @@ const Sidebar = () => {
                   <span className="inline">설정</span>
                 </Link>
                 <button
-                  onClick={() => {
-                    setIsInquiryModalOpen(true);
-                    setIsMenuOpen(false);
-                  }}
+                  onClick={openInquiryModal}
                   className="flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left"
                 >
                   <HelpCircle className="w-5 h-5 mr-3" />
@@ -194,7 +232,7 @@ const Sidebar = () => {
           </button>
         </div>
       </aside>
-      {isInquiryModalOpen && <InquiryModal onClose={() => setIsInquiryModalOpen(false)} />}
+      {isInquiryModalOpen && <InquiryModal onClose={closeInquiryModal} />}
     </>
   );
 };
