@@ -111,9 +111,9 @@ const BottomNav = () => {
     
     if (isPWAiOS && isMobile) {
       // PWA를 사용하는 iOS에서 크기 증가 및 safe area 고려
-      return `${baseClass} p-4 pt-2 min-h-[80px]`;
+      return `${baseClass} px-4 pt-[0.9rem] min-h-[80px]`;
     }
-    return `${baseClass} p-2 pt-2`;
+    return `${baseClass} px-2 pt-[0.9rem]`;
   };
 
   // PWA를 사용하는 iOS 모바일에서 아이콘 크기 조정
@@ -139,7 +139,7 @@ const BottomNav = () => {
           animation: slide-up 0.25s ease-out;
         }
         .bottom-nav {
-          padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+          padding-bottom: calc(0.9rem + env(safe-area-inset-bottom));
         }
       `}</style>
       <footer className={`${getBottomNavClass()} bottom-nav`}>
