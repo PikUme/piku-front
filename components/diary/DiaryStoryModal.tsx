@@ -1,27 +1,29 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   X,
   MoreHorizontal,
   MessageCircle,
+  Heart,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
   DotIcon,
 } from 'lucide-react';
-import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSwipeable } from 'react-swipeable';
 import type { DiaryDetail } from '@/types/diary';
-import { formatTimeAgo, formatYearMonthDayDots } from '@/lib/utils/date';
+import { formatYearMonthDayDots } from '@/lib/utils/date';
 import { getPrivacyLabel } from '@/lib/utils/privacy';
 import { getServerURL } from '@/lib/utils/url';
-import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import useAuthStore from '@/components/store/authStore';
 import { deleteDiary } from '@/lib/api/diary';
+import { addLike, removeLike, type LikeResponse } from '@/lib/api/like';
 import StoryCommentModal from './StoryCommentModal';
 
 interface DiaryStoryModalProps {
@@ -29,6 +31,11 @@ interface DiaryStoryModalProps {
   onClose: () => void;
   onCommentViewToggle?: (isOpen: boolean) => void;
   onDelete?: (diaryId: number) => void;
+  onCommentCountChange?: (diaryId: number, count: number) => void;
+  onLikeChange?: (
+    diaryId: number,
+    nextLike: Pick<LikeResponse, 'likeCount' | 'isLiked'>,
+  ) => void;
 }
 
 
@@ -42,16 +49,48 @@ const formatCount = (count: number): string => {
   return String(count);
 };
 
+interface StoryActionButtonProps {
+  ariaLabel: string;
+  icon: LucideIcon;
+  countLabel: string;
+  iconClassName?: string;
+  onClick: () => void;
+}
+
+const StoryActionButton = ({
+  ariaLabel,
+  icon: Icon,
+  countLabel,
+  iconClassName = 'text-white',
+  onClick,
+}: StoryActionButtonProps) => (
+  <button
+    type="button"
+    aria-label={ariaLabel}
+    className="flex min-w-[44px] flex-col items-center text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.8)] transition-opacity hover:opacity-80"
+    onClick={onClick}
+  >
+    <Icon size={28} aria-hidden="true" className={iconClassName} />
+    <span className="mt-1 text-xs font-semibold leading-none">
+      {countLabel}
+    </span>
+  </button>
+);
+
 const DiaryStoryModal = ({
   diary,
   onClose,
   onCommentViewToggle,
   onDelete,
+  onCommentCountChange,
+  onLikeChange,
 }: DiaryStoryModalProps) => {
   useBodyScrollLock(true);
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [totalComments, setTotalComments] = useState(diary.commentCount);
+  const [isLiked, setIsLiked] = useState(diary.isLiked);
+  const [likeCount, setLikeCount] = useState(diary.likeCount);
   const [isCommentViewOpen, setIsCommentViewOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -68,6 +107,7 @@ const DiaryStoryModal = ({
 
   const handleUpdateCommentCount = (count: number) => {
     setTotalComments(count);
+    onCommentCountChange?.(diary.diaryId, count);
   };
 
   const handleCloseCommentModal = () => {
@@ -138,6 +178,32 @@ const DiaryStoryModal = ({
     }
   };
 
+  const handleLikeToggle = useCallback(async () => {
+    const prevIsLiked = isLiked;
+    const prevLikeCount = likeCount;
+
+    // Optimistic update
+    setIsLiked(!prevIsLiked);
+    setLikeCount(prevIsLiked ? prevLikeCount - 1 : prevLikeCount + 1);
+
+    try {
+      const response = prevIsLiked
+        ? await removeLike(diary.diaryId)
+        : await addLike(diary.diaryId);
+      setIsLiked(response.isLiked);
+      setLikeCount(response.likeCount);
+      onLikeChange?.(diary.diaryId, {
+        likeCount: response.likeCount,
+        isLiked: response.isLiked,
+      });
+    } catch (error) {
+      // Rollback
+      setIsLiked(prevIsLiked);
+      setLikeCount(prevLikeCount);
+      console.error('좋아요 처리에 실패했습니다:', error);
+    }
+  }, [isLiked, likeCount, diary.diaryId, onLikeChange]);
+
   const handlePrevImage = () => {
     if (diary.imgUrls && diary.imgUrls.length > 0 && currentImageIndex > 0) {
       setCurrentImageIndex(prev => prev - 1);
@@ -150,14 +216,15 @@ const DiaryStoryModal = ({
     }
   };
 
-  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    if (info.offset.y < -50 && info.velocity.y < -200) {
-      openCommentView();
-    }
-  };
+  // 위로 드래그해서 댓글을 여는 기능은 UX 변경으로 비활성화합니다.
+  // const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+  //   if (info.offset.y < -50 && info.velocity.y < -200) {
+  //     openCommentView();
+  //   }
+  // };
 
   const swipeHandlers = useSwipeable({
-    onSwipedUp: () => openCommentView(),
+    // onSwipedUp: () => openCommentView(),
     onSwipedLeft: () => handleNextImage(),
     onSwipedRight: () => handlePrevImage(),
     trackMouse: true,
@@ -169,6 +236,23 @@ const DiaryStoryModal = ({
   };
 
   const displayImage = diary.imgUrls?.[currentImageIndex] || '/vercel.svg';
+  const storyActions = [
+    {
+      key: 'like',
+      ariaLabel: isLiked ? `좋아요 취소 ${likeCount}개` : `좋아요 ${likeCount}개`,
+      icon: Heart,
+      countLabel: formatCount(likeCount),
+      iconClassName: isLiked ? 'fill-red-500 text-red-500' : 'text-white',
+      onClick: handleLikeToggle,
+    },
+    {
+      key: 'comment',
+      ariaLabel: `댓글 ${totalComments}개 보기`,
+      icon: MessageCircle,
+      countLabel: formatCount(totalComments),
+      onClick: openCommentView,
+    },
+  ];
 
   return (
     <motion.div
@@ -236,7 +320,7 @@ const DiaryStoryModal = ({
         <AnimatePresence initial={false}>
           <motion.div
             key={currentImageIndex}
-            className="absolute inset-x-0 top-20 bottom-24"
+            className="absolute inset-x-0 top-20 bottom-0"
             initial={{ opacity: 0.8 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0.8 }}
@@ -274,25 +358,26 @@ const DiaryStoryModal = ({
         </>
       )}
 
-       {/* Comment section handle */}
-       {!isCommentViewOpen && (
-        <motion.div
-          className="absolute bottom-0 left-0 right-0 z-20 flex cursor-pointer flex-col items-center p-4"
-          onClick={openCommentView}
-          drag="y"
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={{ top: 0, bottom: 0.5 }}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="flex items-center text-white/80">
-            <ChevronUp size={20} className="mr-1" />
-            <span className="text-sm">댓글 보기</span>
+      {/* Story action rail */}
+      {!isCommentViewOpen && (
+        <>
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-32 bg-gradient-to-t from-black/50 to-transparent" />
+          <div
+            data-testid="story-action-rail"
+            className="absolute right-4 bottom-8 z-20 flex flex-col items-center gap-5"
+          >
+            {storyActions.map(action => (
+              <StoryActionButton
+                key={action.key}
+                ariaLabel={action.ariaLabel}
+                icon={action.icon}
+                countLabel={action.countLabel}
+                iconClassName={action.iconClassName}
+                onClick={action.onClick}
+              />
+            ))}
           </div>
-          <div className="mt-1 flex items-center text-white">
-            <MessageCircle size={20} className="mr-2" />
-            <span>{formatCount(totalComments)}</span>
-          </div>
-        </motion.div>
+        </>
       )}
 
       {/* Comments View using StoryCommentModal */}
