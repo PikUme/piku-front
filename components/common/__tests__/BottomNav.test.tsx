@@ -3,8 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import BottomNav from '../BottomNav';
 import GuestBottomNav from '../GuestBottomNav';
 
+const { pathnameState } = vi.hoisted(() => ({
+  pathnameState: { value: '/' },
+}));
+
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/',
+  usePathname: () => pathnameState.value,
   useRouter: () => ({
     push: vi.fn(),
   }),
@@ -38,6 +42,7 @@ const expectExpandedVerticalPadding = (container: HTMLElement, footer: HTMLEleme
 describe('BottomNav', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    pathnameState.value = '/';
   });
 
   it('로그인 사용자 하단 네비게이션은 아이콘 라벨 텍스트를 보이지 않는다', () => {
@@ -61,7 +66,8 @@ describe('BottomNav', () => {
       'href',
       expect.stringMatching(/^\/diary\/new\/\d{4}-\d{2}-\d{2}$/),
     );
-    expect(screen.getByRole('link', { name: '친구' })).toHaveAttribute('href', '/friends');
+    expect(screen.queryByRole('link', { name: '친구' })).not.toBeInTheDocument();
+    expect(within(footer!).getAllByRole('link')).toHaveLength(4);
     expect(screen.getByRole('button', { name: '더보기' })).toBeInTheDocument();
   });
 
@@ -71,6 +77,16 @@ describe('BottomNav', () => {
 
     expect(footer).not.toBeNull();
     expectExpandedVerticalPadding(container, footer!);
+  });
+
+  it('친구 페이지에서는 더보기 그룹이 활성 상태로 표시된다', () => {
+    pathnameState.value = '/friends';
+
+    render(<BottomNav />);
+
+    expect(screen.getByRole('button', { name: '더보기' })).not.toHaveClass(
+      'text-gray-400',
+    );
   });
 
   it('모바일 더보기 메뉴에서 뒤로가기를 하면 메뉴만 닫고 페이지를 유지한다', async () => {

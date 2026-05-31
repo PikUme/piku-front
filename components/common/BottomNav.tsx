@@ -6,7 +6,6 @@ import {
   Search,
   User,
   PlusSquare,
-  Users,
   Menu,
   Settings,
   LogOut,
@@ -140,7 +139,9 @@ const BottomNav = () => {
 
   const getMoreLinkClass = () => {
     const isActive =
-      pathname.startsWith('/profile') || pathname.startsWith('/settings');
+      pathname.startsWith('/profile') ||
+      pathname.startsWith('/settings') ||
+      pathname.startsWith('/friends');
     const baseClass = `flex flex-col items-center justify-center text-sm cursor-pointer ${
       isActive ? '' : 'text-gray-400'
     }`;
@@ -206,9 +207,6 @@ const BottomNav = () => {
           className={getLinkClass('/diary/new', false)}
         >
           <PlusSquare className={getIconSize()} />
-        </Link>
-        <Link href="/friends" aria-label="친구" className={getLinkClass('/friends')}>
-          <Users className={getIconSize()} />
         </Link>
         <button
           type="button"
