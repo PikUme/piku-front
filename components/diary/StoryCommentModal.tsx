@@ -461,11 +461,11 @@ const StoryCommentModal = ({
               alt={diaryContent.nickname}
               width={32}
               height={32}
-              className="mr-3 mt-1 cursor-pointer rounded-full"
+              className="mr-3 mt-1 h-8 w-8 flex-shrink-0 cursor-pointer rounded-full"
               onError={handleAvatarError}
             />
-            <div>
-              <p className="whitespace-pre-wrap text-sm dark:text-white">
+            <div className="min-w-0">
+              <p className="whitespace-pre-wrap break-words text-sm dark:text-white">
                 <span className="cursor-pointer font-bold">{diaryContent.nickname}</span>{' '}
                 {diaryContent.content}
               </p>

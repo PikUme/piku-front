@@ -609,7 +609,7 @@ const DiaryDetailModal = ({
                     alt={diary.nickname}
                     width={32}
                     height={32}
-                    className="rounded-full cursor-pointer"
+                    className="h-8 w-8 flex-shrink-0 rounded-full cursor-pointer"
                     onError={handleAvatarError}
                   />
                 </Link>
@@ -682,22 +682,22 @@ const DiaryDetailModal = ({
             {/* 일기 내용 (첫 번째 댓글로 표시) */}
             <div className="relative">
               <div className="flex items-start">
-                <div>
+                <div className="flex-shrink-0">
                   <Link href={profileUrl}>
                     <Image
                       src={diary.avatar || DEFAULT_AVATAR}
                       alt={diary.nickname}
                       width={32}
                       height={32}
-                      className="mr-3 mt-1 rounded-full cursor-pointer"
+                      className="mr-3 mt-1 h-8 w-8 flex-shrink-0 rounded-full cursor-pointer"
                       onError={handleAvatarError}
                       onMouseEnter={handleContentMouseEnter}
                       onMouseLeave={handleContentMouseLeave}
                     />
                   </Link>
                 </div>
-                <div>
-                  <p className="text-sm dark:text-white whitespace-pre-wrap">
+                <div className="min-w-0">
+                  <p className="text-sm dark:text-white whitespace-pre-wrap break-words">
                     <span
                       
                       className="inline-block"

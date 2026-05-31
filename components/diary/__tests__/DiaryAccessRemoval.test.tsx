@@ -152,6 +152,30 @@ describe('diary edit access removal', () => {
     expect(screen.queryByText('일기 수정')).not.toBeInTheDocument();
   });
 
+  it('긴 일기 본문에서도 작성자 아바타가 flex 수축 대상이 되지 않는다', async () => {
+    render(
+      <DiaryDetailModal
+        diary={{
+          ...diary,
+          content:
+            '갑작스레 민영이한테 저녁먹자는 연락이 왔다. '.repeat(20),
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getRootComments).toHaveBeenCalledWith(1, 0, 10);
+    });
+
+    const authorAvatars = screen.getAllByRole('img', { name: 'tester' });
+
+    expect(authorAvatars.length).toBeGreaterThan(0);
+    authorAvatars.forEach(avatar => {
+      expect(avatar).toHaveClass('flex-shrink-0', 'h-8', 'w-8');
+    });
+  });
+
   it('초기 댓글 목록 조회의 루트 댓글 수로 부모 댓글 수를 덮어쓰지 않는다', async () => {
     vi.mocked(getRootComments).mockResolvedValueOnce(makePage([], 2));
     const onCommentCountChange = vi.fn();

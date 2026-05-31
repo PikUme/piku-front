@@ -139,6 +139,37 @@ describe('StoryCommentModal comment counts', () => {
     expect(onUpdateCommentCount).not.toHaveBeenCalled();
   });
 
+  it('긴 일기 본문에서도 작성자 아바타가 flex 수축 대상이 되지 않는다', async () => {
+    vi.mocked(getRootComments).mockResolvedValueOnce(makePage([], 0));
+
+    render(
+      <StoryCommentModal
+        diaryId={1}
+        initialCommentCount={0}
+        onClose={vi.fn()}
+        onUpdateCommentCount={vi.fn()}
+        diaryContent={{
+          nickname: 'tester',
+          avatar: '',
+          content:
+            '갑작스레 민영이한테 저녁먹자는 연락이 왔다. '.repeat(20),
+          createdAt: '2026-04-05T10:00:00',
+          userId: 'user-1',
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getRootComments).toHaveBeenCalledWith(1, 0, 10);
+    });
+
+    expect(screen.getByRole('img', { name: 'tester' })).toHaveClass(
+      'flex-shrink-0',
+      'h-8',
+      'w-8',
+    );
+  });
+
   it('댓글 삭제 실패 시 부모 댓글 수를 원래 값으로 되돌린다', async () => {
     vi.mocked(getRootComments).mockResolvedValueOnce(makePage([makeComment()], 1));
     vi.mocked(deleteComment).mockRejectedValueOnce(new Error('delete failed'));
