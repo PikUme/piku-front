@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { CalendarDays, Grid3X3 } from 'lucide-react';
 import useAuthStore from '@/components/store/authStore';
 import {
   acceptFriendRequest,
@@ -15,6 +16,7 @@ import { formatDateParam } from '@/lib/utils/date';
 import { FriendshipStatus, UserProfile } from '@/types/friend';
 import { UserProfileResponseDTO, DiaryMonthCountDTO } from '@/types/profile';
 import FriendActionConfirmModal from '@/components/feed/FriendActionConfirmModal';
+import ProfileDiaryPhotoGrid from '@/components/profile/ProfileDiaryPhotoGrid';
 
 interface ProfileClientProps {
   profileData: UserProfileResponseDTO &
@@ -25,6 +27,7 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
   const router = useRouter();
   const { user: currentUser } = useAuthStore();
   const isMyProfile = currentUser?.id === profileData.userId;
+  const [diaryView, setDiaryView] = useState<'timeline' | 'photos'>('timeline');
   
   // 친구 상태를 로컬 상태로 관리
   const [currentFriendStatus, setCurrentFriendStatus] = useState(profileData.friendStatus);
@@ -36,6 +39,19 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
   const handleEditProfile = () => {
     router.push('/profile/edit');
   };
+
+  const handleFriendsClick = () => {
+    router.push('/friends');
+  };
+
+  const diaryViewOptions: Array<{
+    value: typeof diaryView;
+    label: string;
+    icon: typeof CalendarDays;
+  }> = [
+    { value: 'timeline', label: '월별', icon: CalendarDays },
+    { value: 'photos', label: '사진', icon: Grid3X3 },
+  ];
 
   const handleConfirmRemoveFriend = async () => {
     setIsActionLoading(true);
@@ -172,12 +188,23 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
 
         {/* 친구/일기 카운트 */}
         <div className="flex justify-center items-center my-6 text-center">
-          <div className="w-1/2">
-            <p className="text-2xl font-bold">{profileData.friendCount}</p>
-            <p className="text-sm text-gray-500">friend</p>
-          </div>
+          {isMyProfile ? (
+            <button
+              type="button"
+              onClick={handleFriendsClick}
+              className="w-1/2 rounded-lg py-2 cursor-pointer transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
+            >
+              <span className="block text-2xl font-bold">{profileData.friendCount}</span>
+              <span className="block text-sm text-gray-500">friend</span>
+            </button>
+          ) : (
+            <div className="w-1/2 py-2">
+              <p className="text-2xl font-bold">{profileData.friendCount}</p>
+              <p className="text-sm text-gray-500">friend</p>
+            </div>
+          )}
           <div className="border-l h-8"></div>
-          <div className="w-1/2">
+          <div className="w-1/2 py-2">
             <p className="text-2xl font-bold">{profileData.diaryCount}</p>
             <p className="text-sm text-gray-500">diary</p>
           </div>
@@ -187,56 +214,91 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
       {/* 월별 일기 기록 */}
       <div className="text-left px-6 py-4 border-t">
         <h3 className="text-xl font-bold mb-4">Diary</h3>
-        <div className="relative">
-          {profileData.monthlyDiaryCount &&
-            profileData.monthlyDiaryCount.length > 1 && (
-              <div className="absolute left-2.5 top-2.5 bottom-2.5 w-1 bg-gray-200"></div>
-            )}
-          <div className="space-y-4">
-            {profileData.monthlyDiaryCount &&
-            profileData.monthlyDiaryCount.length > 0 ? (
-              profileData.monthlyDiaryCount.map(
-                (stat: DiaryMonthCountDTO) => (
-                  <div
-                    key={`${stat.year}-${stat.month}`}
-                    className="flex items-center cursor-pointer hover:bg-gray-50"
-                    onClick={() => handleMonthClick(stat.year, stat.month)}
-                  >
-                    <div className="w-6 h-6 flex-shrink-0 mr-4 z-10">
-                      <div className="w-5 h-5 bg-gray-300 rounded-full mx-auto my-1.5"></div>
-                    </div>
-                    <div className="w-full p-4 border rounded-lg shadow-sm bg-white">
-                      <div className="flex items-baseline mb-2">
-                        <span className="text-lg font-semibold text-gray-800">
-                          {stat.month}월
-                        </span>
-                        <span className="ml-1.5 text-xs text-gray-500">
-                          ({stat.count}/{stat.daysInMonth})
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-lime-400 h-2 rounded-full"
-                          style={{
-                            width: `${
-                              stat.daysInMonth > 0
-                                ? (stat.count / stat.daysInMonth) * 100
-                                : 0
-                            }%`,
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                ),
-              )
-            ) : (
-              <p className="text-center text-gray-500">
-                아직 작성된 일기 기록이 없어요.
-              </p>
-            )}
-          </div>
+        <div
+          aria-label="Diary 보기 방식"
+          className="mb-5 grid w-full grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1"
+          role="group"
+        >
+          {diaryViewOptions.map(option => {
+            const Icon = option.icon;
+            const isActive = diaryView === option.value;
+
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={isActive}
+                aria-label={option.label}
+                onClick={() => setDiaryView(option.value)}
+                className={`flex h-10 items-center justify-center gap-2 rounded-md text-sm font-semibold transition-colors ${
+                  isActive
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                <Icon aria-hidden="true" className="h-4 w-4" />
+                <span>{option.label}</span>
+              </button>
+            );
+          })}
         </div>
+        {diaryView === 'photos' ? (
+          <ProfileDiaryPhotoGrid
+            userId={profileData.userId}
+            monthlyDiaryCount={profileData.monthlyDiaryCount}
+          />
+        ) : (
+          <div className="relative">
+            {profileData.monthlyDiaryCount &&
+              profileData.monthlyDiaryCount.length > 1 && (
+                <div className="absolute left-2.5 top-2.5 bottom-2.5 w-1 bg-gray-200"></div>
+              )}
+            <div className="space-y-4">
+              {profileData.monthlyDiaryCount &&
+              profileData.monthlyDiaryCount.length > 0 ? (
+                profileData.monthlyDiaryCount.map(
+                  (stat: DiaryMonthCountDTO) => (
+                    <div
+                      key={`${stat.year}-${stat.month}`}
+                      className="flex items-center cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleMonthClick(stat.year, stat.month)}
+                    >
+                      <div className="w-6 h-6 flex-shrink-0 mr-4 z-10">
+                        <div className="w-5 h-5 bg-gray-300 rounded-full mx-auto my-1.5"></div>
+                      </div>
+                      <div className="w-full p-4 border rounded-lg shadow-sm bg-white">
+                        <div className="flex items-baseline mb-2">
+                          <span className="text-lg font-semibold text-gray-800">
+                            {stat.month}월
+                          </span>
+                          <span className="ml-1.5 text-xs text-gray-500">
+                            ({stat.count}/{stat.daysInMonth})
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-lime-400 h-2 rounded-full"
+                            style={{
+                              width: `${
+                                stat.daysInMonth > 0
+                                  ? (stat.count / stat.daysInMonth) * 100
+                                  : 0
+                              }%`,
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  ),
+                )
+              ) : (
+                <p className="text-center text-gray-500">
+                  아직 작성된 일기 기록이 없어요.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 친구 끊기 확인 모달 */}

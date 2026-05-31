@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { ChevronDown, Send } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import type { Friend } from '@/types/friend';
 import type { User } from '@/types/auth';
 import YearMonthPicker from '@/components/calendar/YearMonthPicker';
@@ -31,7 +31,7 @@ const HomeCalendarHeader = ({
         <h1 className="text-2xl font-bold">PikUme</h1>
       </div> */}
         {/* <Send className="w-6 h-6" /> */}
-      
+
       <div className="flex items-center justify-between space-x-4">
         <div className="flex min-w-0 items-center gap-3">
           <Image
@@ -73,4 +73,4 @@ const HomeCalendarHeader = ({
   );
 };
 
-export default HomeCalendarHeader; 
+export default HomeCalendarHeader;
