@@ -119,6 +119,32 @@ describe('SSEInitializer', () => {
     expect(eventSources).toHaveLength(3);
   });
 
+  it('상태 코드 없는 전송 오류가 반복되면 자동 재연결을 중단한다', () => {
+    vi.useFakeTimers();
+    render(<SSEInitializer />);
+
+    act(() => {
+      eventSources[0].onerror?.({ error: new Error('NetworkError') });
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(eventSources).toHaveLength(2);
+
+    act(() => {
+      eventSources[1].onerror?.({ error: new Error('NetworkError') });
+      vi.advanceTimersByTime(6000);
+    });
+
+    expect(eventSources).toHaveLength(3);
+
+    act(() => {
+      eventSources[2].onerror?.({ error: new Error('NetworkError') });
+      vi.advanceTimersByTime(30000);
+    });
+
+    expect(eventSources).toHaveLength(3);
+  });
+
   it('연결이 성공하면 재연결 지연을 초기값으로 되돌린다', () => {
     vi.useFakeTimers();
     render(<SSEInitializer />);

@@ -12,6 +12,7 @@ import {
 
 const INITIAL_RECONNECT_DELAY = 3000;
 const MAX_RECONNECT_DELAY = 30000;
+const MAX_TRANSPORT_ERROR_AUTO_RECONNECTS = 3;
 
 const getSseErrorStatus = (event: unknown): number | undefined => {
   if (typeof event !== 'object' || event === null || !('status' in event)) {
@@ -34,6 +35,7 @@ const SSEInitializer = () => {
   const eventSourceRef = useRef<EventSourcePolyfill | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectDelayRef = useRef(INITIAL_RECONNECT_DELAY);
+  const transportErrorCountRef = useRef(0);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -88,6 +90,7 @@ const SSEInitializer = () => {
 
       eventSourceRef.current.onopen = () => {
         reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
+        transportErrorCountRef.current = 0;
       };
 
       eventSourceRef.current.onmessage = (event: any) => {
@@ -112,6 +115,18 @@ const SSEInitializer = () => {
         if (!isMounted) return;
 
         const status = getSseErrorStatus(event);
+        if (status === undefined) {
+          transportErrorCountRef.current += 1;
+          if (
+            transportErrorCountRef.current >=
+            MAX_TRANSPORT_ERROR_AUTO_RECONNECTS
+          ) {
+            return;
+          }
+        } else {
+          transportErrorCountRef.current = 0;
+        }
+
         if (!isAuthErrorStatus(status)) {
           scheduleReconnect();
           return;
