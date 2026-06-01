@@ -216,7 +216,7 @@ describe('NotificationsClient', () => {
     });
   });
 
-  it('FRIEND_DIARY 알림 클릭 시 캘린더 상세 위치로 이동한다', async () => {
+  it('FRIEND_DIARY 알림 클릭 시 페이지 이동 대신 일기 모달을 연다', async () => {
     mockGetNotifications.mockResolvedValue(
       makePage([
         makeNotification({
@@ -230,13 +230,15 @@ describe('NotificationsClient', () => {
 
     renderClient();
 
-    fireEvent.click(await screen.findByText('posted a new diary'));
+    await act(async () => {
+      fireEvent.click(await screen.findByText('posted a new diary'));
+    });
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith(
-        '/profile/user-1/calendar?date=2026-03-17&diaryId=77',
-      );
+      expect(mockGetDiaryById).toHaveBeenCalledWith(77);
+      expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
     });
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('읽은 알림 클릭 시 읽음 처리 요청 없이 이동만 한다', async () => {
