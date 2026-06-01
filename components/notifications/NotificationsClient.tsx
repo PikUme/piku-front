@@ -21,6 +21,11 @@ import useAuthStore from '../store/authStore';
 const RESOURCE_NOT_FOUND =
   'https://api.pikume.com/problems/common/resource-not-found';
 
+const DIARY_MODAL_NOTIFICATION_TYPES = new Set<Notification['type']>([
+  'REPLY',
+  'FRIEND_DIARY',
+]);
+
 const NotificationsClient = () => {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -120,8 +125,11 @@ const NotificationsClient = () => {
       }
     }
 
-    // REPLY 알림은 모달로 일기를 보여준다
-    if (notification.type === 'REPLY' && notification.relatedDiaryId !== null) {
+    // 일부 일기 알림은 페이지 이동 대신 모달로 상세를 보여준다.
+    if (
+      DIARY_MODAL_NOTIFICATION_TYPES.has(notification.type) &&
+      notification.relatedDiaryId !== null
+    ) {
       setIsLoadingDetail(true);
       try {
         const diary = await getDiaryById(notification.relatedDiaryId);
