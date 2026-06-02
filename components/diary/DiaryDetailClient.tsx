@@ -3,24 +3,21 @@
 import { useState, useEffect } from 'react';
 import { useMediaQuery } from 'react-responsive';
 import { useRouter } from 'next/navigation';
-import type { DiaryDetail } from '@/types/diary';
+import type { DiaryDetail, DiaryUpdatePatch } from '@/types/diary';
 import { getDiaryById } from '@/lib/api/diary';
-import { createComment, getRootComments } from '@/lib/api/comment';
-import type { Comment } from '@/types/comment';
 import { format } from 'date-fns';
-import { Heart, MessageCircle, Send, X } from 'lucide-react';
+import { Heart, MessageCircle, MoreHorizontal } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination } from 'swiper/modules';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import type { CSSProperties } from 'react';
-import { getServerURL } from '@/lib/utils/url';
 import Image from 'next/image';
 import useAuthStore from '../store/authStore';
 import DiaryDetailModal from './DiaryDetailModal';
+import DiaryEditModal from './DiaryEditModal';
 import CommentModal from './CommentModal';
-import { getApiErrorMessage } from '@/lib/utils/apiError';
 
 interface DiaryDetailClientProps {
   diaryId: number;
@@ -31,10 +28,11 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
   const [isLoading, setIsLoading] = useState(true);
   // const [errorMessage, setErrorMessage] = useState('');
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const { user, isLoggedIn } = useAuthStore();
   const router = useRouter();
-  const serverUrl = getServerURL();
   const isDesktop = useMediaQuery({ query: '(min-width: 1024px)' });
 
   useEffect(() => {
@@ -58,6 +56,13 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
 
   const handleDiaryDeleted = () => {
     router.back();
+  };
+
+  const handleDiaryUpdated = (diaryId: number, patch: DiaryUpdatePatch) => {
+    setDiary(prevDiary =>
+      prevDiary?.diaryId === diaryId ? { ...prevDiary, ...patch } : prevDiary,
+    );
+    setIsEditModalOpen(false);
   };
 
   const getDisplayContent = (content: string) => {
@@ -94,8 +99,19 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
     );
   }
 
+  const isOwner = user?.id === diary.userId;
+
   return (
     <div className="bg-white dark:bg-black min-h-screen font-sans">
+      {isEditModalOpen && (
+        <DiaryEditModal
+          diaryId={diary.diaryId}
+          initialStatus={diary.status}
+          initialContent={diary.content}
+          onCancel={() => setIsEditModalOpen(false)}
+          onSaved={patch => handleDiaryUpdated(diary.diaryId, patch)}
+        />
+      )}
       <div className="max-w-md mx-auto bg-white dark:bg-neutral-900 shadow-sm flex flex-col min-h-screen">
         <header className="p-4 flex items-center space-x-3 border-b dark:border-gray-700 sticky top-0 bg-white dark:bg-neutral-900 z-10">
           <div className="flex-grow flex items-center space-x-3">
@@ -113,6 +129,32 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
               </p>
             </div>
           </div>
+          {isOwner && (
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="일기 메뉴"
+                className="rounded-full p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                onClick={() => setIsMenuOpen(prev => !prev)}
+              >
+                <MoreHorizontal className="h-5 w-5" />
+              </button>
+              {isMenuOpen && (
+                <div className="absolute right-0 z-20 mt-2 w-32 rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  <button
+                    type="button"
+                    className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setIsEditModalOpen(true);
+                    }}
+                  >
+                    일기 수정
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </header>
 
         <div className="flex-grow pb-20">
@@ -189,6 +231,7 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
               diary={diary}
               onClose={() => setIsCommentModalOpen(false)}
               onDelete={handleDiaryDeleted}
+              onDiaryUpdate={handleDiaryUpdated}
             />
           ) : (
             <CommentModal

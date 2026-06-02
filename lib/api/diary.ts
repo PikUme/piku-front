@@ -1,5 +1,9 @@
 import api from './api';
-import { DiaryContent, DiaryDetail } from '@/types/diary';
+import type {
+  DiaryDetail,
+  DiaryUpdateRequest,
+  DiaryUpdateResponse,
+} from '@/types/diary';
 
 interface DiaryImageInfo {
   type: 'AI_IMAGE' | 'USER_IMAGE';
@@ -43,46 +47,13 @@ export const createDiary = async (diaryData: DiaryCreateRequest) => {
 
 export const updateDiary = async (
   diaryId: number,
-  diaryData: any, // DiaryCreateRequest,
-) => {
-  const formData = new FormData();
-
-  // if (diaryData.photos) {
-  //   diaryData.photos.forEach(photoFile => {
-  //     formData.append('photos', photoFile);
-  //   });
-  // }
-
-  // if (diaryData.aiPhotos) {
-  //   diaryData.aiPhotos.forEach(aiPhoto => {
-  //     formData.append('aiPhotos', aiPhoto);
-  //   });
-  // }
-
-  // if (diaryData.deletedUrls) {
-  //   diaryData.deletedUrls.forEach(url => {
-  //     formData.append('deletedUrls', url);
-  //   });
-  // }
-
-  // formData.append('status', diaryData.status);
-  // formData.append('content', diaryData.content);
-
-  // // TODO: Let's consider whether to allow date changes
-  // // formData.append('date', diaryData.date);
-
-  // if (diaryData.coverPhotoType && diaryData.coverPhotoIndex !== undefined) {
-  //   formData.append('coverPhotoType', diaryData.coverPhotoType);
-  //   formData.append('coverPhotoIndex', String(diaryData.coverPhotoIndex));
-  // }
-
-  // const response = await api.put(`/diary/${diaryId}`, formData, {
-  //   headers: {
-  //     'Content-Type': 'multipart/form-data',
-  //   },
-  // });
-  // return response.data;
-  return Promise.resolve(); // 임시 반환
+  diaryData: DiaryUpdateRequest,
+): Promise<DiaryUpdateResponse> => {
+  const response = await api.put(`/diary/${diaryId}`, {
+    status: diaryData.status,
+    content: diaryData.content,
+  });
+  return response.data;
 };
 
 export const getRemainingAiRequests = async (): Promise<number> => {
