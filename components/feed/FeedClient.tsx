@@ -5,7 +5,7 @@ import { useMediaQuery } from 'react-responsive';
 import FeedCard from './FeedCard';
 import { getFeedCursor, type FeedSortMode } from '@/lib/api/feed';
 import { getDiaryById } from '@/lib/api/diary';
-import { FeedDiary, DiaryDetail } from '@/types/diary';
+import type { DiaryDetail, DiaryUpdatePatch, FeedDiary } from '@/types/diary';
 import { FriendshipStatus } from '@/types/friend';
 import DiaryDetailModal from '../diary/DiaryDetailModal';
 import DiaryStoryModal from '../diary/DiaryStoryModal';
@@ -124,6 +124,40 @@ const FeedClient = () => {
                 ...prevModal.post,
                 likeCount: nextLike.likeCount,
                 isLiked: nextLike.isLiked,
+              },
+            }
+          : prevModal,
+      );
+    },
+    [],
+  );
+
+  const applyDiaryUpdate = useCallback(
+    (diaryId: number, patch: DiaryUpdatePatch) => {
+      setFeed(prevFeed =>
+        prevFeed.map(post =>
+          post.diaryId === diaryId
+            ? {
+                ...post,
+                status: patch.status,
+                content: patch.content,
+              }
+            : post,
+        ),
+      );
+      setSelectedDiary(prevDiary =>
+        prevDiary?.diaryId === diaryId
+          ? { ...prevDiary, ...patch }
+          : prevDiary,
+      );
+      setCommentModalOpen(prevModal =>
+        prevModal?.diaryId === diaryId
+          ? {
+              ...prevModal,
+              post: {
+                ...prevModal.post,
+                status: patch.status,
+                content: patch.content,
               },
             }
           : prevModal,
@@ -442,6 +476,7 @@ const FeedClient = () => {
             onDelete={handleDeleteDiaryFromFeed}
             onCommentCountChange={applyDiaryCommentCount}
             onLikeChange={applyDiaryLikeState}
+            onDiaryUpdate={applyDiaryUpdate}
           />
         ) : (
           <DiaryStoryModal
@@ -450,6 +485,7 @@ const FeedClient = () => {
             onDelete={handleDeleteDiaryFromFeed}
             onCommentCountChange={applyDiaryCommentCount}
             onLikeChange={applyDiaryLikeState}
+            onDiaryUpdate={applyDiaryUpdate}
           />
         ))}
       {commentModalOpen && (
