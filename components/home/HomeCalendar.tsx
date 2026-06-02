@@ -74,6 +74,7 @@ const HomeCalendar = ({
     loadDiaryDetail,
     closeDiaryDetail,
     removeDiary,
+    patchSelectedDiary,
   } = useDiaryData(currentDate, user, viewedUser);
   useBodyScrollLock(isLoading);
 
@@ -191,6 +192,7 @@ const HomeCalendar = ({
             diary={selectedDiary}
             onClose={closeDiaryDetail}
             onDelete={removeDiary}
+            onDiaryUpdate={patchSelectedDiary}
           />
         ) : (
           <DiaryStoryModal
@@ -198,6 +200,7 @@ const HomeCalendar = ({
             onClose={closeDiaryDetail}
             onCommentViewToggle={setIsCommentViewOpen}
             onDelete={removeDiary}
+            onDiaryUpdate={patchSelectedDiary}
           />
         ))}
 
