@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-import { getDiaryById } from '@/lib/api/diary';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { deleteDiary, getDiaryById } from '@/lib/api/diary';
+import type { DiaryDetail } from '@/types/diary';
 
 const mockPush = vi.fn();
 const mockBack = vi.fn();
@@ -22,6 +23,7 @@ vi.mock('next/image', () => ({
 
 vi.mock('@/lib/api/diary', () => ({
   getDiaryById: vi.fn(),
+  deleteDiary: vi.fn(),
 }));
 
 vi.mock('@/lib/api/comment', () => ({
@@ -55,14 +57,42 @@ vi.mock('../CommentModal', () => ({
   default: () => null,
 }));
 
+let authState: { user: { id: string } | null; isLoggedIn: boolean } = {
+  user: null,
+  isLoggedIn: false,
+};
+
 vi.mock('../../store/authStore', () => ({
-  default: () => ({
-    user: null,
-    isLoggedIn: false,
-  }),
+  default: () => authState,
 }));
 
+const diary: DiaryDetail = {
+  diaryId: 42,
+  content: '오늘의 일기',
+  date: '2026-06-04',
+  status: 'PUBLIC',
+  createdAt: '2026-06-04T00:00:00',
+  updatedAt: '2026-06-04T00:00:00',
+  isLiked: false,
+  likeCount: 3,
+  commentCount: 2,
+  imgUrls: ['https://example.com/diary.jpg'],
+  nickname: '피쿠',
+  avatar: '',
+  userId: 'owner-id',
+  comments: [],
+};
+
 describe('DiaryDetailClient', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authState = { user: null, isLoggedIn: false };
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('일기 상세 조회 실패 시 404 이미지를 보여준다', async () => {
     const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
 
@@ -83,5 +113,28 @@ describe('DiaryDetailClient', () => {
     expect(
       await screen.findByRole('img', { name: '일기를 찾을 수 없습니다.' }),
     ).toHaveAttribute('src', '/404.png');
+  });
+
+  it('소유자는 더보기 메뉴에서 일기를 수정하고 삭제할 수 있다', async () => {
+    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
+    authState = { user: { id: 'owner-id' }, isLoggedIn: true };
+    vi.mocked(getDiaryById).mockResolvedValue(diary);
+    vi.mocked(deleteDiary).mockResolvedValue();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(<DiaryDetailClient diaryId={42} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '일기 메뉴' }));
+
+    fireEvent.click(screen.getByRole('button', { name: '일기 수정' }));
+    expect(mockPush).toHaveBeenCalledWith('/diary/42/edit');
+
+    fireEvent.click(screen.getByRole('button', { name: '일기 메뉴' }));
+    fireEvent.click(screen.getByRole('button', { name: '일기 삭제' }));
+
+    await waitFor(() => {
+      expect(deleteDiary).toHaveBeenCalledWith(42);
+    });
+    expect(mockBack).toHaveBeenCalled();
   });
 });
