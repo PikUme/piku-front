@@ -1,5 +1,5 @@
 import api from './api';
-import { DiaryContent, DiaryDetail } from '@/types/diary';
+import { CursorPage, DiaryContent, DiaryDetail } from '@/types/diary';
 
 interface DiaryImageInfo {
   type: 'AI_IMAGE' | 'USER_IMAGE';
@@ -106,7 +106,28 @@ export interface CalendarDiaryResponseDTO {
   diaryId: number;
   coverPhotoUrl: string;
   date: string; // 'yyyy-MM-dd'
+  imageCount?: number;
+  status?: 'PUBLIC' | 'PRIVATE';
 }
+
+export const getUserGallery = async (
+  userId: string,
+  cursor?: string | null,
+  limit = 10,
+): Promise<CursorPage<CalendarDiaryResponseDTO>> => {
+  const params: { cursor?: string; limit: number } = { limit };
+
+  if (cursor != null) {
+    params.cursor = cursor;
+  }
+
+  const response = await api.get<CursorPage<CalendarDiaryResponseDTO>>(
+    `/diary/user/${userId}/gallery`,
+    { params },
+  );
+
+  return response.data;
+};
 
 export const getMonthlyDiaries = async (
   userId: string,
