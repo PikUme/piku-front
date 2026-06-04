@@ -74,6 +74,7 @@ export interface Comment {
 
 export interface DiaryDetail extends Diary {
   comments: Comment[];
+  friendStatus?: FriendshipStatus;
 }
 
 export interface FeedDiary {
