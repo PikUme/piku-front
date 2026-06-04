@@ -181,4 +181,40 @@ describe('ProfileClient', () => {
     expect(screen.getByText('5월')).toBeInTheDocument();
     expect(screen.queryByTestId('profile-diary-photo-grid')).not.toBeInTheDocument();
   });
+
+  it('월별 일기 기록을 연도별로 나누어 표시한다', () => {
+    render(
+      <ProfileClient
+        profileData={{
+          ...profileData,
+          monthlyDiaryCount: [
+            {
+              year: 2026,
+              month: 1,
+              count: 2,
+              daysInMonth: 31,
+            },
+            {
+              year: 2025,
+              month: 12,
+              count: 1,
+              daysInMonth: 31,
+            },
+            {
+              year: 2025,
+              month: 11,
+              count: 3,
+              daysInMonth: 30,
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: '2026년' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '2025년' })).toBeInTheDocument();
+    expect(screen.getByText('1월')).toBeInTheDocument();
+    expect(screen.getByText('12월')).toBeInTheDocument();
+    expect(screen.getByText('11월')).toBeInTheDocument();
+  });
 });
