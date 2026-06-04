@@ -18,6 +18,9 @@ import useAuthStore from '../store/authStore';
 import DiaryDetailModal from './DiaryDetailModal';
 import CommentModal from './CommentModal';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
+import { sendFriendRequest } from '@/lib/api/friend';
+import { FriendshipStatus } from '@/types/friend';
+import { getPrivacyLabel } from '@/lib/utils/privacy';
 
 interface DiaryDetailClientProps {
   diaryId: number;
@@ -30,6 +33,7 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
+  const [isFriendActionLoading, setIsFriendActionLoading] = useState(false);
   const { user } = useAuthStore();
   const router = useRouter();
   const isDesktop = useMediaQuery({ query: '(min-width: 768px)' });
@@ -69,6 +73,27 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
     }
   };
 
+  const handleAddFriend = async () => {
+    if (!diary || !user || isFriendActionLoading) return;
+
+    setIsFriendActionLoading(true);
+    try {
+      await sendFriendRequest(diary.userId);
+      setDiary(prevDiary =>
+        prevDiary
+          ? { ...prevDiary, friendStatus: FriendshipStatus.SENT }
+          : prevDiary,
+      );
+    } catch (error: any) {
+      console.error('Friend action failed:', error);
+      if (error?.response?.status !== 403) {
+        alert('요청 처리 중 오류가 발생했습니다.');
+      }
+    } finally {
+      setIsFriendActionLoading(false);
+    }
+  };
+
   const getDisplayContent = (content: string) => {
     const maxLength = 100;
     if (content.length <= maxLength || isContentExpanded) {
@@ -104,6 +129,10 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
   }
 
   const isOwner = user?.id === diary.userId;
+  const shouldShowAddFriendButton =
+    Boolean(user) &&
+    !isOwner &&
+    (diary.friendStatus ?? FriendshipStatus.NONE) === FriendshipStatus.NONE;
 
   return (
     <div className="min-h-screen bg-white font-sans dark:bg-black">
@@ -126,6 +155,21 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
                   {format(new Date(diary.date), 'yyyy.MM.dd')}
                 </p>
               </div>
+              {isOwner && (
+                <p className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                  {getPrivacyLabel(diary.status)}
+                </p>
+              )}
+              {shouldShowAddFriendButton && (
+                <button
+                  type="button"
+                  onClick={handleAddFriend}
+                  disabled={isFriendActionLoading}
+                  className="shrink-0 text-xs font-semibold text-blue-500 hover:text-blue-600 disabled:text-gray-400"
+                >
+                  {isFriendActionLoading ? '...' : '친구 추가'}
+                </button>
+              )}
             </div>
             {isOwner && (
               <div className="relative">

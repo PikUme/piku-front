@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { deleteDiary, getDiaryById } from '@/lib/api/diary';
 import type { DiaryDetail } from '@/types/diary';
+import { sendFriendRequest } from '@/lib/api/friend';
+import { FriendshipStatus } from '@/types/friend';
 
 const mockPush = vi.fn();
 const mockBack = vi.fn();
@@ -29,6 +31,10 @@ vi.mock('@/lib/api/diary', () => ({
 vi.mock('@/lib/api/comment', () => ({
   createComment: vi.fn(),
   getRootComments: vi.fn(),
+}));
+
+vi.mock('@/lib/api/friend', () => ({
+  sendFriendRequest: vi.fn(),
 }));
 
 vi.mock('swiper/react', () => ({
@@ -136,5 +142,43 @@ describe('DiaryDetailClient', () => {
       expect(deleteDiary).toHaveBeenCalledWith(42);
     });
     expect(mockBack).toHaveBeenCalled();
+  });
+
+  it('소유자에게 공개범위를 보여준다', async () => {
+    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
+    authState = { user: { id: 'owner-id' }, isLoggedIn: true };
+    vi.mocked(getDiaryById).mockResolvedValue({ ...diary, status: 'FRIENDS' });
+
+    render(<DiaryDetailClient diaryId={42} />);
+
+    expect(await screen.findByText('친구 공개')).toBeInTheDocument();
+  });
+
+  it('친구관계가 아니면 친구추가 버튼으로 친구 요청을 보낸다', async () => {
+    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
+    authState = { user: { id: 'viewer-id' }, isLoggedIn: true };
+    vi.mocked(getDiaryById).mockResolvedValue({
+      ...diary,
+      userId: 'owner-id',
+      friendStatus: FriendshipStatus.NONE,
+    });
+    vi.mocked(sendFriendRequest).mockResolvedValue({
+      isAccepted: false,
+      message: '친구 요청을 보냈습니다.',
+    });
+
+    render(<DiaryDetailClient diaryId={42} />);
+
+    const addFriendButton = await screen.findByRole('button', {
+      name: '친구 추가',
+    });
+    fireEvent.click(addFriendButton);
+
+    await waitFor(() => {
+      expect(sendFriendRequest).toHaveBeenCalledWith('owner-id');
+    });
+    expect(
+      screen.queryByRole('button', { name: '친구 추가' }),
+    ).not.toBeInTheDocument();
   });
 });
