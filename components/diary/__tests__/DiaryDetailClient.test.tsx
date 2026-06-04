@@ -63,6 +63,12 @@ vi.mock('../CommentModal', () => ({
   default: () => null,
 }));
 
+vi.mock('@/components/feed/ProfileHoverCard', () => ({
+  default: ({ nickname }: { nickname: string }) => (
+    <div data-testid="profile-hover-card">{nickname} 프로필 카드</div>
+  ),
+}));
+
 let authState: { user: { id: string } | null; isLoggedIn: boolean } = {
   user: null,
   isLoggedIn: false,
@@ -180,5 +186,28 @@ describe('DiaryDetailClient', () => {
     expect(
       screen.queryByRole('button', { name: '친구 추가' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('프로필 영역을 피드처럼 가로 메타로 보여주고 hover 시 프로필 카드를 보여준다', async () => {
+    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
+    authState = { user: { id: 'viewer-id' }, isLoggedIn: true };
+    vi.mocked(getDiaryById).mockResolvedValue({
+      ...diary,
+      userId: 'owner-id',
+      friendStatus: FriendshipStatus.FRIEND,
+    });
+
+    render(<DiaryDetailClient diaryId={42} />);
+
+    const authorMeta = await screen.findByTestId('diary-author-meta');
+    expect(authorMeta).toHaveClass('flex');
+    expect(authorMeta).toHaveTextContent('피쿠');
+    expect(authorMeta).toHaveTextContent('2026.06.04');
+
+    fireEvent.mouseEnter(screen.getByTestId('diary-author-profile'));
+
+    expect(await screen.findByTestId('profile-hover-card')).toHaveTextContent(
+      '피쿠 프로필 카드',
+    );
   });
 });
