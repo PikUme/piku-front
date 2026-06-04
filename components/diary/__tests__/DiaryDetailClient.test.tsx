@@ -1,6 +1,9 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-import { getDiaryById } from '@/lib/api/diary';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { deleteDiary, getDiaryById } from '@/lib/api/diary';
+import type { DiaryDetail } from '@/types/diary';
+import { sendFriendRequest } from '@/lib/api/friend';
+import { FriendshipStatus } from '@/types/friend';
 
 const mockPush = vi.fn();
 const mockBack = vi.fn();
@@ -22,11 +25,16 @@ vi.mock('next/image', () => ({
 
 vi.mock('@/lib/api/diary', () => ({
   getDiaryById: vi.fn(),
+  deleteDiary: vi.fn(),
 }));
 
 vi.mock('@/lib/api/comment', () => ({
   createComment: vi.fn(),
   getRootComments: vi.fn(),
+}));
+
+vi.mock('@/lib/api/friend', () => ({
+  sendFriendRequest: vi.fn(),
 }));
 
 vi.mock('swiper/react', () => ({
@@ -55,14 +63,48 @@ vi.mock('../CommentModal', () => ({
   default: () => null,
 }));
 
-vi.mock('../../store/authStore', () => ({
-  default: () => ({
-    user: null,
-    isLoggedIn: false,
-  }),
+vi.mock('@/components/feed/ProfileHoverCard', () => ({
+  default: ({ nickname }: { nickname: string }) => (
+    <div data-testid="profile-hover-card">{nickname} 프로필 카드</div>
+  ),
 }));
 
+let authState: { user: { id: string } | null; isLoggedIn: boolean } = {
+  user: null,
+  isLoggedIn: false,
+};
+
+vi.mock('../../store/authStore', () => ({
+  default: () => authState,
+}));
+
+const diary: DiaryDetail = {
+  diaryId: 42,
+  content: '오늘의 일기',
+  date: '2026-06-04',
+  status: 'PUBLIC',
+  createdAt: '2026-06-04T00:00:00',
+  updatedAt: '2026-06-04T00:00:00',
+  isLiked: false,
+  likeCount: 3,
+  commentCount: 2,
+  imgUrls: ['https://example.com/diary.jpg'],
+  nickname: '피쿠',
+  avatar: '',
+  userId: 'owner-id',
+  comments: [],
+};
+
 describe('DiaryDetailClient', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authState = { user: null, isLoggedIn: false };
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('일기 상세 조회 실패 시 404 이미지를 보여준다', async () => {
     const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
 
@@ -83,5 +125,89 @@ describe('DiaryDetailClient', () => {
     expect(
       await screen.findByRole('img', { name: '일기를 찾을 수 없습니다.' }),
     ).toHaveAttribute('src', '/404.png');
+  });
+
+  it('소유자는 더보기 메뉴에서 일기를 수정하고 삭제할 수 있다', async () => {
+    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
+    authState = { user: { id: 'owner-id' }, isLoggedIn: true };
+    vi.mocked(getDiaryById).mockResolvedValue(diary);
+    vi.mocked(deleteDiary).mockResolvedValue();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(<DiaryDetailClient diaryId={42} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '일기 메뉴' }));
+
+    fireEvent.click(screen.getByRole('button', { name: '일기 수정' }));
+    expect(mockPush).toHaveBeenCalledWith('/diary/42/edit');
+
+    fireEvent.click(screen.getByRole('button', { name: '일기 메뉴' }));
+    fireEvent.click(screen.getByRole('button', { name: '일기 삭제' }));
+
+    await waitFor(() => {
+      expect(deleteDiary).toHaveBeenCalledWith(42);
+    });
+    expect(mockBack).toHaveBeenCalled();
+  });
+
+  it('소유자에게 공개범위를 보여준다', async () => {
+    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
+    authState = { user: { id: 'owner-id' }, isLoggedIn: true };
+    vi.mocked(getDiaryById).mockResolvedValue({ ...diary, status: 'FRIENDS' });
+
+    render(<DiaryDetailClient diaryId={42} />);
+
+    expect(await screen.findByText('친구 공개')).toBeInTheDocument();
+  });
+
+  it('친구관계가 아니면 친구추가 버튼으로 친구 요청을 보낸다', async () => {
+    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
+    authState = { user: { id: 'viewer-id' }, isLoggedIn: true };
+    vi.mocked(getDiaryById).mockResolvedValue({
+      ...diary,
+      userId: 'owner-id',
+      friendStatus: FriendshipStatus.NONE,
+    });
+    vi.mocked(sendFriendRequest).mockResolvedValue({
+      isAccepted: false,
+      message: '친구 요청을 보냈습니다.',
+    });
+
+    render(<DiaryDetailClient diaryId={42} />);
+
+    const addFriendButton = await screen.findByRole('button', {
+      name: '친구 추가',
+    });
+    fireEvent.click(addFriendButton);
+
+    await waitFor(() => {
+      expect(sendFriendRequest).toHaveBeenCalledWith('owner-id');
+    });
+    expect(
+      screen.queryByRole('button', { name: '친구 추가' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('프로필 영역을 피드처럼 가로 메타로 보여주고 hover 시 프로필 카드를 보여준다', async () => {
+    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
+    authState = { user: { id: 'viewer-id' }, isLoggedIn: true };
+    vi.mocked(getDiaryById).mockResolvedValue({
+      ...diary,
+      userId: 'owner-id',
+      friendStatus: FriendshipStatus.FRIEND,
+    });
+
+    render(<DiaryDetailClient diaryId={42} />);
+
+    const authorMeta = await screen.findByTestId('diary-author-meta');
+    expect(authorMeta).toHaveClass('flex');
+    expect(authorMeta).toHaveTextContent('피쿠');
+    expect(authorMeta).toHaveTextContent('2026.06.04');
+
+    fireEvent.mouseEnter(screen.getByTestId('diary-author-profile'));
+
+    expect(await screen.findByTestId('profile-hover-card')).toHaveTextContent(
+      '피쿠 프로필 카드',
+    );
   });
 });

@@ -184,4 +184,18 @@ describe('DiaryStoryModal history navigation', () => {
       });
     });
   });
+
+  it('owner can open the diary edit page from the story modal', async () => {
+    const { container } = render(
+      <DiaryStoryModal
+        diary={diary}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(container.querySelectorAll('button')[0]);
+    fireEvent.click(await screen.findByText('일기 수정'));
+
+    expect(mockPush).toHaveBeenCalledWith('/diary/1/edit');
+  });
 });

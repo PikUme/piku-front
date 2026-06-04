@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getMonthlyDiaries, getDiaryById } from '@/lib/api/diary';
-import type { MonthlyDiary, DiaryDetail } from '@/types/diary';
+import type { DiaryDetail, MonthlyDiary } from '@/types/diary';
 import type { Friend } from '@/types/friend';
 import type { User } from '@/types/auth';
 
