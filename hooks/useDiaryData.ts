@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getMonthlyDiaries, getDiaryById } from '@/lib/api/diary';
-import type { DiaryDetail, DiaryUpdatePatch, MonthlyDiary } from '@/types/diary';
+import type { DiaryDetail, MonthlyDiary } from '@/types/diary';
 import type { Friend } from '@/types/friend';
 import type { User } from '@/types/auth';
 
@@ -74,15 +74,6 @@ export const useDiaryData = (
     setSelectedDiary(null);
   }, []);
 
-  const patchSelectedDiary = useCallback(
-    (diaryId: number, patch: DiaryUpdatePatch) => {
-      setSelectedDiary(prev =>
-        prev?.diaryId === diaryId ? { ...prev, ...patch } : prev,
-      );
-    },
-    [],
-  );
-
   return {
     pikus,
     selectedDiary,
@@ -90,6 +81,5 @@ export const useDiaryData = (
     loadDiaryDetail,
     closeDiaryDetail,
     removeDiary,
-    patchSelectedDiary,
   };
 };

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 import Link from 'next/link';
 import {
@@ -11,7 +12,7 @@ import {
   ChevronRight,
   DotIcon,
 } from 'lucide-react';
-import type { DiaryDetail, DiaryUpdatePatch } from '@/types/diary';
+import type { DiaryDetail } from '@/types/diary';
 import type { Comment } from '@/types/comment';
 import NotReadyModal from '@/components/common/NotReadyModal';
 import {
@@ -33,7 +34,6 @@ import useAuthStore from '@/components/store/authStore';
 import CommentItem from './CommentItem';
 import CommentInput from './CommentInput';
 import MotionProfileHoverCard from '@/components/feed/ProfileHoverCard';
-import DiaryEditModal from './DiaryEditModal';
 
 interface DiaryDetailModalProps {
   diary: DiaryDetail;
@@ -44,7 +44,6 @@ interface DiaryDetailModalProps {
     diaryId: number,
     nextLike: Pick<LikeResponse, 'likeCount' | 'isLiked'>,
   ) => void;
-  onDiaryUpdate?: (diaryId: number, patch: DiaryUpdatePatch) => void;
 }
 
 interface CommentRepliesState {
@@ -61,9 +60,9 @@ const DiaryDetailModal = ({
   onDelete,
   onCommentCountChange,
   onLikeChange,
-  onDiaryUpdate,
 }: DiaryDetailModalProps) => {
   useBodyScrollLock(true);
+  const router = useRouter();
 
   const [currentDiary, setCurrentDiary] = useState(diary);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -86,7 +85,6 @@ const DiaryDetailModal = ({
     null,
   );
   const [isNotReadyModalOpen, setIsNotReadyModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -542,15 +540,9 @@ const DiaryDetailModal = ({
     }
   };
 
-  const handleOpenEditModal = () => {
+  const handleOpenEditPage = () => {
     setIsMenuOpen(false);
-    setIsEditModalOpen(true);
-  };
-
-  const handleDiarySaved = (patch: DiaryUpdatePatch) => {
-    setCurrentDiary(prev => ({ ...prev, ...patch }));
-    onDiaryUpdate?.(currentDiary.diaryId, patch);
-    setIsEditModalOpen(false);
+    router.push(`/diary/${currentDiary.diaryId}/edit`);
   };
 
   const DEFAULT_AVATAR = 'globe.svg';
@@ -572,15 +564,6 @@ const DiaryDetailModal = ({
     >
       {isNotReadyModalOpen && (
         <NotReadyModal onClose={() => setIsNotReadyModalOpen(false)} />
-      )}
-      {isEditModalOpen && (
-        <DiaryEditModal
-          diaryId={currentDiary.diaryId}
-          initialStatus={currentDiary.status}
-          initialContent={currentDiary.content}
-          onCancel={() => setIsEditModalOpen(false)}
-          onSaved={handleDiarySaved}
-        />
       )}
       <button
         onClick={onClose}
@@ -684,7 +667,7 @@ const DiaryDetailModal = ({
                   {isOwner && (
                     <>
                       <button
-                        onClick={handleOpenEditModal}
+                        onClick={handleOpenEditPage}
                         className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                       >
                         일기 수정

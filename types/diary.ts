@@ -33,10 +33,6 @@ export interface DiaryUpdateRequest {
   content: string;
 }
 
-export type DiaryUpdatePatch = DiaryUpdateRequest & {
-  updatedAt?: string;
-};
-
 export type DiaryUpdateResponse = Partial<DiaryUpdateRequest> & {
   diaryId?: number;
   updatedAt?: string;
