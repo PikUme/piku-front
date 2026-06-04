@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMediaQuery } from 'react-responsive';
 import { useRouter } from 'next/navigation';
 import type { DiaryDetail } from '@/types/diary';
 import { deleteDiary, getDiaryById } from '@/lib/api/diary';
 import { format } from 'date-fns';
-import { Heart, MessageCircle, MoreHorizontal } from 'lucide-react';
+import { DotIcon, Heart, MessageCircle, MoreHorizontal } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination } from 'swiper/modules';
 import { AnimatePresence } from 'framer-motion';
@@ -21,6 +21,8 @@ import { getApiErrorMessage } from '@/lib/utils/apiError';
 import { sendFriendRequest } from '@/lib/api/friend';
 import { FriendshipStatus } from '@/types/friend';
 import { getPrivacyLabel } from '@/lib/utils/privacy';
+import UserProfile from '@/components/common/UserProfile';
+import ProfileHoverCard from '@/components/feed/ProfileHoverCard';
 
 interface DiaryDetailClientProps {
   diaryId: number;
@@ -34,6 +36,8 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [isFriendActionLoading, setIsFriendActionLoading] = useState(false);
+  const [isProfileHovering, setIsProfileHovering] = useState(false);
+  const profileHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { user } = useAuthStore();
   const router = useRouter();
   const isDesktop = useMediaQuery({ query: '(min-width: 768px)' });
@@ -94,6 +98,27 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
     }
   };
 
+  const handleProfileMouseEnter = () => {
+    if (profileHoverTimeoutRef.current) {
+      clearTimeout(profileHoverTimeoutRef.current);
+    }
+    setIsProfileHovering(true);
+  };
+
+  const handleProfileMouseLeave = () => {
+    profileHoverTimeoutRef.current = setTimeout(() => {
+      setIsProfileHovering(false);
+    }, 200);
+  };
+
+  const handleProfileStatusChange = () => {
+    setDiary(prevDiary =>
+      prevDiary
+        ? { ...prevDiary, friendStatus: FriendshipStatus.SENT }
+        : prevDiary,
+    );
+  };
+
   const getDisplayContent = (content: string) => {
     const maxLength = 100;
     if (content.length <= maxLength || isContentExpanded) {
@@ -139,22 +164,44 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
       <div className="mx-auto max-w-[600px] px-4 py-6 xl:pt-6">
         <article className="w-full rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800">
           <header className="flex items-center justify-between p-3">
-            <div className="flex min-w-0 items-center space-x-3">
-              <Image
-                src={diary.avatar ? diary.avatar : '/globe.svg'}
-                alt={diary.nickname}
-                width={40}
-                height={40}
-                className="h-10 w-10 rounded-full bg-gray-200 object-cover"
-              />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold dark:text-white">
-                  {diary.nickname}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {format(new Date(diary.date), 'yyyy.MM.dd')}
-                </p>
+            <div className="relative flex min-w-0 items-center space-x-3">
+              <div
+                data-testid="diary-author-profile"
+                className="flex min-w-0 cursor-pointer items-center"
+                onMouseEnter={handleProfileMouseEnter}
+                onMouseLeave={handleProfileMouseLeave}
+              >
+                <div
+                  data-testid="diary-author-meta"
+                  className="flex min-w-0 items-center"
+                >
+                  <UserProfile
+                    userId={diary.userId}
+                    nickname={diary.nickname}
+                    avatar={diary.avatar || '/globe.svg'}
+                    imageSize={40}
+                    imageClassName="h-10 w-10 bg-gray-200 object-cover"
+                    nicknameClassName="truncate dark:text-white"
+                  />
+                  <DotIcon className="text-gray-500 dark:text-gray-400" />
+                  <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                    {format(new Date(diary.date), 'yyyy.MM.dd')}
+                  </span>
+                </div>
               </div>
+              {isProfileHovering && (
+                <div
+                  onMouseEnter={handleProfileMouseEnter}
+                  onMouseLeave={handleProfileMouseLeave}
+                >
+                  <ProfileHoverCard
+                    userId={diary.userId}
+                    nickname={diary.nickname}
+                    avatar={diary.avatar}
+                    onStatusChange={handleProfileStatusChange}
+                  />
+                </div>
+              )}
               {isOwner && (
                 <p className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
                   {getPrivacyLabel(diary.status)}
