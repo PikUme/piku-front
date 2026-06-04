@@ -3,32 +3,29 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import {
-  CalendarDiaryResponseDTO,
-  getMonthlyDiaries,
-} from '@/lib/api/diary';
-import type { DiaryMonthCountDTO } from '@/types/profile';
+import { Images } from 'lucide-react';
+import { CalendarDiaryResponseDTO, getUserGallery } from '@/lib/api/diary';
 
 interface ProfileDiaryPhotoGridProps {
   userId?: string;
-  monthlyDiaryCount?: DiaryMonthCountDTO[];
 }
 
-const ProfileDiaryPhotoGrid = ({
-  userId,
-  monthlyDiaryCount = [],
-}: ProfileDiaryPhotoGridProps) => {
+const ProfileDiaryPhotoGrid = ({ userId }: ProfileDiaryPhotoGridProps) => {
   const router = useRouter();
   const [diaries, setDiaries] = useState<CalendarDiaryResponseDTO[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasNext, setHasNext] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isError, setIsError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
-    const monthsWithDiaries = monthlyDiaryCount.filter(stat => stat.count > 0);
 
-    if (!userId || monthsWithDiaries.length === 0) {
+    if (!userId) {
       setDiaries([]);
+      setNextCursor(null);
+      setHasNext(false);
       setIsLoading(false);
       setIsError(false);
       return () => {
@@ -39,26 +36,21 @@ const ProfileDiaryPhotoGrid = ({
     setIsLoading(true);
     setIsError(false);
 
-    Promise.all(
-      monthsWithDiaries.map(stat =>
-        getMonthlyDiaries(userId, stat.year, stat.month),
-      ),
-    )
-      .then(results => {
+    getUserGallery(userId)
+      .then(result => {
         if (!isMounted) return;
 
-        const nextDiaries = results
-          .flat()
-          .filter(diary => diary.coverPhotoUrl)
-          .sort((a, b) => b.date.localeCompare(a.date));
-
-        setDiaries(nextDiaries);
+        setDiaries(result.items.filter(diary => diary.coverPhotoUrl));
+        setNextCursor(result.nextCursor);
+        setHasNext(result.hasNext);
       })
       .catch(error => {
         console.error('Failed to fetch profile diary photos:', error);
         if (!isMounted) return;
 
         setDiaries([]);
+        setNextCursor(null);
+        setHasNext(false);
         setIsError(true);
       })
       .finally(() => {
@@ -70,7 +62,29 @@ const ProfileDiaryPhotoGrid = ({
     return () => {
       isMounted = false;
     };
-  }, [monthlyDiaryCount, userId]);
+  }, [userId]);
+
+  const handleLoadMore = async () => {
+    if (!userId || !nextCursor || isLoadingMore) return;
+
+    setIsLoadingMore(true);
+    setIsError(false);
+
+    try {
+      const result = await getUserGallery(userId, nextCursor);
+      setDiaries(prevDiaries => [
+        ...prevDiaries,
+        ...result.items.filter(diary => diary.coverPhotoUrl),
+      ]);
+      setNextCursor(result.nextCursor);
+      setHasNext(result.hasNext);
+    } catch (error) {
+      console.error('Failed to fetch more profile diary photos:', error);
+      setIsError(true);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   const handleDiaryClick = (diary: CalendarDiaryResponseDTO) => {
     if (!userId) return;
@@ -96,28 +110,50 @@ const ProfileDiaryPhotoGrid = ({
   }
 
   return (
-    <div
-      aria-label="다이어리 사진 목록"
-      className="grid grid-cols-3 gap-0.5 md:gap-1"
-      data-testid="profile-diary-photo-grid"
-    >
-      {diaries.map(diary => (
-        <button
-          key={diary.diaryId}
-          type="button"
-          onClick={() => handleDiaryClick(diary)}
-          className="relative aspect-[4/5] overflow-hidden bg-gray-100"
-          data-testid="profile-diary-photo-tile"
-        >
-          <Image
-            src={diary.coverPhotoUrl}
-            alt={`${diary.date} 일기 사진`}
-            fill
-            sizes="33vw"
-            className="object-cover transition duration-200 hover:scale-[1.03] hover:brightness-95"
-          />
-        </button>
-      ))}
+    <div>
+      <div
+        aria-label="다이어리 사진 목록"
+        className="grid grid-cols-3 gap-0.5 md:gap-1"
+        data-testid="profile-diary-photo-grid"
+      >
+        {diaries.map(diary => (
+          <button
+            key={diary.diaryId}
+            type="button"
+            onClick={() => handleDiaryClick(diary)}
+            className="relative aspect-[4/5] overflow-hidden bg-gray-100"
+            data-testid="profile-diary-photo-tile"
+          >
+            <Image
+              src={diary.coverPhotoUrl}
+              alt={`${diary.date} 일기 사진`}
+              fill
+              sizes="33vw"
+              className="object-cover transition duration-200 hover:scale-[1.03] hover:brightness-95"
+            />
+            {(diary.imageCount ?? 0) > 1 && (
+              <span
+                aria-label={`복수 사진 ${diary.imageCount}장`}
+                className="absolute right-2 top-2 inline-flex text-white"
+              >
+                <Images aria-hidden="true" className="h-5 w-5" />
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+      {hasNext && (
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={handleLoadMore}
+            disabled={isLoadingMore}
+            className="rounded-full bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:bg-gray-400"
+          >
+            {isLoadingMore ? '불러오는 중...' : '더 보기'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

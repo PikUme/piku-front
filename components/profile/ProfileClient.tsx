@@ -243,10 +243,7 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
           })}
         </div>
         {diaryView === 'photos' ? (
-          <ProfileDiaryPhotoGrid
-            userId={profileData.userId}
-            monthlyDiaryCount={profileData.monthlyDiaryCount}
-          />
+          <ProfileDiaryPhotoGrid userId={profileData.userId} />
         ) : (
           <div className="relative">
             {profileData.monthlyDiaryCount &&

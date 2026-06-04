@@ -4,10 +4,11 @@ import ProfileClient from '../ProfileClient';
 import { FriendshipStatus } from '@/types/friend';
 import type { UserProfileResponseDTO } from '@/types/profile';
 
-const { mockPush, mockRefresh, getMonthlyDiaries } = vi.hoisted(() => ({
+const { mockPush, mockRefresh, getMonthlyDiaries, getUserGallery } = vi.hoisted(() => ({
   mockPush: vi.fn(),
   mockRefresh: vi.fn(),
   getMonthlyDiaries: vi.fn(),
+  getUserGallery: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -49,6 +50,7 @@ vi.mock('@/lib/api/friend', () => ({
 
 vi.mock('@/lib/api/diary', () => ({
   getMonthlyDiaries,
+  getUserGallery,
 }));
 
 vi.mock('@/components/feed/FriendActionConfirmModal', () => ({
@@ -101,14 +103,33 @@ describe('ProfileClient', () => {
     expect(mockPush).not.toHaveBeenCalledWith('/friends');
   });
 
-  it('Diary 섹션 선택 UI에서 사진을 선택하면 아래 영역을 사진 그리드로 전환한다', async () => {
-    getMonthlyDiaries.mockResolvedValue([
-      {
-        diaryId: 101,
-        date: '2026-05-02',
-        coverPhotoUrl: '/diary-cover.png',
-      },
-    ]);
+  it('Diary 섹션 선택 UI에서 사진을 선택하면 갤러리 API로 사진 그리드를 불러온다', async () => {
+    getUserGallery.mockResolvedValueOnce({
+      items: [
+        {
+          diaryId: 101,
+          date: '2026-05-02',
+          coverPhotoUrl: '/diary-cover.png',
+          imageCount: 2,
+          status: 'PUBLIC',
+        },
+      ],
+      nextCursor: 'next-cursor',
+      hasNext: true,
+    });
+    getUserGallery.mockResolvedValueOnce({
+      items: [
+        {
+          diaryId: 102,
+          date: '2026-05-01',
+          coverPhotoUrl: '/diary-cover-2.png',
+          imageCount: 1,
+          status: 'PUBLIC',
+        },
+      ],
+      nextCursor: null,
+      hasNext: false,
+    });
 
     render(
       <ProfileClient
@@ -142,7 +163,18 @@ describe('ProfileClient', () => {
       'src',
       '/diary-cover.png',
     );
-    expect(getMonthlyDiaries).toHaveBeenCalledWith('user-1', 2026, 5);
+    expect(screen.getByLabelText('복수 사진 2장')).toBeInTheDocument();
+    expect(getUserGallery).toHaveBeenCalledWith('user-1');
+    expect(getMonthlyDiaries).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '더 보기' }));
+
+    expect(await screen.findByRole('img', { name: '2026-05-01 일기 사진' })).toHaveAttribute(
+      'src',
+      '/diary-cover-2.png',
+    );
+    expect(screen.queryByLabelText('복수 사진 1장')).not.toBeInTheDocument();
+    expect(getUserGallery).toHaveBeenLastCalledWith('user-1', 'next-cursor');
 
     fireEvent.click(screen.getByRole('button', { name: '월별' }));
 
