@@ -2,7 +2,6 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DiaryStoryModal from '../DiaryStoryModal';
 import type { DiaryDetail } from '@/types/diary';
-import { updateDiary } from '@/lib/api/diary';
 import { addLike } from '@/lib/api/like';
 
 const mockPush = vi.fn();
@@ -69,7 +68,6 @@ vi.mock('@/components/store/authStore', () => ({
 
 vi.mock('@/lib/api/diary', () => ({
   deleteDiary: vi.fn(),
-  updateDiary: vi.fn(),
 }));
 
 vi.mock('@/lib/api/like', () => ({
@@ -187,42 +185,17 @@ describe('DiaryStoryModal history navigation', () => {
     });
   });
 
-  it('owner can edit status and content and notify parent from the story modal', async () => {
-    vi.mocked(updateDiary).mockResolvedValueOnce({
-      ...diary,
-      status: 'PRIVATE',
-      content: '모바일에서 수정한 일기',
-      updatedAt: '2026-06-02T10:00:00',
-    });
-    const onDiaryUpdate = vi.fn();
+  it('owner can open the diary edit page from the story modal', async () => {
     const { container } = render(
       <DiaryStoryModal
         diary={diary}
         onClose={vi.fn()}
-        onDiaryUpdate={onDiaryUpdate}
       />,
     );
 
     fireEvent.click(container.querySelectorAll('button')[0]);
     fireEvent.click(await screen.findByText('일기 수정'));
-    fireEvent.change(screen.getByLabelText('공개 범위'), {
-      target: { value: 'PRIVATE' },
-    });
-    fireEvent.change(screen.getByLabelText('일기 내용'), {
-      target: { value: '모바일에서 수정한 일기' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: '저장' }));
 
-    await waitFor(() => {
-      expect(updateDiary).toHaveBeenCalledWith(1, {
-        status: 'PRIVATE',
-        content: '모바일에서 수정한 일기',
-      });
-    });
-    expect(onDiaryUpdate).toHaveBeenCalledWith(1, {
-      status: 'PRIVATE',
-      content: '모바일에서 수정한 일기',
-      updatedAt: '2026-06-02T10:00:00',
-    });
+    expect(mockPush).toHaveBeenCalledWith('/diary/1/edit');
   });
 });

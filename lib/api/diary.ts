@@ -49,7 +49,7 @@ export const updateDiary = async (
   diaryId: number,
   diaryData: DiaryUpdateRequest,
 ): Promise<DiaryUpdateResponse> => {
-  const response = await api.put(`/diary/${diaryId}`, {
+  const response = await api.patch(`/diary/${diaryId}`, {
     status: diaryData.status,
     content: diaryData.content,
   });

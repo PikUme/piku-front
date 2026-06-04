@@ -68,17 +68,12 @@ vi.mock('../../diary/DiaryDetailModal', () => ({
     diary,
     onCommentCountChange,
     onLikeChange,
-    onDiaryUpdate,
   }: {
     diary: FeedDiary;
     onCommentCountChange?: (diaryId: number, count: number) => void;
     onLikeChange?: (
       diaryId: number,
       nextLike: { likeCount: number; isLiked: boolean },
-    ) => void;
-    onDiaryUpdate?: (
-      diaryId: number,
-      patch: { status: FeedDiary['status']; content: string; updatedAt?: string },
     ) => void;
   }) => (
     <div data-testid="diary-detail-modal">
@@ -98,18 +93,6 @@ vi.mock('../../diary/DiaryDetailModal', () => ({
       >
         update detail like
       </button>
-      <button
-        data-testid="detail-diary-update"
-        onClick={() =>
-          onDiaryUpdate?.(diary.diaryId, {
-            status: 'PRIVATE',
-            content: 'edited diary',
-            updatedAt: '2026-06-02T10:00:00',
-          })
-        }
-      >
-        update diary
-      </button>
     </div>
   ),
 }));
@@ -119,7 +102,6 @@ vi.mock('../../diary/DiaryStoryModal', () => ({
     onCommentViewToggle,
     onCommentCountChange,
     onLikeChange,
-    onDiaryUpdate,
     diary,
   }: {
     diary: FeedDiary;
@@ -128,10 +110,6 @@ vi.mock('../../diary/DiaryStoryModal', () => ({
     onLikeChange?: (
       diaryId: number,
       nextLike: { likeCount: number; isLiked: boolean },
-    ) => void;
-    onDiaryUpdate?: (
-      diaryId: number,
-      patch: { status: FeedDiary['status']; content: string; updatedAt?: string },
     ) => void;
   }) => (
     <div data-testid="diary-story-modal">
@@ -162,18 +140,6 @@ vi.mock('../../diary/DiaryStoryModal', () => ({
         }
       >
         update story like
-      </button>
-      <button
-        data-testid="story-diary-update"
-        onClick={() =>
-          onDiaryUpdate?.(diary.diaryId, {
-            status: 'FRIENDS',
-            content: 'mobile edited diary',
-            updatedAt: '2026-06-02T11:00:00',
-          })
-        }
-      >
-        update story diary
       </button>
     </div>
   ),
@@ -511,30 +477,6 @@ describe('FeedClient', () => {
     expect(screen.getByTestId('like-count-1')).toHaveTextContent('7');
   });
 
-  it('피드에서 연 데스크톱 상세의 일기 수정 내용을 피드와 선택 상세에 반영한다', async () => {
-    mockGetFeedCursor.mockResolvedValue(makeResponse([1], 'c1', true));
-    mockGetDiaryById.mockResolvedValue(makeDiaryDetail(1));
-
-    render(<FeedClient />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('feed-card-1')).toHaveTextContent('diary-1');
-      expect(screen.getByTestId('status-1')).toHaveTextContent('PUBLIC');
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('content-btn-1'));
-    });
-    await act(async () => {
-      fireEvent.click(await screen.findByTestId('detail-diary-update'));
-    });
-
-    expect(screen.getByTestId('feed-card-1')).toHaveTextContent('edited diary');
-    expect(screen.getByTestId('status-1')).toHaveTextContent('PRIVATE');
-    expect(screen.getByTestId('detail-content')).toHaveTextContent('edited diary');
-    expect(screen.getByTestId('detail-status')).toHaveTextContent('PRIVATE');
-  });
-
   it('피드에서 연 모바일 상세의 좋아요 변경을 피드 카드에 반영한다', async () => {
     mockViewport.isDesktop = false;
     mockGetFeedCursor.mockResolvedValue(makeResponse([1], 'c1', true));
@@ -557,31 +499,6 @@ describe('FeedClient', () => {
 
     expect(screen.getByTestId('like-status-1')).toHaveTextContent('liked');
     expect(screen.getByTestId('like-count-1')).toHaveTextContent('8');
-  });
-
-  it('피드에서 연 모바일 상세의 일기 수정 내용을 피드와 선택 상세에 반영한다', async () => {
-    mockViewport.isDesktop = false;
-    mockGetFeedCursor.mockResolvedValue(makeResponse([1], 'c1', true));
-    mockGetDiaryById.mockResolvedValue(makeDiaryDetail(1));
-
-    render(<FeedClient />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('feed-card-1')).toHaveTextContent('diary-1');
-      expect(screen.getByTestId('status-1')).toHaveTextContent('PUBLIC');
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('content-btn-1'));
-    });
-    await act(async () => {
-      fireEvent.click(await screen.findByTestId('story-diary-update'));
-    });
-
-    expect(screen.getByTestId('feed-card-1')).toHaveTextContent('mobile edited diary');
-    expect(screen.getByTestId('status-1')).toHaveTextContent('FRIENDS');
-    expect(screen.getByTestId('story-content')).toHaveTextContent('mobile edited diary');
-    expect(screen.getByTestId('story-status')).toHaveTextContent('FRIENDS');
   });
 
   it('일기 상세 조회 실패 시 backend detail을 alert로 보여준다', async () => {

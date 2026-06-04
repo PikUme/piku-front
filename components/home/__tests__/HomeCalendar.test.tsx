@@ -4,7 +4,6 @@ import HomeCalendar from '../HomeCalendar';
 import type { DiaryDetail } from '@/types/diary';
 
 const loadDiaryDetailMock = vi.fn();
-const patchSelectedDiaryMock = vi.fn();
 let selectedDiaryMock: DiaryDetail | null = null;
 
 vi.mock('next/navigation', () => ({
@@ -90,7 +89,6 @@ vi.mock('@/hooks/useDiaryData', () => ({
     loadDiaryDetail: loadDiaryDetailMock,
     closeDiaryDetail: vi.fn(),
     removeDiary: vi.fn(),
-    patchSelectedDiary: patchSelectedDiaryMock,
   }),
 }));
 
@@ -103,28 +101,7 @@ vi.mock('@/components/calendar/PikuCalendar', () => ({
 }));
 
 vi.mock('@/components/diary/DiaryDetailModal', () => ({
-  default: ({
-    onDiaryUpdate,
-  }: {
-    onDiaryUpdate?: (
-      diaryId: number,
-      patch: { content: string; status: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' },
-    ) => void;
-  }) => (
-    <div data-testid="diary-detail-modal">
-      <button
-        data-testid="home-diary-update"
-        onClick={() =>
-          onDiaryUpdate?.(1, {
-            content: '캘린더에서 수정',
-            status: 'PRIVATE',
-          })
-        }
-      >
-        update diary
-      </button>
-    </div>
-  ),
+  default: () => <div data-testid="diary-detail-modal" />,
 }));
 
 vi.mock('@/components/diary/DiaryStoryModal', () => ({
@@ -179,16 +156,11 @@ describe('HomeCalendar view switch', () => {
     expect(screen.queryByRole('button', { name: '모아보기' })).not.toBeInTheDocument();
   });
 
-  it('캘린더 상세 모달에 일기 수정 반영 콜백을 전달한다', () => {
+  it('선택한 일기가 있으면 캘린더 상세 모달을 보여준다', () => {
     selectedDiaryMock = diary;
 
     render(<HomeCalendar />);
 
-    screen.getByTestId('home-diary-update').click();
-
-    expect(patchSelectedDiaryMock).toHaveBeenCalledWith(1, {
-      content: '캘린더에서 수정',
-      status: 'PRIVATE',
-    });
+    expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
   });
 });

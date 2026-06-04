@@ -6,8 +6,15 @@ import DiaryDetailModal from '../DiaryDetailModal';
 import type { DiaryDetail } from '@/types/diary';
 import type { Comment, CommentPage } from '@/types/comment';
 import { deleteComment, getRootComments } from '@/lib/api/comment';
-import { updateDiary } from '@/lib/api/diary';
 import { addLike } from '@/lib/api/like';
+
+const mockPush = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
 
 vi.mock('@/lib/api/comment', () => ({
   createComment: vi.fn(),
@@ -29,7 +36,6 @@ vi.mock('@/lib/api/comment', () => ({
 
 vi.mock('@/lib/api/diary', () => ({
   deleteDiary: vi.fn(),
-  updateDiary: vi.fn(),
 }));
 
 vi.mock('@/lib/api/like', () => ({
@@ -131,13 +137,13 @@ describe('diary edit access', () => {
     vi.clearAllMocks();
   });
 
-  it('does not expose the diary edit route file', () => {
+  it('exposes the diary edit page route file', () => {
     const routePath = path.resolve(
       process.cwd(),
-      'app/diary/edit/[id]/page.tsx',
+      'app/diary/[id]/edit/page.tsx',
     );
 
-    expect(existsSync(routePath)).toBe(false);
+    expect(existsSync(routePath)).toBe(true);
   });
 
   it('shows an edit action in the diary owner menu', async () => {
@@ -152,6 +158,17 @@ describe('diary edit access', () => {
       expect(screen.getByText('일기 삭제')).toBeInTheDocument();
     });
     expect(screen.getByText('일기 수정')).toBeInTheDocument();
+  });
+
+  it('opens the diary edit page from the diary owner menu', async () => {
+    const { container } = render(
+      <DiaryDetailModal diary={diary} onClose={vi.fn()} />,
+    );
+
+    fireEvent.click(container.querySelectorAll('button')[1]);
+    fireEvent.click(await screen.findByText('일기 수정'));
+
+    expect(mockPush).toHaveBeenCalledWith('/diary/1/edit');
   });
 
   it('does not show an edit action to non-owners', async () => {
@@ -170,83 +187,6 @@ describe('diary edit access', () => {
     });
     expect(screen.queryByText('일기 수정')).not.toBeInTheDocument();
     expect(screen.queryByText('일기 삭제')).not.toBeInTheDocument();
-  });
-
-  it('saves only status and content, updates displayed diary, and notifies parent', async () => {
-    vi.mocked(updateDiary).mockResolvedValueOnce({
-      ...diary,
-      status: 'PRIVATE',
-      content: '수정된 일기 내용',
-      updatedAt: '2026-06-02T10:00:00',
-    });
-    const onDiaryUpdate = vi.fn();
-    const { container } = render(
-      <DiaryDetailModal
-        diary={diary}
-        onClose={vi.fn()}
-        onDiaryUpdate={onDiaryUpdate}
-      />,
-    );
-
-    fireEvent.click(container.querySelectorAll('button')[1]);
-    fireEvent.click(await screen.findByText('일기 수정'));
-    fireEvent.change(screen.getByLabelText('공개 범위'), {
-      target: { value: 'PRIVATE' },
-    });
-    fireEvent.change(screen.getByLabelText('일기 내용'), {
-      target: { value: '수정된 일기 내용' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: '저장' }));
-
-    await waitFor(() => {
-      expect(updateDiary).toHaveBeenCalledWith(1, {
-        status: 'PRIVATE',
-        content: '수정된 일기 내용',
-      });
-    });
-    await waitFor(() => {
-      expect(screen.getByText('수정된 일기 내용')).toBeInTheDocument();
-      expect(screen.queryByText('테스트 일기')).not.toBeInTheDocument();
-    });
-    expect(onDiaryUpdate).toHaveBeenCalledWith(1, {
-      status: 'PRIVATE',
-      content: '수정된 일기 내용',
-      updatedAt: '2026-06-02T10:00:00',
-    });
-  });
-
-  it('save failure keeps the displayed diary unchanged and shows an inline error', async () => {
-    vi.mocked(updateDiary).mockRejectedValueOnce(new Error('저장 실패'));
-    const { container } = render(
-      <DiaryDetailModal diary={diary} onClose={vi.fn()} />,
-    );
-
-    fireEvent.click(container.querySelectorAll('button')[1]);
-    fireEvent.click(await screen.findByText('일기 수정'));
-    fireEvent.change(screen.getByLabelText('일기 내용'), {
-      target: { value: '저장되지 않을 내용' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: '저장' }));
-
-    expect(await screen.findByText('저장 실패')).toBeInTheDocument();
-    expect(screen.getByText('테스트 일기')).toBeInTheDocument();
-    expect(screen.getByLabelText('일기 내용')).toHaveValue('저장되지 않을 내용');
-  });
-
-  it('cancel keeps the displayed diary unchanged', async () => {
-    const { container } = render(
-      <DiaryDetailModal diary={diary} onClose={vi.fn()} />,
-    );
-
-    fireEvent.click(container.querySelectorAll('button')[1]);
-    fireEvent.click(await screen.findByText('일기 수정'));
-    fireEvent.change(screen.getByLabelText('일기 내용'), {
-      target: { value: '취소할 내용' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: '취소' }));
-
-    expect(screen.getByText('테스트 일기')).toBeInTheDocument();
-    expect(screen.queryByText('취소할 내용')).not.toBeInTheDocument();
   });
 
   it('긴 일기 본문에서도 작성자 아바타가 flex 수축 대상이 되지 않는다', async () => {
