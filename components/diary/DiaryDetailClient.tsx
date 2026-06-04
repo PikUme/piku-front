@@ -1,26 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMediaQuery } from 'react-responsive';
 import { useRouter } from 'next/navigation';
 import type { DiaryDetail } from '@/types/diary';
-import { getDiaryById } from '@/lib/api/diary';
-import { createComment, getRootComments } from '@/lib/api/comment';
-import type { Comment } from '@/types/comment';
+import { deleteDiary, getDiaryById } from '@/lib/api/diary';
 import { format } from 'date-fns';
-import { Heart, MessageCircle, Send, X } from 'lucide-react';
+import { DotIcon, Heart, MessageCircle, MoreHorizontal } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination } from 'swiper/modules';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import type { CSSProperties } from 'react';
-import { getServerURL } from '@/lib/utils/url';
 import Image from 'next/image';
 import useAuthStore from '../store/authStore';
 import DiaryDetailModal from './DiaryDetailModal';
 import CommentModal from './CommentModal';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
+import { sendFriendRequest } from '@/lib/api/friend';
+import { FriendshipStatus } from '@/types/friend';
+import { getPrivacyLabel } from '@/lib/utils/privacy';
+import UserProfile from '@/components/common/UserProfile';
+import ProfileHoverCard from '@/components/feed/ProfileHoverCard';
 
 interface DiaryDetailClientProps {
   diaryId: number;
@@ -31,11 +33,14 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
   const [isLoading, setIsLoading] = useState(true);
   // const [errorMessage, setErrorMessage] = useState('');
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
-  const { user, isLoggedIn } = useAuthStore();
+  const [isFriendActionLoading, setIsFriendActionLoading] = useState(false);
+  const [isProfileHovering, setIsProfileHovering] = useState(false);
+  const profileHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { user } = useAuthStore();
   const router = useRouter();
-  const serverUrl = getServerURL();
-  const isDesktop = useMediaQuery({ query: '(min-width: 1024px)' });
+  const isDesktop = useMediaQuery({ query: '(min-width: 768px)' });
 
   useEffect(() => {
     const fetchDiaryDetail = async () => {
@@ -58,6 +63,60 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
 
   const handleDiaryDeleted = () => {
     router.back();
+  };
+
+  const handleDeleteDiary = async () => {
+    if (!diary || !confirm('정말 일기를 삭제하시겠습니까?')) return;
+
+    setIsMenuOpen(false);
+    try {
+      await deleteDiary(diary.diaryId);
+      handleDiaryDeleted();
+    } catch (error) {
+      alert(getApiErrorMessage(error, '일기 삭제에 실패했습니다.'));
+    }
+  };
+
+  const handleAddFriend = async () => {
+    if (!diary || !user || isFriendActionLoading) return;
+
+    setIsFriendActionLoading(true);
+    try {
+      await sendFriendRequest(diary.userId);
+      setDiary(prevDiary =>
+        prevDiary
+          ? { ...prevDiary, friendStatus: FriendshipStatus.SENT }
+          : prevDiary,
+      );
+    } catch (error: any) {
+      console.error('Friend action failed:', error);
+      if (error?.response?.status !== 403) {
+        alert('요청 처리 중 오류가 발생했습니다.');
+      }
+    } finally {
+      setIsFriendActionLoading(false);
+    }
+  };
+
+  const handleProfileMouseEnter = () => {
+    if (profileHoverTimeoutRef.current) {
+      clearTimeout(profileHoverTimeoutRef.current);
+    }
+    setIsProfileHovering(true);
+  };
+
+  const handleProfileMouseLeave = () => {
+    profileHoverTimeoutRef.current = setTimeout(() => {
+      setIsProfileHovering(false);
+    }, 200);
+  };
+
+  const handleProfileStatusChange = () => {
+    setDiary(prevDiary =>
+      prevDiary
+        ? { ...prevDiary, friendStatus: FriendshipStatus.SENT }
+        : prevDiary,
+    );
   };
 
   const getDisplayContent = (content: string) => {
@@ -94,91 +153,174 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
     );
   }
 
+  const isOwner = user?.id === diary.userId;
+  const shouldShowAddFriendButton =
+    Boolean(user) &&
+    !isOwner &&
+    (diary.friendStatus ?? FriendshipStatus.NONE) === FriendshipStatus.NONE;
+
   return (
-    <div className="bg-white dark:bg-black min-h-screen font-sans">
-      <div className="max-w-md mx-auto bg-white dark:bg-neutral-900 shadow-sm flex flex-col min-h-screen">
-        <header className="p-4 flex items-center space-x-3 border-b dark:border-gray-700 sticky top-0 bg-white dark:bg-neutral-900 z-10">
-          <div className="flex-grow flex items-center space-x-3">
-            <Image
-              src={diary.avatar ? diary.avatar : '/globe.svg'}
-              alt={diary.nickname}
-              width={40}
-              height={40}
-              className="rounded-full bg-gray-200"
-            />
-            <div>
-              <p className="font-bold dark:text-white">{diary.nickname}</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {format(new Date(diary.date), 'yyyy.MM.dd')}
-              </p>
-            </div>
-          </div>
-        </header>
-
-        <div className="flex-grow pb-20">
-          {diary.imgUrls && diary.imgUrls.length > 0 && (
-            <Swiper
-              modules={[Pagination]}
-              pagination={{ clickable: true }}
-              className={`mySwiper ${diary.imgUrls.length === 1 ? 'single-image' : ''}`}
-              style={
-                {
-                  '--swiper-pagination-color': '#FFD600',
-                  '--swiper-pagination-bullet-inactive-color': '#999999',
-                  '--swiper-pagination-bullet-inactive-opacity': '1',
-                } as CSSProperties
-              }
-            >
-              {diary.imgUrls.map((url, index) => (
-                <SwiperSlide key={index}>
-                  <div className="relative w-full" style={{ paddingTop: '100%' }}>
-                    <Image
-                      width={100}
-                      height={100}
-                      src={url}
-                      alt={`Diary image ${index + 1}`}
-                      className="absolute top-0 left-0 w-full h-full object-cover"
-                    />
-                  </div>
-                </SwiperSlide>
-              ))}
-            </Swiper>
-          )}
-
-          <div className="p-4 flex justify-end items-center space-x-4">
-            <button className="flex items-center space-x-1 text-gray-600 dark:text-gray-400">
-              <Heart
-                className={`w-7 h-7 ${
-                  diary.isLiked ? 'text-red-500 fill-current' : ''
-                }`}
-              />
-              <span className="text-sm font-semibold">{diary.likeCount}</span>
-            </button>
-            <button
-              onClick={openCommentModal}
-              className="flex items-center space-x-1 text-gray-600 dark:text-gray-400"
-            >
-              <MessageCircle className="w-7 h-7" />
-              <span className="text-sm font-semibold">{diary.commentCount}</span>
-            </button>
-          </div>
-
-          <main className="px-4 py-3">
-            <div className="space-y-3">
-              <p className="text-gray-900 dark:text-gray-100 text-base leading-relaxed whitespace-pre-wrap">
-                {getDisplayContent(diary.content)}
-              </p>
-              {shouldShowMoreButton(diary.content) && (
-                <button
-                  onClick={() => setIsContentExpanded(true)}
-                  className="text-gray-500 dark:text-gray-400 text-sm hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+    <div className="min-h-screen bg-white font-sans dark:bg-black">
+      <div className="mx-auto max-w-[600px] px-4 py-6 xl:pt-6">
+        <article className="w-full rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800">
+          <header className="flex items-center justify-between p-3">
+            <div className="relative flex min-w-0 items-center space-x-3">
+              <div
+                data-testid="diary-author-profile"
+                className="flex min-w-0 cursor-pointer items-center"
+                onMouseEnter={handleProfileMouseEnter}
+                onMouseLeave={handleProfileMouseLeave}
+              >
+                <div
+                  data-testid="diary-author-meta"
+                  className="flex min-w-0 items-center"
                 >
-                  더 보기
+                  <UserProfile
+                    userId={diary.userId}
+                    nickname={diary.nickname}
+                    avatar={diary.avatar || '/globe.svg'}
+                    imageSize={40}
+                    imageClassName="h-10 w-10 bg-gray-200 object-cover"
+                    nicknameClassName="truncate dark:text-white"
+                  />
+                  <DotIcon className="text-gray-500 dark:text-gray-400" />
+                  <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                    {format(new Date(diary.date), 'yyyy.MM.dd')}
+                  </span>
+                </div>
+              </div>
+              {isProfileHovering && (
+                <div
+                  onMouseEnter={handleProfileMouseEnter}
+                  onMouseLeave={handleProfileMouseLeave}
+                >
+                  <ProfileHoverCard
+                    userId={diary.userId}
+                    nickname={diary.nickname}
+                    avatar={diary.avatar}
+                    onStatusChange={handleProfileStatusChange}
+                  />
+                </div>
+              )}
+              {isOwner && (
+                <p className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                  {getPrivacyLabel(diary.status)}
+                </p>
+              )}
+              {shouldShowAddFriendButton && (
+                <button
+                  type="button"
+                  onClick={handleAddFriend}
+                  disabled={isFriendActionLoading}
+                  className="shrink-0 text-xs font-semibold text-blue-500 hover:text-blue-600 disabled:text-gray-400"
+                >
+                  {isFriendActionLoading ? '...' : '친구 추가'}
                 </button>
               )}
             </div>
-          </main>
-        </div>
+            {isOwner && (
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-label="일기 메뉴"
+                  className="rounded-full p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                  onClick={() => setIsMenuOpen(prev => !prev)}
+                >
+                  <MoreHorizontal className="h-5 w-5" />
+                </button>
+                {isMenuOpen && (
+                  <div className="absolute right-0 z-20 mt-2 w-32 rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                    <button
+                      type="button"
+                      className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        router.push(`/diary/${diary.diaryId}/edit`);
+                      }}
+                    >
+                      일기 수정
+                    </button>
+                    <button
+                      type="button"
+                      className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onClick={handleDeleteDiary}
+                    >
+                      일기 삭제
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </header>
+
+          <div>
+            {diary.imgUrls && diary.imgUrls.length > 0 && (
+              <Swiper
+                modules={[Pagination]}
+                pagination={{ clickable: true }}
+                className={`mySwiper ${diary.imgUrls.length === 1 ? 'single-image' : ''}`}
+                style={
+                  {
+                    '--swiper-pagination-color': '#FFD600',
+                    '--swiper-pagination-bullet-inactive-color': '#999999',
+                    '--swiper-pagination-bullet-inactive-opacity': '1',
+                  } as CSSProperties
+                }
+              >
+                {diary.imgUrls.map((url, index) => (
+                  <SwiperSlide key={index}>
+                    <div className="relative aspect-square w-full">
+                      <Image
+                        width={100}
+                        height={100}
+                        src={url}
+                        alt={`Diary image ${index + 1}`}
+                        className="absolute left-0 top-0 h-full w-full rounded object-cover"
+                      />
+                    </div>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            )}
+
+            <div className="p-3">
+              <div className="flex space-x-3">
+                <button className="flex items-center space-x-1 text-gray-700 dark:text-gray-200">
+                  <Heart
+                    className={`h-7 w-7 ${
+                      diary.isLiked ? 'text-red-500 fill-current' : ''
+                    }`}
+                  />
+                  <span className="font-bold">{diary.likeCount}</span>
+                </button>
+                <button
+                  onClick={openCommentModal}
+                  className="flex items-center space-x-1 text-gray-700 dark:text-gray-200"
+                >
+                  <MessageCircle className="h-7 w-7" />
+                  <span className="font-bold">{diary.commentCount}</span>
+                </button>
+              </div>
+            </div>
+
+            <main className="px-3 pb-3">
+              <div className="space-y-2">
+                <p className="text-sm leading-relaxed text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                  <span className="mr-1 font-semibold">{diary.nickname}</span>
+                  {getDisplayContent(diary.content)}
+                </p>
+                {shouldShowMoreButton(diary.content) && (
+                  <button
+                    onClick={() => setIsContentExpanded(true)}
+                    className="text-sm text-gray-500 transition-colors hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400"
+                  >
+                    더 보기
+                  </button>
+                )}
+              </div>
+            </main>
+          </div>
+        </article>
       </div>
 
       <AnimatePresence>
@@ -203,22 +345,6 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
             />
           ))}
       </AnimatePresence>
-
-      {!isDesktop && (
-        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white dark:bg-neutral-900 p-4 border-t dark:border-gray-700">
-          <div className="flex items-center space-x-3">
-            <input
-              type="text"
-              placeholder={
-                isLoggedIn ? '댓글 달기...' : '로그인 후 댓글을 남겨보세요'
-              }
-              className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:text-white"
-              disabled={!isLoggedIn}
-              onClick={openCommentModal}
-            />
-          </div>
-        </div>
-      )}
 
       <style jsx global>{`
         .swiper-pagination-bullet {

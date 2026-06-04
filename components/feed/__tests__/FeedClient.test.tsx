@@ -51,6 +51,7 @@ vi.mock('../FeedCard', () => ({
   }) => (
     <div data-testid={`feed-card-${post.diaryId}`}>
       {post.content}
+      <span data-testid={`status-${post.diaryId}`}>{post.status}</span>
       <span data-testid={`comment-count-${post.diaryId}`}>{post.commentCount}</span>
       <span data-testid={`like-count-${post.diaryId}`}>{post.likeCount}</span>
       <span data-testid={`like-status-${post.diaryId}`}>{post.isLiked ? 'liked' : 'not-liked'}</span>
@@ -76,6 +77,8 @@ vi.mock('../../diary/DiaryDetailModal', () => ({
     ) => void;
   }) => (
     <div data-testid="diary-detail-modal">
+      <span data-testid="detail-content">{diary.content}</span>
+      <span data-testid="detail-status">{diary.status}</span>
       <button
         data-testid="detail-comment-count-update"
         onClick={() => onCommentCountChange?.(diary.diaryId, 2)}
@@ -110,6 +113,8 @@ vi.mock('../../diary/DiaryStoryModal', () => ({
     ) => void;
   }) => (
     <div data-testid="diary-story-modal">
+      <span data-testid="story-content">{diary.content}</span>
+      <span data-testid="story-status">{diary.status}</span>
       <button
         data-testid="open-detail-comment"
         onClick={() => onCommentViewToggle?.(true)}

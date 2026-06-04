@@ -28,6 +28,16 @@ export interface DiaryCreateRequest {
   deletedUrls?: string[];
 }
 
+export interface DiaryUpdateRequest {
+  status: PrivacyStatus;
+  content: string;
+}
+
+export type DiaryUpdateResponse = Partial<DiaryUpdateRequest> & {
+  diaryId?: number;
+  updatedAt?: string;
+};
+
 export interface DiaryContent {
   content: string;
 }
@@ -64,6 +74,7 @@ export interface Comment {
 
 export interface DiaryDetail extends Diary {
   comments: Comment[];
+  friendStatus?: FriendshipStatus;
 }
 
 export interface FeedDiary {
@@ -114,4 +125,4 @@ export interface DiaryCreateForm {
   date: string;
   coverPhotoType?: CoverPhotoType;
   coverPhotoIndex?: number;
-} 
+}

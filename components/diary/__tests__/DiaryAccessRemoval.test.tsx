@@ -8,6 +8,14 @@ import type { Comment, CommentPage } from '@/types/comment';
 import { deleteComment, getRootComments } from '@/lib/api/comment';
 import { addLike } from '@/lib/api/like';
 
+const mockPush = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
+
 vi.mock('@/lib/api/comment', () => ({
   createComment: vi.fn(),
   getRootComments: vi.fn().mockResolvedValue({
@@ -124,21 +132,21 @@ const makePage = (content: Comment[], totalElements: number): CommentPage => ({
   empty: content.length === 0,
 });
 
-describe('diary edit access removal', () => {
+describe('diary edit access', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('does not expose the diary edit route file', () => {
+  it('exposes the diary edit page route file', () => {
     const routePath = path.resolve(
       process.cwd(),
-      'app/diary/edit/[id]/page.tsx',
+      'app/diary/[id]/edit/page.tsx',
     );
 
-    expect(existsSync(routePath)).toBe(false);
+    expect(existsSync(routePath)).toBe(true);
   });
 
-  it('does not show an edit action in the diary owner menu', async () => {
+  it('shows an edit action in the diary owner menu', async () => {
     const { container } = render(
       <DiaryDetailModal diary={diary} onClose={vi.fn()} />,
     );
@@ -149,7 +157,36 @@ describe('diary edit access removal', () => {
     await waitFor(() => {
       expect(screen.getByText('일기 삭제')).toBeInTheDocument();
     });
+    expect(screen.getByText('일기 수정')).toBeInTheDocument();
+  });
+
+  it('opens the diary edit page from the diary owner menu', async () => {
+    const { container } = render(
+      <DiaryDetailModal diary={diary} onClose={vi.fn()} />,
+    );
+
+    fireEvent.click(container.querySelectorAll('button')[1]);
+    fireEvent.click(await screen.findByText('일기 수정'));
+
+    expect(mockPush).toHaveBeenCalledWith('/diary/1/edit');
+  });
+
+  it('does not show an edit action to non-owners', async () => {
+    const { container } = render(
+      <DiaryDetailModal
+        diary={{ ...diary, userId: 'another-user' }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const buttons = container.querySelectorAll('button');
+    fireEvent.click(buttons[1]);
+
+    await waitFor(() => {
+      expect(screen.getByText('공유하기')).toBeInTheDocument();
+    });
     expect(screen.queryByText('일기 수정')).not.toBeInTheDocument();
+    expect(screen.queryByText('일기 삭제')).not.toBeInTheDocument();
   });
 
   it('긴 일기 본문에서도 작성자 아바타가 flex 수축 대상이 되지 않는다', async () => {

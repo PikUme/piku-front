@@ -87,6 +87,7 @@ const DiaryStoryModal = ({
 }: DiaryStoryModalProps) => {
   useBodyScrollLock(true);
 
+  const [currentDiary, setCurrentDiary] = useState(diary);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [totalComments, setTotalComments] = useState(diary.commentCount);
   const [isLiked, setIsLiked] = useState(diary.isLiked);
@@ -99,15 +100,24 @@ const DiaryStoryModal = ({
   const { user } = useAuthStore();
   const serverUrl = getServerURL();
   const router = useRouter();
+  const isOwner = user?.id === currentDiary.userId;
+
+  useEffect(() => {
+    setCurrentDiary(diary);
+    setCurrentImageIndex(0);
+    setTotalComments(diary.commentCount);
+    setIsLiked(diary.isLiked);
+    setLikeCount(diary.likeCount);
+  }, [diary]);
 
   const handleProfileClick = () => {
-    router.push(`/profile/${diary.userId}`);
+    router.push(`/profile/${currentDiary.userId}`);
     onClose();
   };
 
   const handleUpdateCommentCount = (count: number) => {
     setTotalComments(count);
-    onCommentCountChange?.(diary.diaryId, count);
+    onCommentCountChange?.(currentDiary.diaryId, count);
   };
 
   const handleCloseCommentModal = () => {
@@ -167,9 +177,9 @@ const DiaryStoryModal = ({
     if (!confirm('정말 일기를 삭제하시겠습니까?')) return;
     setIsMenuOpen(false);
     try {
-      await deleteDiary(diary.diaryId);
+      await deleteDiary(currentDiary.diaryId);
       if (onDelete) {
-        onDelete(diary.diaryId);
+        onDelete(currentDiary.diaryId);
       } else {
         onClose();
       }
@@ -188,11 +198,11 @@ const DiaryStoryModal = ({
 
     try {
       const response = prevIsLiked
-        ? await removeLike(diary.diaryId)
-        : await addLike(diary.diaryId);
+        ? await removeLike(currentDiary.diaryId)
+        : await addLike(currentDiary.diaryId);
       setIsLiked(response.isLiked);
       setLikeCount(response.likeCount);
-      onLikeChange?.(diary.diaryId, {
+      onLikeChange?.(currentDiary.diaryId, {
         likeCount: response.likeCount,
         isLiked: response.isLiked,
       });
@@ -202,16 +212,16 @@ const DiaryStoryModal = ({
       setLikeCount(prevLikeCount);
       console.error('좋아요 처리에 실패했습니다:', error);
     }
-  }, [isLiked, likeCount, diary.diaryId, onLikeChange]);
+  }, [isLiked, likeCount, currentDiary.diaryId, onLikeChange]);
 
   const handlePrevImage = () => {
-    if (diary.imgUrls && diary.imgUrls.length > 0 && currentImageIndex > 0) {
+    if (currentDiary.imgUrls && currentDiary.imgUrls.length > 0 && currentImageIndex > 0) {
       setCurrentImageIndex(prev => prev - 1);
     }
   };
 
   const handleNextImage = () => {
-    if (diary.imgUrls && diary.imgUrls.length > 0 && currentImageIndex < diary.imgUrls.length - 1) {
+    if (currentDiary.imgUrls && currentDiary.imgUrls.length > 0 && currentImageIndex < currentDiary.imgUrls.length - 1) {
       setCurrentImageIndex(prev => prev + 1);
     }
   };
@@ -235,7 +245,12 @@ const DiaryStoryModal = ({
     e.currentTarget.src = DEFAULT_AVATAR;
   };
 
-  const displayImage = diary.imgUrls?.[currentImageIndex] || '/vercel.svg';
+  const handleOpenEditPage = () => {
+    setIsMenuOpen(false);
+    router.push(`/diary/${currentDiary.diaryId}/edit`);
+  };
+
+  const displayImage = currentDiary.imgUrls?.[currentImageIndex] || '/vercel.svg';
   const storyActions = [
     {
       key: 'like',
@@ -265,31 +280,31 @@ const DiaryStoryModal = ({
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent">
         <div className="flex items-center" onClick={handleProfileClick}>
           <Image
-            src={diary.avatar || DEFAULT_AVATAR}
-            alt={diary.nickname}
+            src={currentDiary.avatar || DEFAULT_AVATAR}
+            alt={currentDiary.nickname}
             width={32}
             height={32}
             className="cursor-pointer rounded-full"
             onError={handleAvatarError}
           />
           <p className="ml-3 cursor-pointer text-sm font-bold text-white">
-            {diary.nickname}
+            {currentDiary.nickname}
           </p>
           <DotIcon className='text-gray-300'/>
           <p className="text-xs uppercase text-gray-300">
-            {formatYearMonthDayDots(diary.date)}
+            {formatYearMonthDayDots(currentDiary.date)}
           </p>
-          {user?.id === diary.userId && (
+          {isOwner && (
             <>
               <DotIcon className='text-gray-300'/>
               <p className="text-xs text-gray-300">
-                {getPrivacyLabel(diary.status)}
+                {getPrivacyLabel(currentDiary.status)}
               </p>
             </>
           )}
         </div>
         <div className="flex items-center gap-3">
-          {user?.id === diary.userId && (
+          {isOwner && (
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -299,6 +314,12 @@ const DiaryStoryModal = ({
               </button>
               {isMenuOpen && (
                 <div className="absolute right-0 z-30 mt-2 w-32 rounded-md border border-gray-600 bg-gray-900 shadow-lg">
+                  <button
+                    onClick={handleOpenEditPage}
+                    className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-gray-100 hover:bg-gray-700"
+                  >
+                    일기 수정
+                  </button>
                   <button
                     onClick={handleDeleteDiary}
                     className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-700"
@@ -337,7 +358,7 @@ const DiaryStoryModal = ({
       </div>
 
       {/* Image Navigation */}
-      {diary.imgUrls && diary.imgUrls.length > 1 && (
+      {currentDiary.imgUrls && currentDiary.imgUrls.length > 1 && (
         <>
           {currentImageIndex > 0 && (
             <button
@@ -347,7 +368,7 @@ const DiaryStoryModal = ({
               <ChevronLeft size={24} />
             </button>
           )}
-          {currentImageIndex < diary.imgUrls.length - 1 && (
+          {currentImageIndex < currentDiary.imgUrls.length - 1 && (
             <button
               onClick={handleNextImage}
               className="absolute right-2 top-1/2 z-10 -translate-y-1/2 cursor-pointer rounded-full bg-black/30 p-2 text-white transition-opacity hover:bg-black/60"
@@ -384,16 +405,16 @@ const DiaryStoryModal = ({
       <AnimatePresence>
         {isCommentViewOpen && (
           <StoryCommentModal
-            diaryId={diary.diaryId}
+            diaryId={currentDiary.diaryId}
             initialCommentCount={totalComments}
             onClose={handleCloseCommentModal}
             onUpdateCommentCount={handleUpdateCommentCount}
             diaryContent={{
-              nickname: diary.nickname,
-              avatar: diary.avatar,
-              content: diary.content,
-              createdAt: diary.createdAt,
-              userId: diary.userId,
+              nickname: currentDiary.nickname,
+              avatar: currentDiary.avatar,
+              content: currentDiary.content,
+              createdAt: currentDiary.createdAt,
+              userId: currentDiary.userId,
             }}
           />
         )}

@@ -5,7 +5,7 @@ import { useMediaQuery } from 'react-responsive';
 import FeedCard from './FeedCard';
 import { getFeedCursor, type FeedSortMode } from '@/lib/api/feed';
 import { getDiaryById } from '@/lib/api/diary';
-import { FeedDiary, DiaryDetail } from '@/types/diary';
+import type { DiaryDetail, FeedDiary } from '@/types/diary';
 import { FriendshipStatus } from '@/types/friend';
 import DiaryDetailModal from '../diary/DiaryDetailModal';
 import DiaryStoryModal from '../diary/DiaryStoryModal';

@@ -1,8 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import HomeCalendar from '../HomeCalendar';
+import type { DiaryDetail } from '@/types/diary';
 
 const loadDiaryDetailMock = vi.fn();
+let selectedDiaryMock: DiaryDetail | null = null;
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -82,7 +84,7 @@ vi.mock('@/hooks/useCalendarNavigation', () => ({
 vi.mock('@/hooks/useDiaryData', () => ({
   useDiaryData: () => ({
     pikus: {},
-    selectedDiary: null,
+    selectedDiary: selectedDiaryMock,
     isLoading: false,
     loadDiaryDetail: loadDiaryDetailMock,
     closeDiaryDetail: vi.fn(),
@@ -98,9 +100,35 @@ vi.mock('@/components/calendar/PikuCalendar', () => ({
   default: () => <div data-testid="piku-calendar">calendar</div>,
 }));
 
+vi.mock('@/components/diary/DiaryDetailModal', () => ({
+  default: () => <div data-testid="diary-detail-modal" />,
+}));
+
+vi.mock('@/components/diary/DiaryStoryModal', () => ({
+  default: () => <div data-testid="diary-story-modal" />,
+}));
+
+const diary: DiaryDetail = {
+  diaryId: 1,
+  content: '테스트 일기',
+  date: '2026-05-15',
+  status: 'PUBLIC',
+  createdAt: '2026-05-15T10:00:00',
+  updatedAt: '2026-05-15T10:00:00',
+  isLiked: false,
+  likeCount: 0,
+  commentCount: 0,
+  imgUrls: [],
+  nickname: '픽쿠야',
+  avatar: '',
+  userId: 'user-1',
+  comments: [],
+};
+
 describe('HomeCalendar view switch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    selectedDiaryMock = null;
   });
 
   it('홈 캘린더는 보기 전환 없이 달력만 보여준다', () => {
@@ -126,5 +154,13 @@ describe('HomeCalendar view switch', () => {
     expect(screen.getByTestId('piku-calendar')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '달력' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '모아보기' })).not.toBeInTheDocument();
+  });
+
+  it('선택한 일기가 있으면 캘린더 상세 모달을 보여준다', () => {
+    selectedDiaryMock = diary;
+
+    render(<HomeCalendar />);
+
+    expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
   });
 });
