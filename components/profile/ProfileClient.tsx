@@ -28,6 +28,20 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
   const { user: currentUser } = useAuthStore();
   const isMyProfile = currentUser?.id === profileData.userId;
   const [diaryView, setDiaryView] = useState<'timeline' | 'photos'>('timeline');
+  const monthlyDiaryCountByYear =
+    profileData.monthlyDiaryCount?.reduce<
+      Array<{ year: number; monthlyDiaryCount: DiaryMonthCountDTO[] }>
+    >((groups, stat) => {
+      const currentGroup = groups[groups.length - 1];
+
+      if (currentGroup?.year === stat.year) {
+        currentGroup.monthlyDiaryCount.push(stat);
+      } else {
+        groups.push({ year: stat.year, monthlyDiaryCount: [stat] });
+      }
+
+      return groups;
+    }, []) ?? [];
   
   // 친구 상태를 로컬 상태로 관리
   const [currentFriendStatus, setCurrentFriendStatus] = useState(profileData.friendStatus);
@@ -245,55 +259,65 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
         {diaryView === 'photos' ? (
           <ProfileDiaryPhotoGrid userId={profileData.userId} />
         ) : (
-          <div className="relative">
-            {profileData.monthlyDiaryCount &&
-              profileData.monthlyDiaryCount.length > 1 && (
-                <div className="absolute left-2.5 top-2.5 bottom-2.5 w-1 bg-gray-200"></div>
-              )}
-            <div className="space-y-4">
-              {profileData.monthlyDiaryCount &&
-              profileData.monthlyDiaryCount.length > 0 ? (
-                profileData.monthlyDiaryCount.map(
-                  (stat: DiaryMonthCountDTO) => (
-                    <div
-                      key={`${stat.year}-${stat.month}`}
-                      className="flex items-center cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleMonthClick(stat.year, stat.month)}
+          <div>
+            {monthlyDiaryCountByYear.length > 0 ? (
+              <div className="space-y-7">
+                {monthlyDiaryCountByYear.map(group => (
+                  <section key={group.year} aria-labelledby={`diary-year-${group.year}`}>
+                    <h4
+                      id={`diary-year-${group.year}`}
+                      className="mb-3 text-base font-bold text-gray-800"
                     >
-                      <div className="w-6 h-6 flex-shrink-0 mr-4 z-10">
-                        <div className="w-5 h-5 bg-gray-300 rounded-full mx-auto my-1.5"></div>
-                      </div>
-                      <div className="w-full p-4 border rounded-lg shadow-sm bg-white">
-                        <div className="flex items-baseline mb-2">
-                          <span className="text-lg font-semibold text-gray-800">
-                            {stat.month}월
-                          </span>
-                          <span className="ml-1.5 text-xs text-gray-500">
-                            ({stat.count}/{stat.daysInMonth})
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                      {group.year}년
+                    </h4>
+                    <div className="relative">
+                      {group.monthlyDiaryCount.length > 1 && (
+                        <div className="absolute left-2.5 top-2.5 bottom-2.5 w-1 bg-gray-200"></div>
+                      )}
+                      <div className="space-y-4">
+                        {group.monthlyDiaryCount.map((stat: DiaryMonthCountDTO) => (
                           <div
-                            className="bg-lime-400 h-2 rounded-full"
-                            style={{
-                              width: `${
-                                stat.daysInMonth > 0
-                                  ? (stat.count / stat.daysInMonth) * 100
-                                  : 0
-                              }%`,
-                            }}
-                          ></div>
-                        </div>
+                            key={`${stat.year}-${stat.month}`}
+                            className="flex items-center cursor-pointer hover:bg-gray-50"
+                            onClick={() => handleMonthClick(stat.year, stat.month)}
+                          >
+                            <div className="w-6 h-6 flex-shrink-0 mr-4 z-10">
+                              <div className="w-5 h-5 bg-gray-300 rounded-full mx-auto my-1.5"></div>
+                            </div>
+                            <div className="w-full p-4 border rounded-lg shadow-sm bg-white">
+                              <div className="flex items-baseline mb-2">
+                                <span className="text-lg font-semibold text-gray-800">
+                                  {stat.month}월
+                                </span>
+                                <span className="ml-1.5 text-xs text-gray-500">
+                                  ({stat.count}/{stat.daysInMonth})
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                  className="bg-lime-400 h-2 rounded-full"
+                                  style={{
+                                    width: `${
+                                      stat.daysInMonth > 0
+                                        ? (stat.count / stat.daysInMonth) * 100
+                                        : 0
+                                    }%`,
+                                  }}
+                                ></div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ),
-                )
-              ) : (
-                <p className="text-center text-gray-500">
-                  아직 작성된 일기 기록이 없어요.
-                </p>
-              )}
-            </div>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-500">
+                아직 작성된 일기 기록이 없어요.
+              </p>
+            )}
           </div>
         )}
       </div>
