@@ -86,11 +86,10 @@ describe('DiaryEditForm', () => {
     mockGetDiaryById.mockResolvedValue(diary);
   });
 
-  it('일기 등록 페이지와 같은 구조로 사진 확인, 글 작성, 공개 범위만 수정 가능하게 보여준다', async () => {
+  it('일기 등록 페이지와 같은 구조로 글 작성, 공개 범위만 수정 가능하게 보여준다', async () => {
     render(<DiaryEditForm diaryId={1} />);
 
     expect(await screen.findByRole('heading', { name: '일기 수정' })).toBeInTheDocument();
-    expect(screen.getByText('사진 확인')).toBeInTheDocument();
     expect(screen.getAllByAltText(/기존 일기 사진/)).toHaveLength(2);
     expect(screen.queryByRole('button', { name: /AI 사진/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /사진 추가/ })).not.toBeInTheDocument();
