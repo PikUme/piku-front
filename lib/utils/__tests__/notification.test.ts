@@ -65,4 +65,17 @@ describe('getNotificationNavigationPath', () => {
 
     expect(path).toBe('/diary/42');
   });
+
+  it('FRIEND_REQUEST 알림은 친구 요청 탭으로 이동한다', () => {
+    const path = getNotificationNavigationPath(
+      makeNotification({
+        type: 'FRIEND_REQUEST',
+        relatedDiaryId: null,
+        diaryDate: null,
+        diaryUserId: null,
+      }),
+    );
+
+    expect(path).toBe('/friends?tab=requests');
+  });
 });

@@ -3,6 +3,10 @@ import type { Notification } from '@/types/notification';
 export const getNotificationNavigationPath = (
   notification: Notification,
 ): string | null => {
+  if (notification.type === 'FRIEND_REQUEST') {
+    return '/friends?tab=requests';
+  }
+
   if (notification.diaryDate && notification.diaryUserId) {
     const params = new URLSearchParams({ date: notification.diaryDate });
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import FriendList from './FriendList';
 import FriendRequestList from './FriendRequestList';
 import {
@@ -10,8 +11,16 @@ import {
 } from '@/lib/api/friend';
 import { FriendRequest } from '@/types/friend';
 
+type FriendsTab = 'friends' | 'requests';
+
+const getTabFromSearchParams = (searchParams: URLSearchParams): FriendsTab => (
+  searchParams.get('tab') === 'requests' ? 'requests' : 'friends'
+);
+
 const FriendsClient = () => {
-  const [activeTab, setActiveTab] = useState('friends');
+  const searchParams = useSearchParams();
+  const tabFromSearchParams = getTabFromSearchParams(searchParams);
+  const [activeTab, setActiveTab] = useState<FriendsTab>(tabFromSearchParams);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [requestsPage, setRequestsPage] = useState(0);
   const [requestsHasMore, setRequestsHasMore] = useState(true);
@@ -61,6 +70,10 @@ const FriendsClient = () => {
   useEffect(() => {
     loadMoreRequests();
   }, [loadMoreRequests]);
+
+  useEffect(() => {
+    setActiveTab(tabFromSearchParams);
+  }, [tabFromSearchParams]);
 
   const handleAccept = async (userId: string) => {
     await acceptFriendRequest(userId);
