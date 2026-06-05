@@ -3,7 +3,7 @@
 import {
   Compass,
   Search,
-  LogIn
+  User
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -36,17 +36,10 @@ const GuestSidebar = () => {
           <span className="inline">검색</span>
         </Link>
         <Link
-          href="/feed"
-          className="flex items-center p-4 rounded-lg hover:bg-gray-100 justify-start"
-        >
-          <Compass className="w-6 h-6 mr-4" />
-          <span className="inline">피드</span>
-        </Link>
-        <Link
           href="/login"
           className="flex items-center p-4 rounded-lg cursor-pointer hover:bg-gray-100 justify-start"
         >
-          <LogIn className="w-6 h-6 mr-4" />
+          <User className="w-6 h-6 mr-4" />
           <span className="inline">로그인</span>
         </Link>
       </nav>

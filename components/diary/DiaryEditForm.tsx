@@ -156,12 +156,6 @@ const DiaryEditForm = ({ diaryId }: DiaryEditFormProps) => {
       <main className="flex flex-grow flex-col overflow-y-auto p-4 text-black dark:text-white">
         <section aria-labelledby="diary-edit-photos-title" className="pb-4">
           <div className="mb-3 flex items-center justify-between">
-            <h2
-              id="diary-edit-photos-title"
-              className="text-sm font-semibold text-gray-900 dark:text-white"
-            >
-              사진 확인
-            </h2>
             <span className="text-xs text-gray-500">
               {diary.imgUrls.length}장
             </span>

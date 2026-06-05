@@ -3,7 +3,7 @@
 import {
   Compass,
   Search,
-  LogIn,
+  User,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -109,14 +109,11 @@ const GuestBottomNav = () => {
         <Link href="/" aria-label="홈" className={getLinkClass('/')}>
           <Compass className={getIconSize()} />
         </Link>
-        <Link href="/feed" aria-label="피드" className={getLinkClass('/feed')}>
-          <Compass className={getIconSize()} />
-        </Link>
         <Link href="/search" aria-label="검색" className={getLinkClass('/search')}>
           <Search className={getIconSize()} />
         </Link>
         <Link href="/login" aria-label="로그인" className={getLinkClass('/login')}>
-          <LogIn className={getIconSize()} />
+          <User className={getIconSize()} />
         </Link>
       </footer>
     </>
