@@ -126,16 +126,18 @@ describe('BottomNav', () => {
     expect(screen.getByRole('button', { name: '더보기' })).toBeInTheDocument();
   });
 
-  it('게스트 하단 네비게이션은 아이콘 라벨 텍스트를 보이지 않는다', () => {
+  it('게스트 하단 네비게이션은 피드를 제외하고 프로필 아이콘으로 로그인 링크를 보여준다', () => {
     const { container } = render(<GuestBottomNav />);
     const footer = container.querySelector('footer');
 
     expect(footer).not.toBeNull();
     expectNoFooterLabelText(footer!, ['홈', '피드', '검색', '로그인']);
     expect(screen.getByRole('link', { name: '홈' })).toHaveAttribute('href', '/');
-    expect(screen.getByRole('link', { name: '피드' })).toHaveAttribute('href', '/feed');
+    expect(screen.queryByRole('link', { name: '피드' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: '검색' })).toHaveAttribute('href', '/search');
     expect(screen.getByRole('link', { name: '로그인' })).toHaveAttribute('href', '/login');
+    expect(within(footer!).getAllByRole('link')).toHaveLength(3);
+    expect(footer!.querySelector('.lucide-user')).toBeInTheDocument();
   });
 
   it('게스트 하단 네비게이션은 아이콘 전용 상태의 상하 여백을 1.8배로 유지한다', () => {
