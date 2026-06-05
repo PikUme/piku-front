@@ -216,6 +216,31 @@ describe('NotificationsClient', () => {
     });
   });
 
+  it('FRIEND_REQUEST 알림 클릭 시 친구 요청 탭으로 이동한다', async () => {
+    mockGetNotifications.mockResolvedValue(
+      makePage([
+        makeNotification({
+          type: 'FRIEND_REQUEST',
+          message: 'sent you a friend request',
+          relatedDiaryId: null,
+          diaryDate: null,
+          diaryUserId: null,
+        }),
+      ]),
+    );
+
+    renderClient();
+
+    fireEvent.click(await screen.findByText('sent you a friend request'));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/friends?tab=requests');
+      expect(mockMarkNotificationAsRead).toHaveBeenCalledWith(1);
+      expect(mockDecrementUnreadCount).toHaveBeenCalledTimes(1);
+    });
+    expect(mockGetDiaryById).not.toHaveBeenCalled();
+  });
+
   it('FRIEND_DIARY 알림 클릭 시 페이지 이동 대신 일기 모달을 연다', async () => {
     mockGetNotifications.mockResolvedValue(
       makePage([

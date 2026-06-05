@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import RequireAuth from '@/components/auth/RequireAuth';
 import FriendsClient from '@/components/friends/FriendsClient';
 
@@ -17,7 +18,15 @@ export const metadata: Metadata = {
 const FriendsPage = () => {
   return (
     <RequireAuth>
-      <FriendsClient />
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen items-center justify-center">
+            친구 정보를 불러오는 중...
+          </div>
+        }
+      >
+        <FriendsClient />
+      </Suspense>
     </RequireAuth>
   );
 };
