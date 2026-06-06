@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 import { UserProfile, FriendshipStatus } from '@/types/friend';
 import {
   sendFriendRequest,
@@ -139,13 +140,26 @@ const ProfileHoverCard = ({
         return null;
     }
 
+    const loadingLabelByStatus: Partial<Record<FriendshipStatus, string>> = {
+      [FriendshipStatus.NONE]: '친구 요청 처리 중',
+      [FriendshipStatus.SENT]: '친구 요청 취소 처리 중',
+      [FriendshipStatus.FRIEND]: '친구 끊기 처리 중',
+    };
+
     return (
       <button
         onClick={(e) => { e.stopPropagation(); buttonProps.action(); }}
         disabled={isActionLoading}
+        aria-label={
+          isActionLoading ? loadingLabelByStatus[friendshipStatus] : undefined
+        }
         className={`${buttonProps.base} ${buttonProps.colors}`}
       >
-        {isActionLoading ? '처리 중...' : buttonProps.text}
+        {isActionLoading ? (
+          <Loader2 className="mx-auto h-4 w-4 animate-spin" aria-hidden="true" />
+        ) : (
+          buttonProps.text
+        )}
       </button>
     );
   };
@@ -215,4 +229,4 @@ const MotionProfileHoverCard = (props: ProfileHoverCardProps) => (
   </motion.div>
 );
 
-export default MotionProfileHoverCard; 
+export default MotionProfileHoverCard;
