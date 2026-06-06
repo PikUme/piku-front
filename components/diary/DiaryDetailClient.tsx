@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import type { DiaryDetail } from '@/types/diary';
 import { deleteDiary, getDiaryById } from '@/lib/api/diary';
 import { format } from 'date-fns';
-import { DotIcon, Heart, MessageCircle, MoreHorizontal } from 'lucide-react';
+import { DotIcon, Heart, Loader2, MessageCircle, MoreHorizontal } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination } from 'swiper/modules';
 import { AnimatePresence } from 'framer-motion';
@@ -212,9 +212,14 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
                   type="button"
                   onClick={handleAddFriend}
                   disabled={isFriendActionLoading}
-                  className="shrink-0 text-xs font-semibold text-blue-500 hover:text-blue-600 disabled:text-gray-400"
+                  aria-label={isFriendActionLoading ? '친구 요청 처리 중' : undefined}
+                  className="inline-flex min-w-[52px] shrink-0 items-center justify-center text-xs font-semibold text-blue-500 hover:text-blue-600 disabled:text-gray-400"
                 >
-                  {isFriendActionLoading ? '...' : '친구 추가'}
+                  {isFriendActionLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    '친구 추가'
+                  )}
                 </button>
               )}
             </div>
