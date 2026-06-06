@@ -20,7 +20,7 @@ import {
   deleteFriend,
   sendFriendRequest,
 } from '@/lib/api/friend';
-import { ChevronLeft, ChevronRight, DotIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, DotIcon, Loader2 } from 'lucide-react';
 import { useSwipeable } from 'react-swipeable';
 import UserProfile from '../common/UserProfile';
 import Link from 'next/link';
@@ -190,6 +190,12 @@ const FeedCard = ({
         return null;
     }
 
+    const loadingLabelByStatus: Partial<Record<FriendshipStatus, string>> = {
+      [FriendshipStatus.NONE]: '친구 요청 처리 중',
+      [FriendshipStatus.SENT]: '친구 요청 취소 처리 중',
+      [FriendshipStatus.FRIEND]: '친구 끊기 처리 중',
+    };
+
     return (
       <button
         onClick={e => {
@@ -197,9 +203,16 @@ const FeedCard = ({
           action?.();
         }}
         disabled={isActionLoading}
-        className="ml-2 text-xs font-semibold text-blue-500 hover:text-blue-600 disabled:text-gray-400"
+        aria-label={
+          isActionLoading ? loadingLabelByStatus[friendshipStatus] : undefined
+        }
+        className="ml-2 inline-flex min-w-[52px] items-center justify-center text-xs font-semibold text-blue-500 hover:text-blue-600 disabled:text-gray-400"
       >
-        {isActionLoading ? '...' : text}
+        {isActionLoading ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+        ) : (
+          text
+        )}
       </button>
     );
   };

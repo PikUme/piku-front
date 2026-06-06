@@ -188,6 +188,30 @@ describe('DiaryDetailClient', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('친구 추가 버튼을 반복 클릭해도 친구 요청은 한 번만 보낸다', async () => {
+    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
+    authState = { user: { id: 'viewer-id' }, isLoggedIn: true };
+    vi.mocked(getDiaryById).mockResolvedValue({
+      ...diary,
+      userId: 'owner-id',
+      friendStatus: FriendshipStatus.NONE,
+    });
+    vi.mocked(sendFriendRequest).mockReturnValue(new Promise(() => {}));
+
+    render(<DiaryDetailClient diaryId={42} />);
+
+    const addFriendButton = await screen.findByRole('button', {
+      name: '친구 추가',
+    });
+
+    fireEvent.click(addFriendButton);
+    fireEvent.click(addFriendButton);
+
+    expect(screen.getByLabelText('친구 요청 처리 중')).toBeInTheDocument();
+    expect(sendFriendRequest).toHaveBeenCalledTimes(1);
+    expect(sendFriendRequest).toHaveBeenCalledWith('owner-id');
+  });
+
   it('프로필 영역을 피드처럼 가로 메타로 보여주고 hover 시 프로필 카드를 보여준다', async () => {
     const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
     authState = { user: { id: 'viewer-id' }, isLoggedIn: true };

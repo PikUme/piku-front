@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, Grid3X3 } from 'lucide-react';
+import { CalendarDays, Grid3X3, Loader2 } from 'lucide-react';
 import useAuthStore from '@/components/store/authStore';
 import {
   acceptFriendRequest,
@@ -49,6 +49,7 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
   // 모달 상태 관리
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const isActionInFlightRef = useRef(false);
 
   const handleEditProfile = () => {
     router.push('/profile/edit');
@@ -68,6 +69,9 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
   ];
 
   const handleConfirmRemoveFriend = async () => {
+    if (isActionInFlightRef.current) return;
+
+    isActionInFlightRef.current = true;
     setIsActionLoading(true);
     try {
       await deleteFriend(profileData.userId!);
@@ -78,6 +82,7 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
       console.error('친구 삭제 실패:', error);
       // TODO: 사용자에게 에러 알림
     } finally {
+      isActionInFlightRef.current = false;
       setIsActionLoading(false);
     }
   };
@@ -96,6 +101,10 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
     }
 
     const handleApiCall = async (apiCall: () => Promise<any>, newStatus: FriendshipStatus) => {
+      if (isActionInFlightRef.current) return;
+
+      isActionInFlightRef.current = true;
+      setIsActionLoading(true);
       try {
         await apiCall();
         setCurrentFriendStatus(newStatus); // 상태 즉시 업데이트
@@ -103,6 +112,9 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
       } catch (error) {
         console.error('친구 관련 작업 실패:', error);
         // TODO: 사용자에게 에러 알림
+      } finally {
+        isActionInFlightRef.current = false;
+        setIsActionLoading(false);
       }
     };
 
@@ -117,33 +129,42 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
       handleApiCall(() => acceptFriendRequest(profileData.userId!), FriendshipStatus.FRIEND);
     const handleRejectRequest = () =>
       handleApiCall(() => rejectFriendRequest(profileData.userId!), FriendshipStatus.NONE);
+    const renderLoadingContent = () => (
+      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+    );
 
     switch (currentFriendStatus) {
       case FriendshipStatus.FRIEND:
         return (
           <button
             onClick={handleRemoveFriend}
-            className="py-2 px-6 bg-red-500 hover:bg-red-600 text-white rounded-full font-semibold text-sm transition-colors"
+            disabled={isActionLoading}
+            aria-label={isActionLoading ? '친구 관계 처리 중' : undefined}
+            className="inline-flex min-w-[96px] items-center justify-center py-2 px-6 bg-red-500 hover:bg-red-600 text-white rounded-full font-semibold text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
-            친구 끊기
+            {isActionLoading ? renderLoadingContent() : '친구 끊기'}
           </button>
         );
       case FriendshipStatus.NONE:
         return (
           <button
             onClick={handleAddFriend}
-            className="py-2 px-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-semibold text-sm transition-colors"
+            disabled={isActionLoading}
+            aria-label={isActionLoading ? '친구 요청 처리 중' : undefined}
+            className="inline-flex min-w-[96px] items-center justify-center py-2 px-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-semibold text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
-            친구 추가
+            {isActionLoading ? renderLoadingContent() : '친구 추가'}
           </button>
         );
       case FriendshipStatus.SENT:
         return (
           <button
             onClick={handleCancelRequest}
-            className="py-2 px-6 bg-green-500 hover:bg-green-600 text-white rounded-full font-semibold text-sm transition-colors"
+            disabled={isActionLoading}
+            aria-label={isActionLoading ? '친구 요청 취소 처리 중' : undefined}
+            className="inline-flex min-w-[96px] items-center justify-center py-2 px-6 bg-green-500 hover:bg-green-600 text-white rounded-full font-semibold text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
-            요청 취소
+            {isActionLoading ? renderLoadingContent() : '요청 취소'}
           </button>
         );
       case FriendshipStatus.RECEIVED:
@@ -151,15 +172,19 @@ const ProfileClient = ({ profileData }: ProfileClientProps) => {
           <div className="flex justify-center space-x-2">
             <button
               onClick={handleAcceptRequest}
-              className="py-2 px-6 bg-yellow-500 hover:bg-yellow-600 text-white rounded-full font-semibold text-sm transition-colors"
+              disabled={isActionLoading}
+              aria-label={isActionLoading ? '친구 요청 처리 중' : undefined}
+              className="inline-flex min-w-[72px] items-center justify-center py-2 px-6 bg-yellow-500 hover:bg-yellow-600 text-white rounded-full font-semibold text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             >
-              수락
+              {isActionLoading ? renderLoadingContent() : '수락'}
             </button>
             <button
               onClick={handleRejectRequest}
-              className="py-2 px-6 bg-gray-200 hover:bg-gray-300 text-black rounded-full font-semibold text-sm transition-colors"
+              disabled={isActionLoading}
+              aria-label={isActionLoading ? '친구 요청 처리 중' : undefined}
+              className="inline-flex min-w-[72px] items-center justify-center py-2 px-6 bg-gray-200 hover:bg-gray-300 text-black rounded-full font-semibold text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             >
-              거절
+              {isActionLoading ? renderLoadingContent() : '거절'}
             </button>
           </div>
         );
