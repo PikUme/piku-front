@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getProfileInfo,
   sendFriendRequest,
@@ -14,6 +14,7 @@ export const useFriendManagement = (currentUserId?: string) => {
   const [friendshipStatus, setFriendshipStatus] =
     useState<FriendshipStatus>(FriendshipStatus.NONE);
   const [viewedUserIndex, setViewedUserIndex] = useState<number | null>(null);
+  const friendActionInFlightUserIdsRef = useRef(new Set<string>());
 
   const viewedUser = viewedUserIndex !== null ? friends[viewedUserIndex] : null;
 
@@ -56,6 +57,9 @@ export const useFriendManagement = (currentUserId?: string) => {
   );
 
   const handleFriendAction = async (targetUserId: string) => {
+    if (friendActionInFlightUserIdsRef.current.has(targetUserId)) return;
+
+    friendActionInFlightUserIdsRef.current.add(targetUserId);
     try {
       switch (friendshipStatus) {
         case FriendshipStatus.NONE:
@@ -75,6 +79,8 @@ export const useFriendManagement = (currentUserId?: string) => {
       await fetchFriendStatus(targetUserId);
     } catch (error) {
       console.error('Failed to perform friend action:', error);
+    } finally {
+      friendActionInFlightUserIdsRef.current.delete(targetUserId);
     }
   };
 
@@ -106,4 +112,4 @@ export const useFriendManagement = (currentUserId?: string) => {
     prevFriend,
     setViewedUserIndex,
   };
-}; 
+};

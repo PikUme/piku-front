@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileClient from '../ProfileClient';
 import { FriendshipStatus } from '@/types/friend';
 import type { UserProfileResponseDTO } from '@/types/profile';
+import { sendFriendRequest } from '@/lib/api/friend';
 
 const { mockPush, mockRefresh, getMonthlyDiaries, getUserGallery } = vi.hoisted(() => ({
   mockPush: vi.fn(),
@@ -101,6 +102,34 @@ describe('ProfileClient', () => {
     fireEvent.click(screen.getByText('friend'));
 
     expect(mockPush).not.toHaveBeenCalledWith('/friends');
+  });
+
+  it('친구 추가 버튼을 반복 클릭해도 친구 요청은 한 번만 보낸다', () => {
+    vi.mocked(sendFriendRequest).mockReturnValue(new Promise(() => {}));
+
+    render(
+      <ProfileClient
+        profileData={{
+          ...profileData,
+          id: 'profile-2',
+          userId: 'user-2',
+          nickname: '다른사용자',
+          isOwner: false,
+        }}
+      />,
+    );
+
+    const addFriendButton = screen.getByRole('button', { name: '친구 추가' });
+
+    fireEvent.click(addFriendButton);
+    fireEvent.click(addFriendButton);
+
+    expect(screen.getByLabelText('친구 요청 처리 중')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: '요청 취소' }),
+    ).not.toBeInTheDocument();
+    expect(sendFriendRequest).toHaveBeenCalledTimes(1);
+    expect(sendFriendRequest).toHaveBeenCalledWith('user-2');
   });
 
   it('Diary 섹션 선택 UI에서 사진을 선택하면 갤러리 API로 사진 그리드를 불러온다', async () => {

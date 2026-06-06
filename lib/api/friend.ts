@@ -10,6 +10,11 @@ import {
 } from '@/types/friend';
 import api from '@/lib/api/api';
 
+const pendingFriendRequestByUserId = new Map<
+  string,
+  Promise<FriendRequestResponseDto>
+>();
+
 // 친구 목록
 export const getFriends = async (page: number, size: number): Promise<PaginatedFriendsResponse> => {
   try {
@@ -30,14 +35,27 @@ export const getFriends = async (page: number, size: number): Promise<PaginatedF
 
 // 친구 요청
 export const sendFriendRequest = async (userId: string): Promise<FriendRequestResponseDto> => {
-  try {
-    const requestData: FriendRequestDto = { toUserId: userId };
-    const response = await api.post('/relation', requestData);
-    return response.data;
-  } catch (error) {
-    console.error('친구 요청 오류:', error);
-    throw error;
+  const pendingRequest = pendingFriendRequestByUserId.get(userId);
+
+  if (pendingRequest) {
+    return pendingRequest;
   }
+
+  const requestData: FriendRequestDto = { toUserId: userId };
+  const requestPromise = api
+    .post('/relation', requestData)
+    .then(response => response.data)
+    .catch(error => {
+      console.error('친구 요청 오류:', error);
+      throw error;
+    })
+    .finally(() => {
+      pendingFriendRequestByUserId.delete(userId);
+    });
+
+  pendingFriendRequestByUserId.set(userId, requestPromise);
+
+  return requestPromise;
 };
 
 // 받은 친구 요청 목록 조회
@@ -110,4 +128,4 @@ export const getProfileInfo = async (
 ): Promise<UserProfile> => {
   const response = await api.get(`/users/${userId}/profile-preview`);
   return response.data;
-}; 
+};
