@@ -15,6 +15,7 @@ import { trackEvent, FEED_CLICK, FEED_LIKE } from '@/lib/analytics/events';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import FeedSortSubHeader from './FeedSortSubHeader';
+import { isAnonymousDiaryIdentity } from '@/lib/utils/privacy';
 
 const FeedClient = () => {
   const [feed, setFeed] = useState<FeedDiary[]>([]);
@@ -459,8 +460,11 @@ const FeedClient = () => {
             initialCommentCount={commentModalOpen.commentCount}
             onClose={handleCloseCommentModal}
             onUpdateCommentCount={handleUpdateCommentCount}
+            isAnonymousDiary={isAnonymousDiaryIdentity(commentModalOpen.post)}
             diaryContent={{
-              nickname: commentModalOpen.post.nickname,
+              nickname: isAnonymousDiaryIdentity(commentModalOpen.post)
+                ? '익명'
+                : commentModalOpen.post.nickname,
               avatar: commentModalOpen.post.avatar,
               content: commentModalOpen.post.content,
               createdAt: commentModalOpen.post.createdAt,

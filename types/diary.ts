@@ -14,7 +14,7 @@ export type UnifiedPhoto = {
   file?: File;
 };
 
-export type PrivacyStatus = 'PUBLIC' | 'FRIENDS' | 'PRIVATE';
+export type PrivacyStatus = 'PUBLIC' | 'FRIENDS' | 'PRIVATE' | 'ANONYMOUS';
 export type CoverPhotoType = 'AI_IMAGE' | 'USER_IMAGE';
 
 export interface DiaryCreateRequest {
@@ -45,7 +45,7 @@ export interface DiaryContent {
 export interface Author {
   memberId: number;
   nickname: string;
-  avatar: string;
+  avatar: string | null;
 }
 
 export interface Diary {
@@ -60,8 +60,9 @@ export interface Diary {
   commentCount: number;
   imgUrls: string[];
   nickname: string;
-  avatar: string;
-  userId: string;
+  avatar: string | null;
+  userId: string | null;
+  isOwner: boolean;
 }
 
 export interface Comment {
@@ -84,13 +85,14 @@ export interface FeedDiary {
   imgUrls: string[];
   date: string; // LocalDate -> "YYYY-MM-DD"
   nickname: string;
-  avatar: string;
-  userId: string;
+  avatar: string | null;
+  userId: string | null;
   createdAt: string; // LocalDateTime -> ISO String
   commentCount: number;
   likeCount: number;
   isLiked: boolean;
   friendStatus: FriendshipStatus;
+  isOwner: boolean;
 }
 
 export interface Page<T> {
@@ -115,10 +117,11 @@ export interface MonthlyDiary {
   diaryId: number;
   date: string;
   coverPhotoUrl: string;
+  status?: PrivacyStatus;
 }
 
 export interface DiaryCreateForm {
-  status: 'PUBLIC' | 'PRIVATE';
+  status: PrivacyStatus;
   content: string;
   aiPhotos?: string[];
   photos?: File[];

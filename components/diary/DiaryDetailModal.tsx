@@ -26,7 +26,7 @@ import { addLike, removeLike, type LikeResponse } from '@/lib/api/like';
 import { HeartIcon } from '@/components/icons/FeedIcons';
 import { deleteDiary } from '@/lib/api/diary';
 import { formatTimeAgo, formatYearMonthDay } from '@/lib/utils/date';
-import { getPrivacyLabel } from '@/lib/utils/privacy';
+import { getPrivacyLabel, isAnonymousDiaryIdentity } from '@/lib/utils/privacy';
 import { getServerURL } from '@/lib/utils/url';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -34,6 +34,7 @@ import useAuthStore from '@/components/store/authStore';
 import CommentItem from './CommentItem';
 import CommentInput from './CommentInput';
 import MotionProfileHoverCard from '@/components/feed/ProfileHoverCard';
+import AnonymousProfileIcon from '@/components/common/AnonymousProfileIcon';
 
 interface DiaryDetailModalProps {
   diary: DiaryDetail;
@@ -91,8 +92,13 @@ const DiaryDetailModal = ({
 
   const { isLoggedIn, user } = useAuthStore();
   const serverUrl = getServerURL();
-  const profileUrl = `/profile/${currentDiary.userId}`;
-  const isOwner = user?.id === currentDiary.userId;
+  const isAnonymousDiary = isAnonymousDiaryIdentity(currentDiary);
+  const displayNickname = isAnonymousDiary ? '익명' : currentDiary.nickname;
+  const profileUrl =
+    !isAnonymousDiary && currentDiary.userId
+      ? `/profile/${currentDiary.userId}`
+      : null;
+  const isOwner = currentDiary.isOwner ?? user?.id === currentDiary.userId;
 
   useEffect(() => {
     setCurrentDiary(diary);
@@ -294,14 +300,17 @@ const DiaryDetailModal = ({
     const optimisticComment: Comment = {
       id: tempId,
       diaryId: currentDiary.diaryId,
-      userId: String(user.id),
-      nickname: user.nickname || '사용자',
-      avatar: user.avatar || `${serverUrl}/globe.svg`,
+      userId: isAnonymousDiary ? null : String(user.id),
+      nickname: isAnonymousDiary ? '익명' : user.nickname || '사용자',
+      avatar: isAnonymousDiary ? null : user.avatar || `${serverUrl}/globe.svg`,
       content: contentToSend.trim(),
       parentId: parentId || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       replyCount: 0,
+      canReply: !isReply && !isAnonymousDiary,
+      canEdit: true,
+      canDelete: true,
     };
 
     const originalNewComment = newComment;
@@ -615,21 +624,32 @@ const DiaryDetailModal = ({
               onMouseLeave={handleHeaderMouseLeave}
             >
               <div className="flex items-center">
-                <Link href={profileUrl}>
-                  <Image
-                    src={currentDiary.avatar || DEFAULT_AVATAR}
-                    alt={currentDiary.nickname}
-                    width={32}
-                    height={32}
-                    className="h-8 w-8 flex-shrink-0 rounded-full cursor-pointer"
-                    onError={handleAvatarError}
-                  />
-                </Link>
-                <Link href={profileUrl}>
-                  <p className="ml-3 text-sm font-bold dark:text-white cursor-pointer">
-                    {currentDiary.nickname}
-                  </p>
-                </Link>
+                {profileUrl ? (
+                  <>
+                    <Link href={profileUrl}>
+                      <Image
+                        src={currentDiary.avatar || DEFAULT_AVATAR}
+                        alt={displayNickname}
+                        width={32}
+                        height={32}
+                        className="h-8 w-8 flex-shrink-0 rounded-full cursor-pointer"
+                        onError={handleAvatarError}
+                      />
+                    </Link>
+                    <Link href={profileUrl}>
+                      <p className="ml-3 text-sm font-bold dark:text-white cursor-pointer">
+                        {displayNickname}
+                      </p>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <AnonymousProfileIcon className="h-8 w-8" />
+                    <p className="ml-3 text-sm font-bold dark:text-white">
+                      {displayNickname}
+                    </p>
+                  </>
+                )}
                 <DotIcon className='text-gray-500 dark:text-gray-400'/>
                 <p className="text-xs uppercase text-gray-400 dark:text-gray-300">
                   {displayDate}
@@ -643,10 +663,10 @@ const DiaryDetailModal = ({
                   </>
                 )}
               </div>
-              {isHeaderHovering && (
+              {isHeaderHovering && profileUrl && currentDiary.userId && (
                 <MotionProfileHoverCard
                   userId={currentDiary.userId}
-                  nickname={currentDiary.nickname}
+                  nickname={displayNickname}
                   avatar={currentDiary.avatar}
                   onStatusChange={() => {}}
                 />
@@ -703,18 +723,22 @@ const DiaryDetailModal = ({
             <div className="relative">
               <div className="flex items-start">
                 <div className="flex-shrink-0">
-                  <Link href={profileUrl}>
-                    <Image
-                      src={currentDiary.avatar || DEFAULT_AVATAR}
-                      alt={currentDiary.nickname}
-                      width={32}
-                      height={32}
-                      className="mr-3 mt-1 h-8 w-8 flex-shrink-0 rounded-full cursor-pointer"
-                      onError={handleAvatarError}
-                      onMouseEnter={handleContentMouseEnter}
-                      onMouseLeave={handleContentMouseLeave}
-                    />
-                  </Link>
+                  {profileUrl ? (
+                    <Link href={profileUrl}>
+                      <Image
+                        src={currentDiary.avatar || DEFAULT_AVATAR}
+                        alt={displayNickname}
+                        width={32}
+                        height={32}
+                        className="mr-3 mt-1 h-8 w-8 flex-shrink-0 rounded-full cursor-pointer"
+                        onError={handleAvatarError}
+                        onMouseEnter={handleContentMouseEnter}
+                        onMouseLeave={handleContentMouseLeave}
+                      />
+                    </Link>
+                  ) : (
+                    <AnonymousProfileIcon className="mr-3 mt-1 h-8 w-8" />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm dark:text-white whitespace-pre-wrap break-words">
@@ -722,14 +746,18 @@ const DiaryDetailModal = ({
                       
                       className="inline-block"
                     >
-                      <Link href={profileUrl}>
-                        <span className="font-bold cursor-pointer"
-                          onMouseEnter={handleContentMouseEnter} 
-                          onMouseLeave={handleContentMouseLeave}
-                        >
-                          {currentDiary.nickname}
-                        </span>
-                      </Link>
+                      {profileUrl ? (
+                        <Link href={profileUrl}>
+                          <span className="font-bold cursor-pointer"
+                            onMouseEnter={handleContentMouseEnter}
+                            onMouseLeave={handleContentMouseLeave}
+                          >
+                            {displayNickname}
+                          </span>
+                        </Link>
+                      ) : (
+                        <span className="font-bold">{displayNickname}</span>
+                      )}
                     </span>
                     <span className="ml-2">{currentDiary.content}</span>
                   </p>
@@ -738,10 +766,10 @@ const DiaryDetailModal = ({
                   </p>
                 </div>
               </div>
-              {isContentHovering && (
+              {isContentHovering && profileUrl && currentDiary.userId && (
                 <MotionProfileHoverCard
                   userId={currentDiary.userId}
-                  nickname={currentDiary.nickname}
+                  nickname={displayNickname}
                   avatar={currentDiary.avatar}
                   onStatusChange={() => {}}
                 />

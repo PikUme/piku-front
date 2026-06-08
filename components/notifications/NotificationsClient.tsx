@@ -17,6 +17,7 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { Trash2, Loader2, Check } from 'lucide-react';
 import useNotificationStore from '../store/notificationStore';
 import useAuthStore from '../store/authStore';
+import AnonymousProfileIcon from '@/components/common/AnonymousProfileIcon';
 
 const RESOURCE_NOT_FOUND =
   'https://api.pikume.com/problems/common/resource-not-found';
@@ -25,6 +26,12 @@ const DIARY_MODAL_NOTIFICATION_TYPES = new Set<Notification['type']>([
   'REPLY',
   'FRIEND_DIARY',
 ]);
+
+const isAnonymousDiaryNotification = (notification: Notification) =>
+  notification.relatedDiaryId !== null &&
+  notification.diaryUserId === null &&
+  notification.avatarUrl === null &&
+  notification.nickname === '익명';
 
 const NotificationsClient = () => {
   const queryClient = useQueryClient();
@@ -96,13 +103,19 @@ const NotificationsClient = () => {
       return path;
     }
 
+    if (isAnonymousDiaryNotification(notification) && path) {
+      return path;
+    }
+
     if (
       (notification.type === 'LIKE' || notification.type === 'COMMENT') &&
       notification.relatedDiaryId !== null
     ) {
       try {
         const diary = await getDiaryById(notification.relatedDiaryId);
-        return buildDiaryCalendarPath(diary.userId, diary.date, diary.diaryId);
+        if (diary.userId) {
+          return buildDiaryCalendarPath(diary.userId, diary.date, diary.diaryId);
+        }
       } catch (error) {
         console.error('알림 경로용 일기 정보 조회 실패:', error);
       }
@@ -266,7 +279,7 @@ const NotificationsClient = () => {
                 }}
               >
                 <div className="flex items-center flex-1">
-                  {notification.avatarUrl && (
+                  {notification.avatarUrl ? (
                     <Image
                       src={notification.avatarUrl}
                       alt={`${notification.nickname}'s avatar`}
@@ -274,7 +287,12 @@ const NotificationsClient = () => {
                       height={40}
                       className="rounded-full mr-4"
                     />
-                  )}
+                  ) : isAnonymousDiaryNotification(notification) ? (
+                    <AnonymousProfileIcon
+                      className="mr-4 h-10 w-10"
+                      iconSize={22}
+                    />
+                  ) : null}
                   <div className="flex-1">
                     <p>
                       <span className="font-semibold">{notification.nickname}</span>

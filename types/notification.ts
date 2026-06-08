@@ -10,7 +10,7 @@ export interface Notification {
   id: number;
   message: string;
   nickname: string;
-  avatarUrl: string;
+  avatarUrl: string | null;
   type: NotificationType;
   relatedDiaryId: number | null;
   thumbnailUrl: string | null;

@@ -11,6 +11,7 @@ import { formatTimeAgo } from '@/lib/utils/date';
 import CommentActionModal from './CommentActionModal';
 import NotReadyModal from '../common/NotReadyModal';
 import ProfileHoverCard from '../feed/ProfileHoverCard';
+import AnonymousProfileIcon from '@/components/common/AnonymousProfileIcon';
 
 interface CommentRepliesState {
   list: Comment[];
@@ -62,9 +63,14 @@ const CommentItem = ({
   const isLoading = replyState?.isLoading ?? false;
   const hasMore = replyState?.hasMore ?? false;
 
-  const isOwner = user ? String(user.id) === comment.userId : false;
-
-  const profileUrl = `/profile/${comment.userId}`;
+  const isAnonymousComment = comment.userId === null;
+  const displayNickname = isAnonymousComment ? '익명' : comment.nickname;
+  const isOwner =
+    user && comment.userId ? String(user.id) === comment.userId : false;
+  const canReply = comment.canReply ?? comment.parentId === null;
+  const canEdit = comment.canEdit ?? isOwner;
+  const canDelete = comment.canDelete ?? isOwner;
+  const profileUrl = comment.userId ? `/profile/${comment.userId}` : null;
 
   const handleReport = () => {
     setIsActionModalOpen(false);
@@ -98,6 +104,7 @@ const CommentItem = ({
   };
 
   const handleProfileMouseEnter = (element: 'avatar' | 'nickname') => {
+    if (isAnonymousComment) return;
     if (profileCardHoverTimeout) clearTimeout(profileCardHoverTimeout);
 
     const timeout = setTimeout(() => {
@@ -128,21 +135,25 @@ const CommentItem = ({
       >
         <div className="flex flex-1 items-start space-x-3">
           <div
-            className="relative cursor-pointer"
+            className={`relative ${isAnonymousComment ? '' : 'cursor-pointer'}`}
             onMouseEnter={() => handleProfileMouseEnter('avatar')}
             onMouseLeave={handleProfileMouseLeave}
           >
-            <Link href={profileUrl}>
-              <Image
-                src={comment.avatar || '/globe.svg'}
-                alt={comment.nickname}
-                width={32}
-                height={32}
-                className="mt-1 rounded-full bg-gray-200"
-              />
-            </Link>
+            {profileUrl ? (
+              <Link href={profileUrl}>
+                <Image
+                  src={comment.avatar || '/globe.svg'}
+                  alt={displayNickname}
+                  width={32}
+                  height={32}
+                  className="mt-1 rounded-full bg-gray-200"
+                />
+              </Link>
+            ) : (
+              <AnonymousProfileIcon className="mt-1 h-8 w-8" />
+            )}
             <AnimatePresence>
-              {hoveredElement === 'avatar' && (
+              {hoveredElement === 'avatar' && profileUrl && comment.userId && (
                 <div
                   className="absolute left-0 top-full z-10 mt-2"
                   onMouseEnter={() => handleProfileMouseEnter('avatar')}
@@ -150,7 +161,7 @@ const CommentItem = ({
                 >
                   <ProfileHoverCard
                     userId={comment.userId}
-                    nickname={comment.nickname}
+                    nickname={displayNickname}
                     avatar={comment.avatar || '/globe.svg'}
                     onStatusChange={() => {}}
                   />
@@ -160,36 +171,42 @@ const CommentItem = ({
           </div>
           <div className="flex-1 ">
             <div className="text-sm dark:text-gray-100">
-              <Link href={profileUrl}>
-              <span
-                className="relative inline-block font-semibold dark:text-white cursor-pointer"
-                onMouseEnter={() => handleProfileMouseEnter('nickname')}
-                onMouseLeave={handleProfileMouseLeave}
-              >
-                {comment.nickname}
-                <AnimatePresence>
-                  {hoveredElement === 'nickname' && (
-                    <div
-                      className="absolute left-0 top-full z-10 mt-2"
-                      onMouseEnter={() => handleProfileMouseEnter('nickname')}
-                      onMouseLeave={handleProfileMouseLeave}
-                    >
-                      <ProfileHoverCard
-                        userId={comment.userId}
-                        nickname={comment.nickname}
-                        avatar={comment.avatar || '/globe.svg'}
-                        onStatusChange={() => {}}
-                      />
-                    </div>
-                  )}
-                </AnimatePresence>
-              </span>
-              </Link>
+              {profileUrl && comment.userId ? (
+                <Link href={profileUrl}>
+                  <span
+                    className="relative inline-block font-semibold dark:text-white cursor-pointer"
+                    onMouseEnter={() => handleProfileMouseEnter('nickname')}
+                    onMouseLeave={handleProfileMouseLeave}
+                  >
+                    {displayNickname}
+                    <AnimatePresence>
+                      {hoveredElement === 'nickname' && (
+                        <div
+                          className="absolute left-0 top-full z-10 mt-2"
+                          onMouseEnter={() => handleProfileMouseEnter('nickname')}
+                          onMouseLeave={handleProfileMouseLeave}
+                        >
+                          <ProfileHoverCard
+                            userId={comment.userId}
+                            nickname={displayNickname}
+                            avatar={comment.avatar || '/globe.svg'}
+                            onStatusChange={() => {}}
+                          />
+                        </div>
+                      )}
+                    </AnimatePresence>
+                  </span>
+                </Link>
+              ) : (
+                <span className="font-semibold dark:text-white">
+                  {displayNickname}
+                </span>
+              )}
               <span className="ml-2">{comment.content}</span>
             </div>
             <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
               <span>{formatTimeAgo(comment.createdAt)}</span>
-              {comment.parentId === null && (
+              {comment.parentId === null && canReply && (
                 <button
                   onClick={() => onSetReplyTo(comment)}
                   className="font-semibold hover:text-gray-700 cursor-pointer"
@@ -273,6 +290,8 @@ const CommentItem = ({
           onDelete={handleDelete}
           onReport={handleReport}
           isOwner={isOwner}
+          canEdit={canEdit}
+          canDelete={canDelete}
         />
       )}
       {isNotReadyModalOpen && (
@@ -282,4 +301,4 @@ const CommentItem = ({
   );
 };
 
-export default CommentItem; 
+export default CommentItem;

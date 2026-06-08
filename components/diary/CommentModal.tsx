@@ -30,6 +30,7 @@ interface CommentModalProps {
   initialCommentCount: number;
   onClose: () => void;
   onUpdateCommentCount: (count: number) => void;
+  isAnonymousDiary?: boolean;
 }
 
 const CommentModal = ({
@@ -37,6 +38,7 @@ const CommentModal = ({
   initialCommentCount,
   onClose,
   onUpdateCommentCount,
+  isAnonymousDiary = false,
 }: CommentModalProps) => {
   useBodyScrollLock(true);
 
@@ -183,14 +185,17 @@ const CommentModal = ({
     const optimisticComment: Comment = {
       id: tempId,
       diaryId: diaryId,
-      userId: String(user.id),
-      nickname: user.nickname || '사용자',
-      avatar: user.avatar || null,
+      userId: isAnonymousDiary ? null : String(user.id),
+      nickname: isAnonymousDiary ? '익명' : user.nickname || '사용자',
+      avatar: isAnonymousDiary ? null : user.avatar || null,
       content: contentToSend.trim(),
       parentId: parentId || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       replyCount: 0,
+      canReply: !isReply && !isAnonymousDiary,
+      canEdit: true,
+      canDelete: true,
     };
 
     const originalNewComment = newComment;

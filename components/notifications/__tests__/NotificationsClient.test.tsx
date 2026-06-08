@@ -171,6 +171,7 @@ describe('NotificationsClient', () => {
       nickname: 'tester',
       avatar: '/avatar.png',
       userId: 'user-1',
+      isOwner: false,
       comments: [],
     });
     vi.spyOn(window, 'alert').mockImplementation(() => {});
@@ -210,6 +211,68 @@ describe('NotificationsClient', () => {
 
     await waitFor(() => {
       expect(mockGetDiaryById).toHaveBeenCalledWith(42);
+      expect(mockPush).toHaveBeenCalledWith(
+        '/profile/user-1/calendar?date=2026-03-17&diaryId=42',
+      );
+    });
+  });
+
+  it('익명 LIKE 알림은 작성자 정보 없이 relatedDiaryId 상세로 이동한다', async () => {
+    mockGetNotifications.mockResolvedValue(
+      makePage([
+        makeNotification({
+          message: 'liked your anonymous diary',
+          nickname: '익명',
+          avatarUrl: null,
+          diaryDate: null,
+          diaryUserId: null,
+          relatedDiaryId: 42,
+        } as Partial<Notification>),
+      ]),
+    );
+
+    renderClient();
+
+    expect(
+      await screen.findByRole('img', { name: '익명 프로필 아이콘' }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('liked your anonymous diary'));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/diary/42');
+      expect(mockMarkNotificationAsRead).toHaveBeenCalledWith(1);
+    });
+    expect(mockGetDiaryById).not.toHaveBeenCalled();
+    expect(screen.queryByAltText("익명's avatar")).not.toBeInTheDocument();
+  });
+
+  it('닉네임만 익명인 일반 알림은 익명 프로필 아이콘으로 표시하지 않는다', async () => {
+    mockGetNotifications.mockResolvedValue(
+      makePage([
+        makeNotification({
+          message: 'liked your diary with empty avatar',
+          nickname: '익명',
+          avatarUrl: null,
+          diaryDate: '2026-03-17',
+          diaryUserId: 'user-1',
+          relatedDiaryId: 42,
+        }),
+      ]),
+    );
+
+    renderClient();
+
+    expect(
+      await screen.findByText('liked your diary with empty avatar'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('img', { name: '익명 프로필 아이콘' }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('liked your diary with empty avatar'));
+
+    await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith(
         '/profile/user-1/calendar?date=2026-03-17&diaryId=42',
       );

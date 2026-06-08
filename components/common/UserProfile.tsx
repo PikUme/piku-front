@@ -6,7 +6,7 @@ import Link from 'next/link';
 interface UserProfileProps {
   userId: string;
   nickname: string;
-  avatar: string;
+  avatar?: string | null;
   imageSize?: number;
   containerClassName?: string;
   imageClassName?: string;
@@ -57,4 +57,4 @@ const UserProfile = ({
   );
 };
 
-export default UserProfile; 
+export default UserProfile;

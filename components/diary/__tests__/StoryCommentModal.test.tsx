@@ -89,6 +89,9 @@ const makeComment = (overrides: Partial<Comment> = {}): Comment => ({
   updatedAt: '2026-04-05T10:10:00',
   replyCount: 0,
   ...overrides,
+  canReply: overrides.canReply ?? true,
+  canEdit: overrides.canEdit ?? true,
+  canDelete: overrides.canDelete ?? true,
 });
 
 const makePage = (

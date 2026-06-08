@@ -41,6 +41,7 @@ import { getPrivacyLabel, PRIVACY_OPTIONS } from '@/lib/utils/privacy';
 import { getSeoulDate } from '@/lib/utils/date';
 import {
   X,
+  EyeOff,
   Globe,
   Lock,
   Users,
@@ -59,8 +60,18 @@ import ImagePreviewModal from '../common/ImagePreviewModal';
 const MAX_TOTAL_PHOTOS = 5;
 
 const _PK = '_pk_v';
-const _PM: Record<string, PrivacyStatus> = { '0': 'PUBLIC', '1': 'FRIENDS', '2': 'PRIVATE' };
-const _PR: Record<PrivacyStatus, string> = { PUBLIC: '0', FRIENDS: '1', PRIVATE: '2' };
+const _PM: Record<string, PrivacyStatus> = {
+  '0': 'PUBLIC',
+  '1': 'FRIENDS',
+  '2': 'PRIVATE',
+  '3': 'ANONYMOUS',
+};
+const _PR: Record<PrivacyStatus, string> = {
+  PUBLIC: '0',
+  FRIENDS: '1',
+  PRIVATE: '2',
+  ANONYMOUS: '3',
+};
 
 const getSavedPrivacy = (): PrivacyStatus => {
   if (typeof window === 'undefined') return 'PUBLIC';
@@ -590,6 +601,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
       PUBLIC: <Globe size={16} />,
       FRIENDS: <Users size={16} />,
       PRIVATE: <Lock size={16} />,
+      ANONYMOUS: <EyeOff size={16} />,
     }[privacy] || null;
 
   const privacyText = getPrivacyLabel(privacy);
@@ -924,6 +936,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
                                                 PUBLIC: <Globe size={24} />,
                                                 FRIENDS: <Users size={24}/>,
                                                 PRIVATE: <Lock size={24}/>,
+                                                ANONYMOUS: <EyeOff size={24}/>,
                                             }[option.value]
                                         }
                                     </div>

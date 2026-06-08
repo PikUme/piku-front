@@ -24,6 +24,8 @@ import { ChevronLeft, ChevronRight, DotIcon, Loader2 } from 'lucide-react';
 import { useSwipeable } from 'react-swipeable';
 import UserProfile from '../common/UserProfile';
 import Link from 'next/link';
+import { isAnonymousDiaryIdentity } from '@/lib/utils/privacy';
+import AnonymousProfileIcon from '@/components/common/AnonymousProfileIcon';
 
 interface FeedCardProps {
   post: FeedDiary;
@@ -62,8 +64,11 @@ const FeedCard = ({
   const router = useRouter();
   const [isHovering, setIsHovering] = useState(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isAnonymousPost = isAnonymousDiaryIdentity(post);
+  const displayNickname = isAnonymousPost ? '익명' : post.nickname;
 
   const handleMouseEnter = () => {
+    if (isAnonymousPost) return;
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
@@ -139,7 +144,11 @@ const FeedCard = ({
   };
 
   const renderFriendButton = () => {
-    if (!user || user.id === post.userId) return null;
+    if (!user || isAnonymousPost || !post.userId || user.id === post.userId) {
+      return null;
+    }
+
+    const postUserId = post.userId;
 
     const friendshipStatus = post.friendStatus ?? FriendshipStatus.NONE;
     let text = '';
@@ -150,7 +159,7 @@ const FeedCard = ({
         text = '친구 추가';
         action = () =>
           handleFriendAction(
-            () => sendFriendRequest(post.userId),
+            () => sendFriendRequest(postUserId),
             FriendshipStatus.SENT,
           );
         break;
@@ -175,7 +184,7 @@ const FeedCard = ({
             actionType: 'cancel',
             onConfirm: () =>
               handleFriendAction(
-                () => cancelFriendRequest(post.userId),
+                () => cancelFriendRequest(postUserId),
                 FriendshipStatus.NONE,
               ),
           });
@@ -226,17 +235,24 @@ const FeedCard = ({
       <div className="w-full rounded-xl border border-gray-200 bg-white shadow-md p-4 dark:border-gray-700 dark:bg-gray-800">
         <div className="flex items-center justify-between p-3">
           <div className="relative flex items-center">
-            <div
-              className="flex cursor-pointer items-center"
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-            >
-              <UserProfile
-                userId={post.userId}
-                nickname={post.nickname}
-                avatar={post.avatar}
-              />
-            </div>
+            {isAnonymousPost || !post.userId ? (
+              <span className="inline-flex items-center gap-2">
+                <AnonymousProfileIcon className="h-8 w-8" />
+                <span className="text-sm font-semibold">{displayNickname}</span>
+              </span>
+            ) : (
+              <div
+                className="flex cursor-pointer items-center"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+              >
+                <UserProfile
+                  userId={post.userId}
+                  nickname={displayNickname}
+                  avatar={post.avatar}
+                />
+              </div>
+            )}
             <div className="flex items-center">
               <DotIcon />
               <span
@@ -250,11 +266,11 @@ const FeedCard = ({
               {renderFriendButton()}
             </div>
 
-            {isHovering && (
+            {isHovering && !isAnonymousPost && post.userId && (
               <div onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
                 <ProfileHoverCard
                   userId={post.userId}
-                  nickname={post.nickname}
+                  nickname={displayNickname}
                   avatar={post.avatar}
                   onStatusChange={() =>
                     onFriendshipStatusChange(post.diaryId, post.friendStatus)
@@ -343,25 +359,33 @@ const FeedCard = ({
       <div className="px-3">
         {isContentExpanded ? (
           <p className="text-sm whitespace-pre-wrap">
-            <Link
-              href={`/profile/${post.userId}`}
-              className="mr-1 font-semibold hover:underline"
-              onClick={e => e.stopPropagation()}
-            >
-              {post.nickname}
-            </Link>{' '}
-            {post.content}
-          </p>
-        ) : (
-          <div className="flex items-baseline text-sm">
-            <p className="truncate">
+            {isAnonymousPost ? (
+              <span className="mr-1 font-semibold">{displayNickname}</span>
+            ) : (
               <Link
                 href={`/profile/${post.userId}`}
                 className="mr-1 font-semibold hover:underline"
                 onClick={e => e.stopPropagation()}
               >
-                {post.nickname}
-              </Link>{' '}
+                {displayNickname}
+              </Link>
+            )}{' '}
+            {post.content}
+          </p>
+        ) : (
+          <div className="flex items-baseline text-sm">
+            <p className="truncate">
+              {isAnonymousPost ? (
+                <span className="mr-1 font-semibold">{displayNickname}</span>
+              ) : (
+                <Link
+                  href={`/profile/${post.userId}`}
+                  className="mr-1 font-semibold hover:underline"
+                  onClick={e => e.stopPropagation()}
+                >
+                  {displayNickname}
+                </Link>
+              )}{' '}
               <span>{post.content}</span>
             </p>
             {post.content.length > 30 && (
@@ -420,7 +444,7 @@ const FeedCard = ({
           onClose={() => setIsConfirmModalOpen(false)}
           onConfirm={confirmModalState.onConfirm}
           actionType={confirmModalState.actionType}
-          nickname={post.nickname}
+          nickname={displayNickname}
           avatar={post.avatar || 'https://via.placeholder.com/96'}
           isLoading={isActionLoading}
         />

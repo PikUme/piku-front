@@ -92,6 +92,7 @@ const diary: DiaryDetail = {
   nickname: '피쿠',
   avatar: '',
   userId: 'owner-id',
+  isOwner: true,
   comments: [],
 };
 
@@ -167,6 +168,7 @@ describe('DiaryDetailClient', () => {
       ...diary,
       userId: 'owner-id',
       friendStatus: FriendshipStatus.NONE,
+      isOwner: false,
     });
     vi.mocked(sendFriendRequest).mockResolvedValue({
       isAccepted: false,
@@ -195,6 +197,7 @@ describe('DiaryDetailClient', () => {
       ...diary,
       userId: 'owner-id',
       friendStatus: FriendshipStatus.NONE,
+      isOwner: false,
     });
     vi.mocked(sendFriendRequest).mockReturnValue(new Promise(() => {}));
 
@@ -219,6 +222,7 @@ describe('DiaryDetailClient', () => {
       ...diary,
       userId: 'owner-id',
       friendStatus: FriendshipStatus.FRIEND,
+      isOwner: false,
     });
 
     render(<DiaryDetailClient diaryId={42} />);
@@ -233,5 +237,29 @@ describe('DiaryDetailClient', () => {
     expect(await screen.findByTestId('profile-hover-card')).toHaveTextContent(
       '피쿠 프로필 카드',
     );
+  });
+
+  it('익명 일기 상세는 isOwner로 작성자 메뉴를 판단하고 프로필 링크를 만들지 않는다', async () => {
+    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
+    authState = { user: { id: 'owner-id' }, isLoggedIn: true };
+    vi.mocked(getDiaryById).mockResolvedValue({
+      ...diary,
+      status: 'ANONYMOUS',
+      nickname: '익명',
+      avatar: null,
+      userId: null,
+      friendStatus: FriendshipStatus.ANONYMOUS,
+      isOwner: true,
+    } as DiaryDetail);
+
+    render(<DiaryDetailClient diaryId={42} />);
+
+    expect(await screen.findAllByText('익명')).not.toHaveLength(0);
+    expect(
+      screen.getByRole('img', { name: '익명 프로필 아이콘' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '일기 메뉴' })).toBeInTheDocument();
+    expect(document.querySelector('a[href="/profile/null"]')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '친구 추가' })).not.toBeInTheDocument();
   });
 });

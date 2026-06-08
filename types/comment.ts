@@ -14,7 +14,7 @@ export interface CommentMember {
 export interface Comment {
   id: number;
   diaryId: number;
-  userId: string;
+  userId: string | null;
   nickname: string;
   avatar: string | null;
   content: string;
@@ -22,6 +22,9 @@ export interface Comment {
   createdAt: string;
   updatedAt?: string;
   replyCount: number;
+  canReply: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
 // 댓글 작성 요청 타입
@@ -52,4 +55,4 @@ export interface CommentListResponse {
 */
 
 // 루트 댓글 페이지 응답 타입
-export type CommentPage = Page<Comment>; 
+export type CommentPage = Page<Comment>;
