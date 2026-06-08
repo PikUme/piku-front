@@ -20,9 +20,10 @@ import CommentModal from './CommentModal';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
 import { sendFriendRequest } from '@/lib/api/friend';
 import { FriendshipStatus } from '@/types/friend';
-import { getPrivacyLabel } from '@/lib/utils/privacy';
+import { getPrivacyLabel, isAnonymousDiaryIdentity } from '@/lib/utils/privacy';
 import UserProfile from '@/components/common/UserProfile';
 import ProfileHoverCard from '@/components/feed/ProfileHoverCard';
+import AnonymousProfileIcon from '@/components/common/AnonymousProfileIcon';
 
 interface DiaryDetailClientProps {
   diaryId: number;
@@ -78,11 +79,21 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
   };
 
   const handleAddFriend = async () => {
-    if (!diary || !user || isFriendActionLoading) return;
+    if (
+      !diary ||
+      !user ||
+      isFriendActionLoading ||
+      isAnonymousDiaryIdentity(diary) ||
+      !diary.userId
+    ) {
+      return;
+    }
+
+    const diaryUserId = diary.userId;
 
     setIsFriendActionLoading(true);
     try {
-      await sendFriendRequest(diary.userId);
+      await sendFriendRequest(diaryUserId);
       setDiary(prevDiary =>
         prevDiary
           ? { ...prevDiary, friendStatus: FriendshipStatus.SENT }
@@ -99,6 +110,7 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
   };
 
   const handleProfileMouseEnter = () => {
+    if (!diary || isAnonymousDiaryIdentity(diary)) return;
     if (profileHoverTimeoutRef.current) {
       clearTimeout(profileHoverTimeoutRef.current);
     }
@@ -153,9 +165,13 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
     );
   }
 
-  const isOwner = user?.id === diary.userId;
+  const isAnonymousDiary = isAnonymousDiaryIdentity(diary);
+  const displayNickname = isAnonymousDiary ? '익명' : diary.nickname;
+  const isOwner = diary.isOwner ?? user?.id === diary.userId;
   const shouldShowAddFriendButton =
     Boolean(user) &&
+    !isAnonymousDiary &&
+    Boolean(diary.userId) &&
     !isOwner &&
     (diary.friendStatus ?? FriendshipStatus.NONE) === FriendshipStatus.NONE;
 
@@ -167,7 +183,7 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
             <div className="relative flex min-w-0 items-center space-x-3">
               <div
                 data-testid="diary-author-profile"
-                className="flex min-w-0 cursor-pointer items-center"
+                className={`flex min-w-0 items-center ${isAnonymousDiary ? '' : 'cursor-pointer'}`}
                 onMouseEnter={handleProfileMouseEnter}
                 onMouseLeave={handleProfileMouseLeave}
               >
@@ -175,28 +191,37 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
                   data-testid="diary-author-meta"
                   className="flex min-w-0 items-center"
                 >
-                  <UserProfile
-                    userId={diary.userId}
-                    nickname={diary.nickname}
-                    avatar={diary.avatar || '/globe.svg'}
-                    imageSize={40}
-                    imageClassName="h-10 w-10 bg-gray-200 object-cover"
-                    nicknameClassName="truncate dark:text-white"
-                  />
+                  {isAnonymousDiary || !diary.userId ? (
+                    <span className="inline-flex min-w-0 items-center gap-2">
+                      <AnonymousProfileIcon className="h-10 w-10" iconSize={22} />
+                      <span className="truncate text-sm font-semibold dark:text-white">
+                        {displayNickname}
+                      </span>
+                    </span>
+                  ) : (
+                    <UserProfile
+                      userId={diary.userId}
+                      nickname={displayNickname}
+                      avatar={diary.avatar || '/globe.svg'}
+                      imageSize={40}
+                      imageClassName="h-10 w-10 bg-gray-200 object-cover"
+                      nicknameClassName="truncate dark:text-white"
+                    />
+                  )}
                   <DotIcon className="text-gray-500 dark:text-gray-400" />
                   <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
                     {format(new Date(diary.date), 'yyyy.MM.dd')}
                   </span>
                 </div>
               </div>
-              {isProfileHovering && (
+              {isProfileHovering && !isAnonymousDiary && diary.userId && (
                 <div
                   onMouseEnter={handleProfileMouseEnter}
                   onMouseLeave={handleProfileMouseLeave}
                 >
                   <ProfileHoverCard
                     userId={diary.userId}
-                    nickname={diary.nickname}
+                    nickname={displayNickname}
                     avatar={diary.avatar}
                     onStatusChange={handleProfileStatusChange}
                   />
@@ -311,7 +336,7 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
             <main className="px-3 pb-3">
               <div className="space-y-2">
                 <p className="text-sm leading-relaxed text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-                  <span className="mr-1 font-semibold">{diary.nickname}</span>
+                  <span className="mr-1 font-semibold">{displayNickname}</span>
                   {getDisplayContent(diary.content)}
                 </p>
                 {shouldShowMoreButton(diary.content) && (
@@ -347,6 +372,7 @@ const DiaryDetailClient = ({ diaryId }: DiaryDetailClientProps) => {
                   prevDiary ? { ...prevDiary, commentCount: newCount } : null,
                 );
               }}
+              isAnonymousDiary={isAnonymousDiary}
             />
           ))}
       </AnimatePresence>

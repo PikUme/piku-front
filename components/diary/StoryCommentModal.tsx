@@ -18,18 +18,20 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import useAuthStore from '@/components/store/authStore';
 import CommentItem from './CommentItem';
 import CommentInput from './CommentInput';
+import AnonymousProfileIcon from '@/components/common/AnonymousProfileIcon';
 
 interface StoryCommentModalProps {
   diaryId: number;
   initialCommentCount: number;
   onClose: () => void;
   onUpdateCommentCount: (count: number) => void;
+  isAnonymousDiary?: boolean;
   diaryContent?: {
     nickname: string;
     avatar: string | null;
     content: string;
     createdAt: string;
-    userId: string;
+    userId: string | null;
   };
 }
 
@@ -56,6 +58,7 @@ const StoryCommentModal = ({
   initialCommentCount,
   onClose,
   onUpdateCommentCount,
+  isAnonymousDiary = false,
   diaryContent,
 }: StoryCommentModalProps) => {
   useBodyScrollLock(true);
@@ -240,14 +243,17 @@ const StoryCommentModal = ({
     const optimisticComment: Comment = {
       id: tempId,
       diaryId: diaryId,
-      userId: String(user.id),
-      nickname: user.nickname || '사용자',
-      avatar: user.avatar || null,
+      userId: isAnonymousDiary ? null : String(user.id),
+      nickname: isAnonymousDiary ? '익명' : user.nickname || '사용자',
+      avatar: isAnonymousDiary ? null : user.avatar || null,
       content: contentToSend.trim(),
       parentId: parentId || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       replyCount: 0,
+      canReply: !isReply && !isAnonymousDiary,
+      canEdit: true,
+      canDelete: true,
     };
 
     const newTotal = totalComments + 1;
@@ -456,17 +462,23 @@ const StoryCommentModal = ({
         {/* Diary Content */}
         {diaryContent && (
           <div className="flex items-start">
-            <Image
-              src={diaryContent.avatar || DEFAULT_AVATAR}
-              alt={diaryContent.nickname}
-              width={32}
-              height={32}
-              className="mr-3 mt-1 h-8 w-8 flex-shrink-0 cursor-pointer rounded-full"
-              onError={handleAvatarError}
-            />
+            {isAnonymousDiary ? (
+              <AnonymousProfileIcon className="mr-3 mt-1 h-8 w-8" />
+            ) : (
+              <Image
+                src={diaryContent.avatar || DEFAULT_AVATAR}
+                alt={diaryContent.nickname}
+                width={32}
+                height={32}
+                className="mr-3 mt-1 h-8 w-8 flex-shrink-0 cursor-pointer rounded-full"
+                onError={handleAvatarError}
+              />
+            )}
             <div className="min-w-0">
               <p className="whitespace-pre-wrap break-words text-sm dark:text-white">
-                <span className="cursor-pointer font-bold">{diaryContent.nickname}</span>{' '}
+                <span className={`font-bold ${isAnonymousDiary ? '' : 'cursor-pointer'}`}>
+                  {isAnonymousDiary ? '익명' : diaryContent.nickname}
+                </span>{' '}
                 {diaryContent.content}
               </p>
               <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">

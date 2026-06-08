@@ -182,6 +182,7 @@ const makeFeedItem = (id: number): FeedDiary => ({
   likeCount: 0,
   isLiked: false,
   friendStatus: FriendshipStatus.NONE,
+  isOwner: false,
 });
 
 const makeDiaryDetail = (id: number) => ({

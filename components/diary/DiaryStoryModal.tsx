@@ -17,7 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSwipeable } from 'react-swipeable';
 import type { DiaryDetail } from '@/types/diary';
 import { formatYearMonthDayDots } from '@/lib/utils/date';
-import { getPrivacyLabel } from '@/lib/utils/privacy';
+import { getPrivacyLabel, isAnonymousDiaryIdentity } from '@/lib/utils/privacy';
 import { getServerURL } from '@/lib/utils/url';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -25,6 +25,7 @@ import useAuthStore from '@/components/store/authStore';
 import { deleteDiary } from '@/lib/api/diary';
 import { addLike, removeLike, type LikeResponse } from '@/lib/api/like';
 import StoryCommentModal from './StoryCommentModal';
+import AnonymousProfileIcon from '@/components/common/AnonymousProfileIcon';
 
 interface DiaryStoryModalProps {
   diary: DiaryDetail;
@@ -100,7 +101,9 @@ const DiaryStoryModal = ({
   const { user } = useAuthStore();
   const serverUrl = getServerURL();
   const router = useRouter();
-  const isOwner = user?.id === currentDiary.userId;
+  const isAnonymousDiary = isAnonymousDiaryIdentity(currentDiary);
+  const displayNickname = isAnonymousDiary ? '익명' : currentDiary.nickname;
+  const isOwner = currentDiary.isOwner ?? user?.id === currentDiary.userId;
 
   useEffect(() => {
     setCurrentDiary(diary);
@@ -111,6 +114,7 @@ const DiaryStoryModal = ({
   }, [diary]);
 
   const handleProfileClick = () => {
+    if (isAnonymousDiary || !currentDiary.userId) return;
     router.push(`/profile/${currentDiary.userId}`);
     onClose();
   };
@@ -278,17 +282,27 @@ const DiaryStoryModal = ({
     >
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent">
-        <div className="flex items-center" onClick={handleProfileClick}>
-          <Image
-            src={currentDiary.avatar || DEFAULT_AVATAR}
-            alt={currentDiary.nickname}
-            width={32}
-            height={32}
-            className="cursor-pointer rounded-full"
-            onError={handleAvatarError}
-          />
-          <p className="ml-3 cursor-pointer text-sm font-bold text-white">
-            {currentDiary.nickname}
+        <div
+          className={`flex items-center ${isAnonymousDiary ? '' : 'cursor-pointer'}`}
+          onClick={handleProfileClick}
+        >
+          {isAnonymousDiary ? (
+            <AnonymousProfileIcon
+              className="h-8 w-8"
+              variant="overlay"
+            />
+          ) : (
+            <Image
+              src={currentDiary.avatar || DEFAULT_AVATAR}
+              alt={displayNickname}
+              width={32}
+              height={32}
+              className="rounded-full"
+              onError={handleAvatarError}
+            />
+          )}
+          <p className={`ml-3 text-sm font-bold text-white ${isAnonymousDiary ? '' : 'cursor-pointer'}`}>
+            {displayNickname}
           </p>
           <DotIcon className='text-gray-300'/>
           <p className="text-xs uppercase text-gray-300">
@@ -409,8 +423,9 @@ const DiaryStoryModal = ({
             initialCommentCount={totalComments}
             onClose={handleCloseCommentModal}
             onUpdateCommentCount={handleUpdateCommentCount}
+            isAnonymousDiary={isAnonymousDiary}
             diaryContent={{
-              nickname: currentDiary.nickname,
+              nickname: displayNickname,
               avatar: currentDiary.avatar,
               content: currentDiary.content,
               createdAt: currentDiary.createdAt,

@@ -122,6 +122,7 @@ const diary: DiaryDetail = {
   nickname: '픽쿠야',
   avatar: '',
   userId: 'user-1',
+  isOwner: true,
   comments: [],
 };
 

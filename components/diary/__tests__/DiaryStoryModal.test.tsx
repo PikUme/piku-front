@@ -97,6 +97,7 @@ const diary: DiaryDetail = {
   nickname: 'tester',
   avatar: '',
   userId: 'user-1',
+  isOwner: true,
   comments: [],
 };
 
