@@ -54,6 +54,7 @@ const makePost = (overrides: Partial<FeedDiary> = {}): FeedDiary => ({
   likeCount: 0,
   isLiked: false,
   friendStatus: FriendshipStatus.NONE,
+  isOwner: false,
   ...overrides,
 });
 
@@ -187,5 +188,32 @@ describe('FeedCard comments', () => {
     expect(
       screen.getByLabelText('친구 요청 취소 처리 중'),
     ).toBeInTheDocument();
+  });
+
+  it('익명 일기는 작성자 프로필 링크와 친구 액션을 노출하지 않는다', () => {
+    render(
+      <FeedCard
+        post={makePost({
+          status: 'ANONYMOUS',
+          nickname: '익명',
+          avatar: null,
+          userId: null,
+          friendStatus: FriendshipStatus.ANONYMOUS,
+          isOwner: false,
+        })}
+        onFriendshipStatusChange={vi.fn()}
+        onContentClick={vi.fn()}
+        onCommentClick={vi.fn()}
+        onLikeToggle={vi.fn()}
+        isMobile={false}
+      />,
+    );
+
+    expect(screen.getAllByText('익명')).not.toHaveLength(0);
+    expect(
+      screen.getByRole('img', { name: '익명 프로필 아이콘' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '친구 추가' })).not.toBeInTheDocument();
+    expect(document.querySelector('a[href="/profile/null"]')).not.toBeInTheDocument();
   });
 });

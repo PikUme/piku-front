@@ -18,7 +18,7 @@ import FriendActionConfirmModal from './FriendActionConfirmModal';
 interface ProfileHoverCardProps {
   userId: string;
   nickname: string;
-  avatar: string;
+  avatar?: string | null;
   onStatusChange: () => void;
 }
 
@@ -210,7 +210,7 @@ const ProfileHoverCard = ({
         onConfirm={handleConfirmAction}
         actionType={modalActionType}
         nickname={nickname}
-        avatar={avatar}
+        avatar={avatar || 'https://via.placeholder.com/96'}
         isLoading={isActionLoading}
       />
     </>

@@ -23,6 +23,7 @@ export enum FriendshipStatus {
   FRIEND = 'FRIENDS',
   SENT = 'REQUESTED',
   RECEIVED = 'RECEIVED',
+  ANONYMOUS = 'ANONYMOUS',
 }
 
 export interface UserProfile {
@@ -42,4 +43,4 @@ export interface FriendRequestDto {
 export interface FriendRequestResponseDto {
   isAccepted: boolean;
   message: string;
-} 
+}

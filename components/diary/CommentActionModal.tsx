@@ -7,7 +7,9 @@ interface CommentActionModalProps {
   onEdit: () => void;
   onDelete: () => void;
   onReport: () => void;
-  isOwner: boolean;
+  isOwner?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 const CommentActionModal = ({
@@ -15,7 +17,9 @@ const CommentActionModal = ({
   onEdit,
   onDelete,
   onReport,
-  isOwner,
+  isOwner = false,
+  canEdit = isOwner,
+  canDelete = isOwner,
 }: CommentActionModalProps) => {
   useBodyScrollLock(true);
 
@@ -29,22 +33,22 @@ const CommentActionModal = ({
         onClick={e => e.stopPropagation()}
       >
         <ul className="text-center text-sm">
-          {isOwner && (
-            <>
-              <li className="border-b border-gray-200 dark:border-gray-700">
-                <button onClick={onEdit} className="w-full p-3 cursor-pointer">
-                  수정
-                </button>
-              </li>
-              <li className="border-b border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={onDelete}
-                  className="w-full p-3 font-bold text-red-500 cursor-pointer"
-                >
-                  삭제
-                </button>
-              </li>
-            </>
+          {canEdit && (
+            <li className="border-b border-gray-200 dark:border-gray-700">
+              <button onClick={onEdit} className="w-full p-3 cursor-pointer">
+                수정
+              </button>
+            </li>
+          )}
+          {canDelete && (
+            <li className="border-b border-gray-200 dark:border-gray-700">
+              <button
+                onClick={onDelete}
+                className="w-full p-3 font-bold text-red-500 cursor-pointer"
+              >
+                삭제
+              </button>
+            </li>
           )}
           <li className="border-b border-gray-200 dark:border-gray-700">
             <button onClick={onReport} className="w-full p-3 cursor-pointer">

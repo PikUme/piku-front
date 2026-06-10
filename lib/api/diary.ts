@@ -2,6 +2,7 @@ import api from './api';
 import type {
   CursorPage,
   DiaryDetail,
+  PrivacyStatus,
   DiaryUpdateRequest,
   DiaryUpdateResponse,
 } from '@/types/diary';
@@ -79,7 +80,7 @@ export interface CalendarDiaryResponseDTO {
   coverPhotoUrl: string;
   date: string; // 'yyyy-MM-dd'
   imageCount?: number;
-  status?: 'PUBLIC' | 'PRIVATE';
+  status?: PrivacyStatus;
 }
 
 export const getUserGallery = async (

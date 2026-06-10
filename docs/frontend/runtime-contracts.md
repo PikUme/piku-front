@@ -16,6 +16,17 @@ API 응답 형식, 상태 관리 경계, 인증/알림/URL 처리 규칙이 바�
 - 폼 validation 에러는 `fieldErrors`를 필드 단위로 소비한다.
 - 일부 성공 응답은 body가 아니라 header 계약을 사용한다. 예: 토큰 재발급 성공은 `Authorization` 헤더에서 새 access token을 읽는다.
 
+## 익명 일기 계약
+- 일기 공개 범위는 `PUBLIC`, `FRIENDS`, `PRIVATE`, `ANONYMOUS`를 사용한다.
+- 피드 목록과 일기 상세 응답은 모두 `isOwner`를 포함한다. 작성자 권한 판단은 `userId` 비교보다 `isOwner`를 우선한다.
+- 익명 일기의 작성자 식별 필드는 생략되지 않고 `null`로 내려올 수 있다. 프런트 타입은 `userId`, `avatar`, `avatarUrl`, `diaryUserId`처럼 익명 정책의 영향을 받는 필드를 nullable로 둔다.
+- 익명 일기에서 `friendStatus`가 `ANONYMOUS`이면 실제 친구 상태가 아니라 관계 상태 비노출 정책을 의미한다. 친구 추가, 요청 취소, 프로필 hover 같은 친구 관계 액션 분기와 분리해서 처리한다.
+- 익명 작성자 영역은 프로필 링크, 프로필 hover card, 친구 액션을 만들지 않는다. 특히 `/profile/null` URL이 생성되면 안 된다.
+- 댓글과 답글 응답은 `canReply`, `canEdit`, `canDelete`를 항상 포함한다. 댓글 액션 노출은 로그인 사용자와 `userId`를 비교한 결과가 아니라 서버 권한 필드를 우선한다.
+- 익명 일기 댓글의 낙관적 UI는 서버 응답 전에도 작성자를 `익명`, 식별 필드를 `null`로 표시한다.
+- 익명 LIKE/COMMENT 알림처럼 작성자 메타가 숨겨진 알림은 가능한 경우 `/diary/{diaryId}`로 이동하고, 프로필 캘린더 경로를 만들기 위한 작성자 조회를 하지 않는다.
+- 프로필 preview의 `diaryCount`는 서버 값을 그대로 표시한다. 다른 사용자가 조회한 값에는 익명 일기가 제외되고, 본인이 본인 프로필을 조회한 값에는 익명 일기가 포함된다.
+
 ## 상태 관리 경계
 - 서버 데이터 조회와 캐시는 `React Query`가 담당한다.
 - 전역 클라이언트 상태는 `Zustand`가 담당한다.

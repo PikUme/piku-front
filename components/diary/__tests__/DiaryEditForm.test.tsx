@@ -74,6 +74,7 @@ const diary: DiaryDetail = {
   nickname: 'tester',
   avatar: '',
   userId: 'user-1',
+  isOwner: true,
   comments: [],
 };
 
@@ -126,6 +127,21 @@ describe('DiaryEditForm', () => {
     expect(mockReplace).toHaveBeenCalledWith('/diary/1');
   });
 
+  it('공개 범위를 익명으로 바꾸면 작성자 프로필 사진 대신 익명 아이콘을 보여준다', async () => {
+    render(<DiaryEditForm diaryId={1} />);
+
+    await screen.findByLabelText('일기 내용');
+    expect(screen.getByAltText('user avatar')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /전체 공개/ }));
+    fireEvent.click(screen.getByRole('button', { name: /익명/ }));
+
+    expect(
+      screen.getByRole('img', { name: '익명 프로필 아이콘' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByAltText('user avatar')).not.toBeInTheDocument();
+  });
+
   it('저장 실패 시 페이지를 이동하지 않고 기존 수정 내용을 유지한 채 에러를 보여준다', async () => {
     mockUpdateDiary.mockRejectedValue({
       response: {
@@ -163,5 +179,25 @@ describe('DiaryEditForm', () => {
 
     expect(mockUpdateDiary).not.toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalledOnce();
+  });
+
+  it('익명 일기는 userId가 null이어도 isOwner가 true이면 수정할 수 있다', async () => {
+    mockGetDiaryById.mockResolvedValue({
+      ...diary,
+      status: 'ANONYMOUS',
+      userId: null,
+      nickname: '익명',
+      avatar: null,
+      isOwner: true,
+    } as DiaryDetail);
+
+    render(<DiaryEditForm diaryId={1} />);
+
+    expect(await screen.findByRole('heading', { name: '일기 수정' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: '익명 프로필 아이콘' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /익명/ })).toBeInTheDocument();
+    expect(screen.queryByText('본인 일기만 수정할 수 있습니다.')).not.toBeInTheDocument();
   });
 });

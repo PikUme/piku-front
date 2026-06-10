@@ -94,6 +94,7 @@ const diary: DiaryDetail = {
   nickname: 'tester',
   avatar: '',
   userId: 'user-1',
+  isOwner: true,
   comments: [],
 };
 
@@ -109,6 +110,9 @@ const makeComment = (overrides: Partial<Comment> = {}): Comment => ({
   updatedAt: '2026-04-05T10:10:00',
   replyCount: 0,
   ...overrides,
+  canReply: overrides.canReply ?? true,
+  canEdit: overrides.canEdit ?? true,
+  canDelete: overrides.canDelete ?? true,
 });
 
 const makePage = (content: Comment[], totalElements: number): CommentPage => ({
@@ -174,7 +178,7 @@ describe('diary edit access', () => {
   it('does not show an edit action to non-owners', async () => {
     const { container } = render(
       <DiaryDetailModal
-        diary={{ ...diary, userId: 'another-user' }}
+        diary={{ ...diary, userId: 'another-user', isOwner: false }}
         onClose={vi.fn()}
       />,
     );
@@ -240,7 +244,7 @@ describe('diary edit access', () => {
     const onLikeChange = vi.fn();
     const { container } = render(
       <DiaryDetailModal
-        diary={{ ...diary, userId: 'writer-id' }}
+        diary={{ ...diary, userId: 'writer-id', isOwner: false }}
         onClose={vi.fn()}
         onLikeChange={onLikeChange}
       />,

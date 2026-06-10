@@ -4,13 +4,14 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TextareaAutosize from 'react-textarea-autosize';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Globe, Lock, Users, X } from 'lucide-react';
+import { EyeOff, Globe, Lock, Users, X } from 'lucide-react';
 import type { DiaryDetail, PrivacyStatus } from '@/types/diary';
 import { getDiaryById, updateDiary } from '@/lib/api/diary';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
 import { getPrivacyLabel, PRIVACY_OPTIONS } from '@/lib/utils/privacy';
 import useAuthStore from '@/components/store/authStore';
 import ImagePreviewModal from '@/components/common/ImagePreviewModal';
+import AnonymousProfileIcon from '@/components/common/AnonymousProfileIcon';
 
 interface DiaryEditFormProps {
   diaryId: number;
@@ -26,6 +27,8 @@ const getPrivacyIcon = (value: PrivacyStatus, size = 16) => {
       return <Users size={size} />;
     case 'PRIVATE':
       return <Lock size={size} />;
+    case 'ANONYMOUS':
+      return <EyeOff size={size} />;
   }
 };
 
@@ -98,7 +101,9 @@ const DiaryEditForm = ({ diaryId }: DiaryEditFormProps) => {
   };
 
   const privacyText = getPrivacyLabel(status);
-  const isOwner = !user || !diary || user.id === diary.userId;
+  const isOwner =
+    !user || !diary || (diary.isOwner ?? user.id === diary.userId);
+  const shouldShowAnonymousAuthor = status === 'ANONYMOUS';
 
   if (isLoading) {
     return (
@@ -191,13 +196,17 @@ const DiaryEditForm = ({ diaryId }: DiaryEditFormProps) => {
         </section>
 
         <div className="my-4 flex items-center">
-          <img
-            src={diary.avatar || user?.avatar || '/vercel.svg'}
-            alt="user avatar"
-            width={32}
-            height={32}
-            className="mr-2 h-8 w-8 rounded-full"
-          />
+          {shouldShowAnonymousAuthor ? (
+            <AnonymousProfileIcon className="mr-2 h-8 w-8" />
+          ) : (
+            <img
+              src={diary.avatar || user?.avatar || '/vercel.svg'}
+              alt="user avatar"
+              width={32}
+              height={32}
+              className="mr-2 h-8 w-8 rounded-full"
+            />
+          )}
           <span className="font-semibold dark:text-white">
             {diary.nickname || user?.nickname || 'me'}
           </span>

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design Docs"
+  short_description: "Draft architecture-first design docs"
+  default_prompt: "Use $design-docs to draft a Korean feature and architecture flow design document."
