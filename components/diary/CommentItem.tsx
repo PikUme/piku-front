@@ -71,6 +71,9 @@ const CommentItem = ({
   const canEdit = comment.canEdit ?? isOwner;
   const canDelete = comment.canDelete ?? isOwner;
   const profileUrl = comment.userId ? `/profile/${comment.userId}` : null;
+  const createdAtLabel = comment.isPending
+    ? '게시중'
+    : formatTimeAgo(comment.createdAt);
 
   const handleReport = () => {
     setIsActionModalOpen(false);
@@ -133,9 +136,9 @@ const CommentItem = ({
         onMouseEnter={() => setIsCommentHovered(true)}
         onMouseLeave={() => setIsCommentHovered(false)}
       >
-        <div className="flex flex-1 items-start space-x-3">
+        <div className="flex min-w-0 flex-1 items-start space-x-3">
           <div
-            className={`relative ${isAnonymousComment ? '' : 'cursor-pointer'}`}
+            className={`relative ${isAnonymousComment ? '' : 'cursor-pointer'} flex-shrink-0`}
             onMouseEnter={() => handleProfileMouseEnter('avatar')}
             onMouseLeave={handleProfileMouseLeave}
           >
@@ -169,12 +172,12 @@ const CommentItem = ({
               )}
             </AnimatePresence>
           </div>
-          <div className="flex-1 ">
+          <div className="min-w-0 flex-1">
             <div className="text-sm dark:text-gray-100">
               {profileUrl && comment.userId ? (
                 <Link href={profileUrl}>
                   <span
-                    className="relative inline-block font-semibold dark:text-white cursor-pointer"
+                    className="relative mr-2 inline-block font-semibold dark:text-white cursor-pointer"
                     onMouseEnter={() => handleProfileMouseEnter('nickname')}
                     onMouseLeave={handleProfileMouseLeave}
                   >
@@ -198,14 +201,16 @@ const CommentItem = ({
                   </span>
                 </Link>
               ) : (
-                <span className="font-semibold dark:text-white">
+                <span className="mr-2 font-semibold dark:text-white">
                   {displayNickname}
                 </span>
               )}
-              <span className="ml-2">{comment.content}</span>
+              <span className="whitespace-pre-wrap break-words">
+                {comment.content}
+              </span>
             </div>
             <div className="mt-1 flex items-center space-x-3 text-xs text-gray-500">
-              <span>{formatTimeAgo(comment.createdAt)}</span>
+              <span>{createdAtLabel}</span>
               {comment.parentId === null && canReply && (
                 <button
                   onClick={() => onSetReplyTo(comment)}

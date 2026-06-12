@@ -104,4 +104,26 @@ describe('CommentItem', () => {
     fireEvent.click(screen.getByRole('button', { name: '삭제' }));
     expect(onDeleteComment).toHaveBeenCalledWith(10, null);
   });
+
+  it('서버 응답 전 임시 댓글은 작성 시간 대신 게시중으로 표시한다', () => {
+    render(
+      <CommentItem
+        comment={makeComment({
+          content: '업로드 중인 댓글',
+          createdAt: '',
+          isPending: true,
+        })}
+        diaryId={1}
+        onSetReplyTo={vi.fn()}
+        replies={[]}
+        onToggleReplies={vi.fn()}
+        onFetchMoreReplies={vi.fn()}
+        onDeleteComment={vi.fn()}
+        onStartEdit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('게시중')).toBeInTheDocument();
+    expect(screen.queryByText('날짜 정보 없음')).not.toBeInTheDocument();
+  });
 });

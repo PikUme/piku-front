@@ -25,6 +25,7 @@ export interface Comment {
   canReply: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  isPending?: boolean;
 }
 
 // 댓글 작성 요청 타입

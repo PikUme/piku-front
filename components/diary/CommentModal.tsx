@@ -196,6 +196,7 @@ const CommentModal = ({
       canReply: !isReply && !isAnonymousDiary,
       canEdit: true,
       canDelete: true,
+      isPending: true,
     };
 
     const originalNewComment = newComment;
@@ -242,7 +243,11 @@ const CommentModal = ({
         parentId,
       });
 
-      const finalComment = { ...optimisticComment, ...newCommentData };
+      const finalComment = {
+        ...optimisticComment,
+        ...newCommentData,
+        isPending: false,
+      };
 
       if (isReply && parentId) {
         setCommentReplies(prev => {

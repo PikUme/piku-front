@@ -25,7 +25,7 @@ import {
 import { addLike, removeLike, type LikeResponse } from '@/lib/api/like';
 import { HeartIcon } from '@/components/icons/FeedIcons';
 import { deleteDiary } from '@/lib/api/diary';
-import { formatTimeAgo, formatYearMonthDay } from '@/lib/utils/date';
+import { formatYearMonthDay } from '@/lib/utils/date';
 import { getPrivacyLabel, isAnonymousDiaryIdentity } from '@/lib/utils/privacy';
 import { getServerURL } from '@/lib/utils/url';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
@@ -311,6 +311,7 @@ const DiaryDetailModal = ({
       canReply: !isReply && !isAnonymousDiary,
       canEdit: true,
       canDelete: true,
+      isPending: true,
     };
 
     const originalNewComment = newComment;
@@ -362,7 +363,11 @@ const DiaryDetailModal = ({
       });
 
       // 성공: 임시 댓글을 서버 응답으로 교체
-      const finalComment = { ...optimisticComment, ...newCommentData };
+      const finalComment = {
+        ...optimisticComment,
+        ...newCommentData,
+        isPending: false,
+      };
 
       if (isReply && parentId) {
         setCommentReplies(prev => {
@@ -760,9 +765,6 @@ const DiaryDetailModal = ({
                       )}
                     </span>
                     <span className="ml-2">{currentDiary.content}</span>
-                  </p>
-                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                    {formatTimeAgo(currentDiary.createdAt)}
                   </p>
                 </div>
               </div>

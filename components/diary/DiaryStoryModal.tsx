@@ -428,7 +428,6 @@ const DiaryStoryModal = ({
               nickname: displayNickname,
               avatar: currentDiary.avatar,
               content: currentDiary.content,
-              createdAt: currentDiary.createdAt,
               userId: currentDiary.userId,
             }}
           />

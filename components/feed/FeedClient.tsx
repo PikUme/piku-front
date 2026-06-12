@@ -467,7 +467,6 @@ const FeedClient = () => {
                 : commentModalOpen.post.nickname,
               avatar: commentModalOpen.post.avatar,
               content: commentModalOpen.post.content,
-              createdAt: commentModalOpen.post.createdAt,
               userId: commentModalOpen.post.userId,
             }}
           />

@@ -12,7 +12,6 @@ import {
   deleteComment,
   updateComment,
 } from '@/lib/api/comment';
-import { formatTimeAgo } from '@/lib/utils/date';
 import { getServerURL } from '@/lib/utils/url';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import useAuthStore from '@/components/store/authStore';
@@ -30,7 +29,6 @@ interface StoryCommentModalProps {
     nickname: string;
     avatar: string | null;
     content: string;
-    createdAt: string;
     userId: string | null;
   };
 }
@@ -254,6 +252,7 @@ const StoryCommentModal = ({
       canReply: !isReply && !isAnonymousDiary,
       canEdit: true,
       canDelete: true,
+      isPending: true,
     };
 
     const newTotal = totalComments + 1;
@@ -294,7 +293,11 @@ const StoryCommentModal = ({
         parentId,
       });
 
-      const finalComment = { ...optimisticComment, ...newCommentData };
+      const finalComment = {
+        ...optimisticComment,
+        ...newCommentData,
+        isPending: false,
+      };
 
       if (isReply && parentId) {
         setCommentReplies(prev => {
@@ -480,9 +483,6 @@ const StoryCommentModal = ({
                   {isAnonymousDiary ? '익명' : diaryContent.nickname}
                 </span>{' '}
                 {diaryContent.content}
-              </p>
-              <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                {formatTimeAgo(diaryContent.createdAt)}
               </p>
             </div>
           </div>

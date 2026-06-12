@@ -403,18 +403,6 @@ const FeedCard = ({
         )}
       </div>
 
-      {/*
-      <div className="px-3 pt-1">
-        <div onClick={onContentClick} className="cursor-pointer">
-          <p className="text-sm text-gray-500">View comments</p>
-        </div>
-      </div>
-
-      <div className="px-3 pt-1">
-        <p className="text-xs text-gray-500">{formatTimeAgo(post.createdAt)}</p>
-      </div>
-      */}
-
       <form
         onSubmit={handleCommentSubmit}
         className="mt-2 flex items-center justify-between border-t border-gray-200 p-3 dark:border-gray-700"

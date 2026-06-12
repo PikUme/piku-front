@@ -156,7 +156,6 @@ describe('StoryCommentModal comment counts', () => {
           avatar: '',
           content:
             '갑작스레 테스트로부터 저녁먹자는 연락이 왔다. '.repeat(20),
-          createdAt: '2026-04-05T10:00:00',
           userId: 'user-1',
         }}
       />,
