@@ -1,23 +1,36 @@
 'use client';
 
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Images } from 'lucide-react';
-import { CalendarDiaryResponseDTO, getUserGallery } from '@/lib/api/diary';
+import { useMediaQuery } from 'react-responsive';
+import DiaryDetailModal from '@/components/diary/DiaryDetailModal';
+import DiaryStoryModal from '@/components/diary/DiaryStoryModal';
+import {
+  CalendarDiaryResponseDTO,
+  getDiaryById,
+  getUserGallery,
+} from '@/lib/api/diary';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { getApiErrorMessage } from '@/lib/utils/apiError';
+import type { DiaryDetail } from '@/types/diary';
 
 interface ProfileDiaryPhotoGridProps {
   userId?: string;
 }
 
 const ProfileDiaryPhotoGrid = ({ userId }: ProfileDiaryPhotoGridProps) => {
-  const router = useRouter();
   const [diaries, setDiaries] = useState<CalendarDiaryResponseDTO[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasNext, setHasNext] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isError, setIsError] = useState(false);
+  const [selectedDiary, setSelectedDiary] = useState<DiaryDetail | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const hasDetailHistoryEntryRef = useRef(false);
+  const isDesktop = useMediaQuery({ query: '(min-width: 768px)' });
+  useBodyScrollLock(Boolean(selectedDiary || isLoadingDetail));
 
   useEffect(() => {
     let isMounted = true;
@@ -86,15 +99,45 @@ const ProfileDiaryPhotoGrid = ({ userId }: ProfileDiaryPhotoGridProps) => {
     }
   };
 
-  const handleDiaryClick = (diary: CalendarDiaryResponseDTO) => {
-    if (!userId) return;
+  const handleCloseModal = useCallback(() => {
+    hasDetailHistoryEntryRef.current = false;
+    setSelectedDiary(null);
+  }, []);
 
-    const params = new URLSearchParams({
-      date: diary.date,
-      diaryId: String(diary.diaryId),
-    });
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state?.modal === 'profile-diary-detail') {
+        return;
+      }
 
-    router.push(`/profile/${userId}/calendar?${params.toString()}`);
+      hasDetailHistoryEntryRef.current = false;
+      handleCloseModal();
+    };
+
+    if (selectedDiary) {
+      if (!hasDetailHistoryEntryRef.current) {
+        window.history.pushState({ modal: 'profile-diary-detail' }, '');
+        hasDetailHistoryEntryRef.current = true;
+      }
+      window.addEventListener('popstate', handlePopState);
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [selectedDiary, handleCloseModal]);
+
+  const handleDiaryClick = async (diary: CalendarDiaryResponseDTO) => {
+    setIsLoadingDetail(true);
+    try {
+      const diaryDetail = await getDiaryById(diary.diaryId);
+      setSelectedDiary(diaryDetail);
+    } catch (error) {
+      console.error('Failed to fetch profile diary detail:', error);
+      alert(getApiErrorMessage(error, '일기 정보를 불러오는데 실패했습니다.'));
+    } finally {
+      setIsLoadingDetail(false);
+    }
   };
 
   if (isLoading) {
@@ -154,6 +197,17 @@ const ProfileDiaryPhotoGrid = ({ userId }: ProfileDiaryPhotoGridProps) => {
           </button>
         </div>
       )}
+      {isLoadingDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <p className="text-white">일기 정보를 불러오는 중...</p>
+        </div>
+      )}
+      {selectedDiary &&
+        (isDesktop ? (
+          <DiaryDetailModal diary={selectedDiary} onClose={handleCloseModal} />
+        ) : (
+          <DiaryStoryModal diary={selectedDiary} onClose={handleCloseModal} />
+        ))}
     </div>
   );
 };

@@ -1,15 +1,22 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileClient from '../ProfileClient';
 import { FriendshipStatus } from '@/types/friend';
 import type { UserProfileResponseDTO } from '@/types/profile';
 import { sendFriendRequest } from '@/lib/api/friend';
 
-const { mockPush, mockRefresh, getMonthlyDiaries, getUserGallery } = vi.hoisted(() => ({
+const {
+  mockPush,
+  mockRefresh,
+  getMonthlyDiaries,
+  getUserGallery,
+  getDiaryById,
+} = vi.hoisted(() => ({
   mockPush: vi.fn(),
   mockRefresh: vi.fn(),
   getMonthlyDiaries: vi.fn(),
   getUserGallery: vi.fn(),
+  getDiaryById: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -52,10 +59,37 @@ vi.mock('@/lib/api/friend', () => ({
 vi.mock('@/lib/api/diary', () => ({
   getMonthlyDiaries,
   getUserGallery,
+  getDiaryById,
 }));
 
 vi.mock('@/components/feed/FriendActionConfirmModal', () => ({
   default: () => null,
+}));
+
+vi.mock('react-responsive', () => ({
+  useMediaQuery: () => true,
+}));
+
+vi.mock('@/components/diary/DiaryDetailModal', () => ({
+  default: ({ diary, onClose }: { diary: { diaryId: number }; onClose: () => void }) => (
+    <div data-testid="profile-diary-detail-modal">
+      <span>{diary.diaryId}</span>
+      <button type="button" onClick={onClose}>
+        close
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock('@/components/diary/DiaryStoryModal', () => ({
+  default: ({ diary, onClose }: { diary: { diaryId: number }; onClose: () => void }) => (
+    <div data-testid="profile-diary-story-modal">
+      <span>{diary.diaryId}</span>
+      <button type="button" onClick={onClose}>
+        close
+      </button>
+    </div>
+  ),
 }));
 
 const profileData: UserProfileResponseDTO = {
@@ -209,6 +243,52 @@ describe('ProfileClient', () => {
 
     expect(screen.getByText('5월')).toBeInTheDocument();
     expect(screen.queryByTestId('profile-diary-photo-grid')).not.toBeInTheDocument();
+  });
+
+  it('사진 그리드의 사진을 클릭하면 캘린더로 이동하지 않고 일기 상세 모달을 연다', async () => {
+    getUserGallery.mockResolvedValueOnce({
+      items: [
+        {
+          diaryId: 101,
+          date: '2026-05-02',
+          coverPhotoUrl: '/diary-cover.png',
+          imageCount: 2,
+          status: 'PUBLIC',
+        },
+      ],
+      nextCursor: null,
+      hasNext: false,
+    });
+    getDiaryById.mockResolvedValueOnce({
+      diaryId: 101,
+      content: '사진 일기',
+      date: '2026-05-02',
+      status: 'PUBLIC',
+      createdAt: '2026-05-02T10:00:00',
+      updatedAt: '2026-05-02T10:00:00',
+      isLiked: false,
+      likeCount: 0,
+      commentCount: 0,
+      imgUrls: ['/diary-cover.png'],
+      nickname: '픽쿠',
+      avatar: null,
+      userId: 'user-1',
+      isOwner: true,
+      comments: [],
+    });
+
+    render(<ProfileClient profileData={profileData} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '사진' }));
+
+    const photoTile = await screen.findByTestId('profile-diary-photo-tile');
+    fireEvent.click(photoTile);
+
+    await waitFor(() => expect(getDiaryById).toHaveBeenCalledWith(101));
+    expect(await screen.findByTestId('profile-diary-detail-modal')).toBeInTheDocument();
+    expect(mockPush).not.toHaveBeenCalledWith(
+      '/profile/user-1/calendar?date=2026-05-02&diaryId=101',
+    );
   });
 
   it('월별 일기 기록을 연도별로 나누어 표시한다', () => {
