@@ -23,6 +23,8 @@ const RESOURCE_NOT_FOUND =
   'https://api.pikume.com/problems/common/resource-not-found';
 
 const DIARY_MODAL_NOTIFICATION_TYPES = new Set<Notification['type']>([
+  'LIKE',
+  'COMMENT',
   'REPLY',
   'FRIEND_DIARY',
 ]);
@@ -88,16 +90,7 @@ const NotificationsClient = () => {
     },
   });
 
-  const buildDiaryCalendarPath = (userId: string, date: string, diaryId: number) => {
-    const params = new URLSearchParams({
-      date,
-      diaryId: String(diaryId),
-    });
-
-    return `/profile/${userId}/calendar?${params.toString()}`;
-  };
-
-  const resolveNotificationNavigationPath = async (notification: Notification) => {
+  const resolveNotificationNavigationPath = (notification: Notification) => {
     const path = getNotificationNavigationPath(notification);
     if (path && !path.startsWith('/diary/')) {
       return path;
@@ -105,20 +98,6 @@ const NotificationsClient = () => {
 
     if (isAnonymousDiaryNotification(notification) && path) {
       return path;
-    }
-
-    if (
-      (notification.type === 'LIKE' || notification.type === 'COMMENT') &&
-      notification.relatedDiaryId !== null
-    ) {
-      try {
-        const diary = await getDiaryById(notification.relatedDiaryId);
-        if (diary.userId) {
-          return buildDiaryCalendarPath(diary.userId, diary.date, diary.diaryId);
-        }
-      } catch (error) {
-        console.error('알림 경로용 일기 정보 조회 실패:', error);
-      }
     }
 
     return path;

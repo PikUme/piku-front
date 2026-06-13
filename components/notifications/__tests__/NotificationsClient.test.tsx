@@ -73,6 +73,7 @@ vi.mock('../../store/authStore', () => ({
 class MockIntersectionObserver implements IntersectionObserver {
   root = null;
   rootMargin = '';
+  scrollMargin = '';
   thresholds = [0];
 
   constructor(_callback: IntersectionObserverCallback) {}
@@ -177,25 +178,51 @@ describe('NotificationsClient', () => {
     vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
 
-  it('LIKE 알림 클릭 시 프로필 캘린더 상세 위치로 이동한다', async () => {
+  it('LIKE 알림 클릭 시 페이지 이동 대신 일기 모달을 연다', async () => {
     mockGetNotifications.mockResolvedValue(
       makePage([makeNotification({ message: 'liked your diary' })]),
     );
 
     renderClient();
 
-    fireEvent.click(await screen.findByText('liked your diary'));
+    await act(async () => {
+      fireEvent.click(await screen.findByText('liked your diary'));
+    });
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith(
-        '/profile/user-1/calendar?date=2026-03-17&diaryId=42',
-      );
+      expect(mockGetDiaryById).toHaveBeenCalledWith(42);
+      expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
       expect(mockMarkNotificationAsRead).toHaveBeenCalledWith(1);
       expect(mockDecrementUnreadCount).toHaveBeenCalledTimes(1);
     });
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it('LIKE 알림에 프로필 메타가 없으면 일기 조회 후 프로필 캘린더 상세 위치로 이동한다', async () => {
+  it('COMMENT 알림 클릭 시 페이지 이동 대신 일기 모달을 연다', async () => {
+    mockGetNotifications.mockResolvedValue(
+      makePage([
+        makeNotification({
+          type: 'COMMENT',
+          message: 'commented on your diary',
+          relatedDiaryId: 84,
+        }),
+      ]),
+    );
+
+    renderClient();
+
+    await act(async () => {
+      fireEvent.click(await screen.findByText('commented on your diary'));
+    });
+
+    await waitFor(() => {
+      expect(mockGetDiaryById).toHaveBeenCalledWith(84);
+      expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
+    });
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('LIKE 알림에 프로필 메타가 없어도 페이지 이동 대신 일기 모달을 연다', async () => {
     mockGetNotifications.mockResolvedValue(
       makePage([
         makeNotification({
@@ -207,17 +234,18 @@ describe('NotificationsClient', () => {
 
     renderClient();
 
-    fireEvent.click(await screen.findByText('liked your diary'));
+    await act(async () => {
+      fireEvent.click(await screen.findByText('liked your diary'));
+    });
 
     await waitFor(() => {
       expect(mockGetDiaryById).toHaveBeenCalledWith(42);
-      expect(mockPush).toHaveBeenCalledWith(
-        '/profile/user-1/calendar?date=2026-03-17&diaryId=42',
-      );
+      expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
     });
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it('익명 LIKE 알림은 작성자 정보 없이 relatedDiaryId 상세로 이동한다', async () => {
+  it('익명 LIKE 알림은 작성자 정보 없이 일기 모달을 연다', async () => {
     mockGetNotifications.mockResolvedValue(
       makePage([
         makeNotification({
@@ -240,10 +268,11 @@ describe('NotificationsClient', () => {
     fireEvent.click(screen.getByText('liked your anonymous diary'));
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/diary/42');
+      expect(mockGetDiaryById).toHaveBeenCalledWith(42);
+      expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
       expect(mockMarkNotificationAsRead).toHaveBeenCalledWith(1);
     });
-    expect(mockGetDiaryById).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
     expect(screen.queryByAltText("익명's avatar")).not.toBeInTheDocument();
   });
 
@@ -273,10 +302,10 @@ describe('NotificationsClient', () => {
     fireEvent.click(screen.getByText('liked your diary with empty avatar'));
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith(
-        '/profile/user-1/calendar?date=2026-03-17&diaryId=42',
-      );
+      expect(mockGetDiaryById).toHaveBeenCalledWith(42);
+      expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
     });
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('FRIEND_REQUEST 알림 클릭 시 친구 요청 탭으로 이동한다', async () => {
@@ -329,7 +358,7 @@ describe('NotificationsClient', () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it('읽은 알림 클릭 시 읽음 처리 요청 없이 이동만 한다', async () => {
+  it('읽은 LIKE 알림 클릭 시 읽음 처리 요청 없이 일기 모달을 연다', async () => {
     mockGetNotifications.mockResolvedValue(
       makePage([
         makeNotification({
@@ -342,18 +371,20 @@ describe('NotificationsClient', () => {
 
     renderClient();
 
-    fireEvent.click(await screen.findByText('already read'));
+    await act(async () => {
+      fireEvent.click(await screen.findByText('already read'));
+    });
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith(
-        '/profile/user-1/calendar?date=2026-03-17&diaryId=42',
-      );
+      expect(mockGetDiaryById).toHaveBeenCalledWith(42);
+      expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
     });
     expect(mockMarkNotificationAsRead).not.toHaveBeenCalled();
     expect(mockDecrementUnreadCount).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it('읽음 처리 실패 시 unread count를 줄이지 않고 이동한다', async () => {
+  it('읽음 처리 실패 시 unread count를 줄이지 않고 일기 모달을 연다', async () => {
     mockGetNotifications.mockResolvedValue(
       makePage([makeNotification({ message: 'liked your diary' })]),
     );
@@ -371,14 +402,16 @@ describe('NotificationsClient', () => {
 
     renderClient();
 
-    fireEvent.click(await screen.findByText('liked your diary'));
+    await act(async () => {
+      fireEvent.click(await screen.findByText('liked your diary'));
+    });
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith(
-        '/profile/user-1/calendar?date=2026-03-17&diaryId=42',
-      );
+      expect(mockGetDiaryById).toHaveBeenCalledWith(42);
+      expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
     });
     expect(mockDecrementUnreadCount).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('알림 삭제 실패 시 ProblemDetail.detail을 alert로 보여준다', async () => {

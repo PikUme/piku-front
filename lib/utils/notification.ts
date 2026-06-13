@@ -1,10 +1,24 @@
 import type { Notification } from '@/types/notification';
 
+const DIARY_MODAL_NOTIFICATION_TYPES = new Set<Notification['type']>([
+  'LIKE',
+  'COMMENT',
+  'REPLY',
+  'FRIEND_DIARY',
+]);
+
 export const getNotificationNavigationPath = (
   notification: Notification,
 ): string | null => {
   if (notification.type === 'FRIEND_REQUEST') {
     return '/friends?tab=requests';
+  }
+
+  if (
+    notification.relatedDiaryId !== null &&
+    DIARY_MODAL_NOTIFICATION_TYPES.has(notification.type)
+  ) {
+    return null;
   }
 
   if (notification.diaryDate && notification.diaryUserId) {
@@ -15,13 +29,6 @@ export const getNotificationNavigationPath = (
     }
 
     return `/profile/${notification.diaryUserId}/calendar?${params.toString()}`;
-  }
-
-  if (
-    (notification.type === 'LIKE' || notification.type === 'COMMENT') &&
-    notification.relatedDiaryId !== null
-  ) {
-    return `/diary/${notification.relatedDiaryId}`;
   }
 
   return null;
