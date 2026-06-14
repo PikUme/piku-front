@@ -13,7 +13,6 @@ vi.mock('next/navigation', () => ({
 
 const user = {
   id: 'u1',
-  email: 'test@test.com',
   nickname: 'tester',
   avatar: 'http://example.com/avatar.png',
 };

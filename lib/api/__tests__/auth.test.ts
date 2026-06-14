@@ -18,7 +18,6 @@ describe('auth API', () => {
   it('getCurrentUser는 GET /auth/me의 user를 반환한다', async () => {
     const user = {
       id: 'u1',
-      email: 'test@test.com',
       nickname: 'test',
       avatar: 'http://example.com/avatar.png',
     };

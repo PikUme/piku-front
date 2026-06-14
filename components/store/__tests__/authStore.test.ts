@@ -40,13 +40,14 @@ describe('authStore login', () => {
           email: 'test@test.com',
           nickname: 'test',
           avatar: 'http://example.com/img.png',
-        },
+        } as any,
       });
       await useAuthStore.getState().checkAuth();
     });
 
     expect(useAuthStore.getState().authStatus).toBe('authenticated');
     expect(useAuthStore.getState().isLoggedIn).toBe(true);
+    expect(useAuthStore.getState().user).not.toHaveProperty('email');
   });
 
   it('토큰이 없으면 anonymous 상태로 확정한다', async () => {
@@ -63,7 +64,6 @@ describe('authStore login', () => {
     localStorage.setItem(AUTH_TOKEN_KEY, 'access-token');
     getCurrentUserMock.mockResolvedValue({
       id: 'u1',
-      email: 'test@test.com',
       nickname: 'test',
       avatar: 'characters/fixed/img.png',
     });
@@ -85,7 +85,6 @@ describe('authStore login', () => {
     act(() => {
       useAuthStore.getState().login({
         id: 'u1',
-        email: 'test@test.com',
         nickname: 'test',
         avatar: 'characters/fixed/img.png',
       });
@@ -97,11 +96,23 @@ describe('authStore login', () => {
     expect(user?.avatar).toMatch(/^http/);
   });
 
-  it('avatarUrl 필드만 있으면 fallback으로 사용한다', () => {
+  it('서버 응답에 email이 포함되어도 인증 사용자 상태에는 저장하지 않는다', () => {
     act(() => {
       useAuthStore.getState().login({
         id: 'u1',
         email: 'test@test.com',
+        nickname: 'test',
+        avatar: 'http://example.com/img.png',
+      } as any);
+    });
+
+    expect(useAuthStore.getState().user).not.toHaveProperty('email');
+  });
+
+  it('avatarUrl 필드만 있으면 fallback으로 사용한다', () => {
+    act(() => {
+      useAuthStore.getState().login({
+        id: 'u1',
         nickname: 'test',
         avatar: '',
         avatarUrl: 'characters/fixed/img.png',
@@ -117,7 +128,6 @@ describe('authStore login', () => {
     act(() => {
       useAuthStore.getState().login({
         id: 'u1',
-        email: 'test@test.com',
         nickname: 'test',
         avatar: 'http://example.com/img.png',
       });

@@ -41,7 +41,6 @@ vi.mock('@/components/store/authStore', () => ({
   default: () => ({
     user: {
       id: 'user-1',
-      email: 'tester@example.com',
       nickname: '픽쿠',
       avatar: '',
     },

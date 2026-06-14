@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test';
 
 const mockUser = {
   id: 'test-user',
-  email: 'tester@example.com',
   nickname: 'Tester',
   avatar: '/globe.svg',
 };

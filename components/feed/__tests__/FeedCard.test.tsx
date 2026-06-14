@@ -67,7 +67,6 @@ describe('FeedCard comments', () => {
         isLoggedIn: true,
         user: {
           id: 'viewer-id',
-          email: 'viewer@example.com',
           nickname: 'viewer',
           avatar: '',
         },

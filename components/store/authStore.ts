@@ -22,7 +22,11 @@ const normalizeUser = (user: User): User => {
     ? `${getServerURL()}/${rawAvatar}`
     : rawAvatar;
 
-  return { ...user, avatar };
+  return {
+    id: user.id,
+    nickname: user.nickname,
+    avatar,
+  };
 };
 
 const useAuthStore = create<AuthState>()(
@@ -52,7 +56,11 @@ const useAuthStore = create<AuthState>()(
           const token = localStorage.getItem(AUTH_TOKEN_KEY); // 스토어의 현재 accessToken
           const user = get().user;
           if (token && user) {
-            set({ authStatus: 'authenticated', isLoggedIn: true });
+            set({
+              authStatus: 'authenticated',
+              isLoggedIn: true,
+              user: normalizeUser(user),
+            });
             // refreshToken은 HttpOnly이므로 클라이언트에서 읽거나 설정하지 않음.
             // 로그인 시 스토어에 저장했던 refreshToken은 페이지 새로고침 후에는 null일 수 있음.
             return;

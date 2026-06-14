@@ -35,7 +35,6 @@ export interface AuthFormProps {
 
 export interface User {
   id: string;
-  email: string;
   nickname: string;
   avatar: string;
 }

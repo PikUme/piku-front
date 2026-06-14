@@ -38,7 +38,6 @@ vi.mock('../../store/authStore', () => ({
   default: () => ({
     user: {
       id: 'user-1',
-      email: 'tester@example.com',
       nickname: '기존닉네임',
       avatar: '',
     },
@@ -105,6 +104,13 @@ describe('ProfileEditClient', () => {
     const message = messages.find(element => element.tagName === 'P');
 
     expect(message).toHaveClass('whitespace-pre-line');
+  });
+
+  it('이메일 필드를 렌더링하지 않는다', () => {
+    render(<ProfileEditClient profileData={profileData} />);
+
+    expect(screen.queryByLabelText('Email')).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Email' })).not.toBeInTheDocument();
   });
 
   it('프로필 저장 실패 시 ProblemDetail.detail을 alert로 보여준다', async () => {

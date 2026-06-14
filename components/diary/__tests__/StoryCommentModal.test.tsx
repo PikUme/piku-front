@@ -41,7 +41,6 @@ vi.mock('@/components/store/authStore', () => ({
     isLoggedIn: true,
     user: {
       id: 'user-1',
-      email: 'user@example.com',
       nickname: 'tester',
       avatar: '',
     },

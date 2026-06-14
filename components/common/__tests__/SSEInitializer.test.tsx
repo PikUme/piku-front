@@ -38,7 +38,6 @@ vi.mock('event-source-polyfill', () => {
 
 const user = {
   id: 'u1',
-  email: 'test@test.com',
   nickname: 'test',
   avatar: 'http://example.com/avatar.png',
 };

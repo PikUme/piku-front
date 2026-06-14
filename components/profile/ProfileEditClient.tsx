@@ -203,21 +203,6 @@ const ProfileEditClient = ({
               </button>
             </div>
           </div>
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={user?.email || ''}
-              readOnly
-              className="block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-gray-100 cursor-not-allowed"
-            />
-          </div>
           {/* 
           <div>
             <label
