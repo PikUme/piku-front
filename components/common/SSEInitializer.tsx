@@ -9,6 +9,7 @@ import {
   getAccessToken,
   refreshAccessToken,
 } from '@/lib/auth/tokenManager';
+import { getOrCreateVid } from '@/lib/utils/vid';
 
 const INITIAL_RECONNECT_DELAY = 3000;
 const MAX_RECONNECT_DELAY = 30000;
@@ -78,9 +79,11 @@ const SSEInitializer = () => {
       }
 
       const sseUrl = `${getServerURL()}/sse/subscribe`;
+      const vid = getOrCreateVid();
       eventSourceRef.current = new EventSourcePolyfill(sseUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
+          ...(vid ? { vid } : {}),
         },
         withCredentials: true,
         heartbeatTimeout: 86400000, // 24시간

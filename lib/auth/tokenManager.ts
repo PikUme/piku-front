@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { getServerURL } from '@/lib/utils/url';
 import { AUTH_TOKEN_KEY } from '@/lib/constants';
+import { getOrCreateVid } from '@/lib/utils/vid';
 
 /**
  * 공통 토큰 관리 모듈
@@ -50,10 +51,14 @@ export const refreshAccessToken = (): Promise<string> => {
 
   refreshPromise = (async () => {
     try {
+      const vid = getOrCreateVid();
       const response = await axios.post(
         `${getServerURL()}/auth/reissue`,
         {},
-        { withCredentials: true },
+        {
+          withCredentials: true,
+          headers: vid ? { vid } : undefined,
+        },
       );
 
       const authHeader = response.headers['authorization'];
@@ -102,7 +107,15 @@ export const handleAuthFailure = async (): Promise<void> => {
 
   // 3. 서버 로그아웃 (실패해도 무시)
   try {
-    await axios.post(`${getServerURL()}/auth/logout`, {}, { withCredentials: true });
+    const vid = getOrCreateVid();
+    await axios.post(
+      `${getServerURL()}/auth/logout`,
+      {},
+      {
+        withCredentials: true,
+        headers: vid ? { vid } : undefined,
+      },
+    );
   } catch {
     // 서버 로그아웃 실패는 무시
   }

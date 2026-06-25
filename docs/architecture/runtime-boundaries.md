@@ -6,6 +6,7 @@
 
 ## 브라우저 전용 런타임 목록
 - access token 조회와 저장
+- 브라우저 식별자 `vid` 생성과 저장
 - SSE 연결 초기화
 - FCM 초기화
 - PWA 설치 프롬프트 처리
@@ -14,6 +15,7 @@
 
 ## 초기화 위치
 - 인증 토큰 접근과 현재 사용자 복구는 `lib/auth/tokenManager.ts`, `lib/api/auth.ts`, `components/store/authStore.ts` 경계 안에서 처리한다.
+- `vid`는 사이트 진입 시 `components/common/VidInitializer.tsx`에서 준비하고 `lib/utils/vid.ts`에서 조회하거나 생성한다. 공통 요청 인터셉터와 직접 연결 경로도 요청 직전에 같은 값을 보장한다.
 - 로그인 필요 화면의 진입 제어는 `components/auth/RequireAuth.tsx`에서 공통 처리한다.
 - SSE 초기화는 `components/common/SSEInitializer.tsx`에서 시작한다.
 - FCM 초기화는 `components/common/FCMInitializer.tsx`에서 시작한다.

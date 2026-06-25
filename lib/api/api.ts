@@ -6,6 +6,7 @@ import {
   refreshAccessToken,
   handleAuthFailure,
 } from '@/lib/auth/tokenManager';
+import { getOrCreateVid } from '@/lib/utils/vid';
 
 /**
  * 프로젝트 전역으로 사용될 Axios 인스턴스.
@@ -19,12 +20,18 @@ const api = axios.create({
 /**
  * 요청 인터셉터 (Request Interceptor)
  * - 모든 API 요청이 보내지기 전에 실행됩니다.
+ * - 브라우저별 vid를 생성 또는 조회하여 모든 요청 헤더에 추가합니다.
  * - 로컬 스토리지에서 accessToken을 가져와 요청 헤더에 'Authorization'으로 추가합니다.
  * - 서버 사이드 렌더링(SSR) 환경에서는 로컬 스토리지가 없으므로, 클라이언트 사이드에서만 동작합니다.
  */
 api.interceptors.request.use(config => {
   if (typeof window === 'undefined') {
     return config;
+  }
+
+  const vid = getOrCreateVid();
+  if (vid) {
+    config.headers.vid = vid;
   }
 
   // 로그인, 회원가입 요청의 경우 토큰을 헤더에 추가하지 않음

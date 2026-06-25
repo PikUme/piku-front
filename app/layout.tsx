@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import LayoutWrapper from "@/components/common/LayoutWrapper";
+import VidInitializer from "@/components/common/VidInitializer";
 import ReactQueryProvider from "@/providers/ReactQueryProvider";
 
 // === 절대 URL 고정 (마지막 슬래시 제거) ===
@@ -155,6 +156,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         </noscript>
         {/* End Google Tag Manager (noscript) */}
 
+        <VidInitializer />
         <ReactQueryProvider>
           <LayoutWrapper>{children}</LayoutWrapper>
         </ReactQueryProvider>

@@ -20,10 +20,19 @@ describe('tokenManager refreshAccessToken', () => {
   it('네트워크 오류로 재발급 요청이 실패하면 기존 토큰을 유지한다', async () => {
     const networkError = new Error('Network Error');
     localStorage.setItem(AUTH_TOKEN_KEY, 'existing-access-token');
+    localStorage.setItem('vid', 'stored-vid');
     mockPost.mockRejectedValueOnce(networkError);
 
     await expect(refreshAccessToken()).rejects.toBe(networkError);
 
+    expect(mockPost).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/reissue'),
+      {},
+      {
+        headers: { vid: 'stored-vid' },
+        withCredentials: true,
+      },
+    );
     expect(localStorage.getItem(AUTH_TOKEN_KEY)).toBe('existing-access-token');
   });
 

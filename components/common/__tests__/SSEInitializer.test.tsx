@@ -9,6 +9,7 @@ const { eventSources, getAccessTokenMock, refreshAccessTokenMock } = vi.hoisted(
     onerror?: (event?: unknown) => void;
     close: ReturnType<typeof vi.fn>;
     readyState: number;
+    options?: { headers?: Record<string, string> };
   }>,
   getAccessTokenMock: vi.fn(),
   refreshAccessTokenMock: vi.fn(),
@@ -17,6 +18,10 @@ const { eventSources, getAccessTokenMock, refreshAccessTokenMock } = vi.hoisted(
 vi.mock('@/lib/auth/tokenManager', () => ({
   getAccessToken: getAccessTokenMock,
   refreshAccessToken: refreshAccessTokenMock,
+}));
+
+vi.mock('@/lib/utils/vid', () => ({
+  getOrCreateVid: () => 'stored-vid',
 }));
 
 vi.mock('event-source-polyfill', () => {
@@ -28,7 +33,10 @@ vi.mock('event-source-polyfill', () => {
       this.readyState = 2;
     });
 
-    constructor() {
+    options?: { headers?: Record<string, string> };
+
+    constructor(_url: string, options?: { headers?: Record<string, string> }) {
+      this.options = options;
       eventSources.push(this);
     }
   }
@@ -65,6 +73,7 @@ describe('SSEInitializer', () => {
     render(<SSEInitializer />);
 
     expect(eventSources).toHaveLength(1);
+    expect(eventSources[0].options?.headers?.vid).toBe('stored-vid');
 
     act(() => {
       eventSources[0].onerror?.({ error: new Error('NetworkError') });
