@@ -7,6 +7,7 @@ import ReactQueryProvider from "@/providers/ReactQueryProvider";
 // === 절대 URL 고정 (마지막 슬래시 제거) ===
 const BASE_URL =
   (process.env.NEXT_PUBLIC_BASE_URL || "https://www.pikume.com").replace(/\/+$/, "");
+const BRAND_ALTERNATE_NAMES = ["피쿠미", "PikUme", "pikume"];
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -168,9 +169,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
               "@type": "WebSite",
               url: BASE_URL,
               name: "PikUme",
-              alternateName: "피쿠미",
+              alternateName: BRAND_ALTERNATE_NAMES,
               description: "캐릭터로 기록하는 감정 다이어리",
-              keywords: "감정 다이어리, 캐릭터 일기, PIKU, 일기 앱",
+              keywords: "감정 다이어리, 캐릭터 일기, PIKU, 일기 앱, 피쿠미, 피쿠미 일기, 피쿠미 다이어리",
               potentialAction: {
                 "@type": "SearchAction",
                 target: `${BASE_URL}/search?query={search_term_string}`,
@@ -199,7 +200,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
               "@context": "https://schema.org",
               "@type": "Organization",
               name: "PikUme",
-              alternateName: "피쿠미",
+              alternateName: BRAND_ALTERNATE_NAMES,
               url: BASE_URL,
               logo: `${BASE_URL}/android-chrome-512x512.png`,
               description: "감정 기록을 위한 캐릭터 다이어리 서비스",
@@ -224,6 +225,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
               "@context": "https://schema.org",
               "@type": "WebApplication",
               name: "PikUme",
+              alternateName: BRAND_ALTERNATE_NAMES,
               description: "선택한 캐릭터와 함께 감정을 기록하는 다이어리 앱",
               url: BASE_URL,
               applicationCategory: "LifestyleApplication",
