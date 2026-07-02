@@ -10,12 +10,19 @@ import {
 
 const mockPush = vi.fn();
 const mockBack = vi.fn();
+const mockHeaderVisibility = vi.hoisted(() => ({
+  isVisible: true,
+}));
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
     back: mockBack,
   }),
+}));
+
+vi.mock('@/hooks/useHeaderVisibility', () => ({
+  useHeaderVisibility: () => mockHeaderVisibility.isVisible,
 }));
 
 vi.mock('@/lib/api/diary', () => ({
@@ -118,9 +125,26 @@ const mockGenerateAiPhotos = vi.mocked(generateAiPhotos);
 describe('DiaryCreateForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHeaderVisibility.isVisible = true;
     mockGetMonthlyDiaries.mockResolvedValue([]);
     mockGetRemainingAiRequests.mockResolvedValue(3);
     vi.spyOn(window, 'alert').mockImplementation(() => {});
+  });
+
+  it('모바일에서 작성 헤더를 피드 서브헤더처럼 스크롤 방향에 맞춰 노출한다', () => {
+    const { rerender } = render(<DiaryCreateForm date="2026-03-18" />);
+
+    const header = screen.getByTestId('diary-create-header');
+
+    expect(header).toHaveClass('max-xl:fixed');
+    expect(header).toHaveClass('max-xl:top-14');
+    expect(header).toHaveClass('max-xl:translate-y-0');
+    expect(screen.getByRole('button', { name: '완료' })).toBeInTheDocument();
+
+    mockHeaderVisibility.isVisible = false;
+    rerender(<DiaryCreateForm date="2026-03-18" />);
+
+    expect(header).toHaveClass('max-xl:-translate-y-[calc(100%+3.5rem)]');
   });
 
   it('작성된 날짜는 비활성화되고 선택 가능한 날짜를 누르면 작성 날짜가 바뀐다', async () => {

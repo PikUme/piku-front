@@ -33,6 +33,7 @@ import {
   PrivacyStatus,
 } from '@/types/diary';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useHeaderVisibility } from '@/hooks/useHeaderVisibility';
 import {
   getApiErrorMessage,
   getFieldError,
@@ -211,6 +212,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   useBodyScrollLock(isDatePickerOpen || isPrivacyModalOpen);
+  const isHeaderVisible = useHeaderVisibility();
 
   const {
     register,
@@ -613,7 +615,12 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
 
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-black">
-        <header className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-900 dark:border-gray-700">
+        <header
+            data-testid="diary-create-header"
+            className={`flex h-14 items-center justify-between border-b bg-white/95 px-4 backdrop-blur transition-transform duration-200 ease-out dark:border-gray-700 dark:bg-gray-900/95 max-xl:fixed max-xl:left-0 max-xl:right-0 max-xl:top-14 max-xl:z-20 xl:sticky xl:top-0 xl:z-20 ${
+                isHeaderVisible ? 'max-xl:translate-y-0' : 'max-xl:-translate-y-[calc(100%+3.5rem)]'
+            }`}
+        >
             <button
                 onClick={() => router.back()}
                 className="cursor-pointer dark:text-white"
@@ -632,7 +639,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
             </button>
         </header>
 
-        <main className="flex-grow p-4 overflow-y-auto text-black dark:text-white flex flex-col">
+        <main className="flex flex-grow flex-col overflow-y-auto px-4 pb-4 pt-[4.5rem] text-black dark:text-white xl:p-4">
             <div className="flex items-center space-x-3 pb-2">
                 {/* 고정 버튼 영역 */}
                 <button
