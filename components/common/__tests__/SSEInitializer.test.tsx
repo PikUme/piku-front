@@ -1,7 +1,9 @@
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import useAuthStore from '@/components/store/authStore';
+import useNotificationStore from '@/components/store/notificationStore';
 import SSEInitializer from '../SSEInitializer';
+import type { SseWorkerToTabMessage } from '@/lib/sse/sharedWorkerProtocol';
 
 const { eventSources, getAccessTokenMock, refreshAccessTokenMock } = vi.hoisted(() => ({
   eventSources: [] as Array<{
@@ -43,9 +45,31 @@ const user = {
   avatar: 'http://example.com/avatar.png',
 };
 
+class MockMessagePort {
+  onmessage: ((event: { data: SseWorkerToTabMessage }) => void) | null = null;
+  postMessage = vi.fn();
+  start = vi.fn();
+  close = vi.fn();
+
+  receive(message: SseWorkerToTabMessage) {
+    this.onmessage?.({ data: message });
+  }
+}
+
+const sharedWorkerPorts: MockMessagePort[] = [];
+
+class MockSharedWorker {
+  port = new MockMessagePort();
+
+  constructor() {
+    sharedWorkerPorts.push(this.port);
+  }
+}
+
 describe('SSEInitializer', () => {
   beforeEach(() => {
     eventSources.length = 0;
+    sharedWorkerPorts.length = 0;
     vi.clearAllMocks();
     getAccessTokenMock.mockReturnValue('access-token');
     refreshAccessTokenMock.mockResolvedValue('new-access-token');
@@ -54,11 +78,66 @@ describe('SSEInitializer', () => {
       isLoggedIn: true,
       user,
     });
+    useNotificationStore.setState({ unreadCount: 0 });
   });
 
   afterEach(() => {
     cleanup();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+    delete process.env.NEXT_PUBLIC_E2E_TEST;
+  });
+
+  it('SharedWorker 지원 환경에서는 직접 SSE 대신 worker port에 연결 정보를 보낸다', () => {
+    vi.stubGlobal('SharedWorker', MockSharedWorker);
+
+    render(<SSEInitializer />);
+
+    expect(sharedWorkerPorts).toHaveLength(1);
+    expect(eventSources).toHaveLength(0);
+    expect(sharedWorkerPorts[0].start).toHaveBeenCalled();
+    expect(sharedWorkerPorts[0].postMessage).toHaveBeenCalledWith({
+      type: 'CONNECT',
+      clientId: expect.any(String),
+      token: 'access-token',
+      serverUrl: 'http://localhost:8080/api',
+    });
+  });
+
+  it('SharedWorker가 전달한 unread count 메시지를 notificationStore에 반영한다', () => {
+    vi.stubGlobal('SharedWorker', MockSharedWorker);
+
+    render(<SSEInitializer />);
+
+    act(() => {
+      sharedWorkerPorts[0].receive({ type: 'SET_UNREAD_COUNT', count: 4 });
+    });
+
+    expect(useNotificationStore.getState().unreadCount).toBe(4);
+
+    act(() => {
+      sharedWorkerPorts[0].receive({ type: 'INCREMENT_UNREAD_COUNT' });
+    });
+
+    expect(useNotificationStore.getState().unreadCount).toBe(5);
+  });
+
+  it('SharedWorker의 token refresh 요청을 기존 tokenManager로 위임하고 결과를 worker에 돌려준다', async () => {
+    vi.stubGlobal('SharedWorker', MockSharedWorker);
+
+    render(<SSEInitializer />);
+
+    await act(async () => {
+      sharedWorkerPorts[0].receive({ type: 'REQUEST_TOKEN_REFRESH' });
+      await Promise.resolve();
+    });
+
+    expect(refreshAccessTokenMock).toHaveBeenCalledTimes(1);
+    expect(sharedWorkerPorts[0].postMessage).toHaveBeenCalledWith({
+      type: 'TOKEN_REFRESHED',
+      clientId: expect.any(String),
+      token: 'new-access-token',
+    });
   });
 
   it('상태 코드 없는 네트워크 오류에서는 토큰 재발급을 시도하지 않는다', () => {

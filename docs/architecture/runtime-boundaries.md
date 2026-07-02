@@ -15,7 +15,7 @@
 ## 초기화 위치
 - 인증 토큰 접근과 현재 사용자 복구는 `lib/auth/tokenManager.ts`, `lib/api/auth.ts`, `components/store/authStore.ts` 경계 안에서 처리한다.
 - 로그인 필요 화면의 진입 제어는 `components/auth/RequireAuth.tsx`에서 공통 처리한다.
-- SSE 초기화는 `components/common/SSEInitializer.tsx`에서 시작한다.
+- SSE 초기화는 `components/common/SSEInitializer.tsx`에서 시작하고, SharedWorker 지원 환경의 실제 SSE 서버 연결은 `lib/sse` 경계가 소유한다.
 - FCM 초기화는 `components/common/FCMInitializer.tsx`에서 시작한다.
 - PWA 관련 UI는 `components/common/PWAInstallPrompt.tsx`, `components/common/PWAInstallButton.tsx`를 통해 노출한다.
 
@@ -31,6 +31,8 @@
 - sleep/wake, 오프라인, 백엔드 재배포처럼 상태 코드가 없거나 5xx 계열인 SSE 연결 실패는 인증 실패로 간주하지 않고 기존 토큰으로 재연결해야 한다.
 - SSE 재연결은 3초에서 시작하는 exponential backoff를 적용하고, 연결이 다시 성공하면 지연 시간을 초기화한다.
 - 상태 코드가 없는 SSE 오류가 반복되면 자동 타이머 재연결을 중단한다.
+- SharedWorker 지원 환경에서는 같은 브라우저 origin의 여러 탭이 하나의 SSE 서버 연결을 공유해야 한다.
+- SharedWorker를 만들 수 없는 환경에서는 기존 탭 단위 직접 SSE 연결로 fallback해야 한다.
 - FCM 초기화 실패는 알림 기능 저하로 끝나야 하며, 핵심 화면 진입을 막지 않아야 한다.
 - 이미지 로드 실패는 대체 UI 또는 안전한 비표시 상태로 수렴해야 한다.
 - 토큰 재발급이 401/403으로 실패하면 인증 정리 후 로그인 화면으로 이동해야 한다.

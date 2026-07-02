@@ -20,7 +20,7 @@
 
 ### `lib/`
 런타임 공통 모듈을 둔다.
-`lib/api`는 HTTP 계약, `lib/auth`는 토큰/재발급 로직, `lib/utils`는 공통 유틸리티를 담당한다.
+`lib/api`는 HTTP 계약, `lib/auth`는 토큰/재발급 로직, `lib/sse`는 SharedWorker 기반 SSE 연결 경계, `lib/utils`는 공통 유틸리티를 담당한다.
 
 ### `types/`
 공통 타입 계약을 둔다.
@@ -42,6 +42,7 @@
 - 앱 전역의 클라이언트 상태는 `Zustand`가 담당한다.
 - HTTP 요청은 `lib/api/api.ts`와 각 도메인별 `lib/api/*`를 통해 수행한다.
 - 인증 토큰과 재발급 흐름은 `lib/auth/tokenManager.ts`와 Axios 인터셉터가 함께 처리한다.
+- SSE 서버 연결은 `lib/sse`의 SharedWorker 경계가 소유하고, 화면 상태 반영은 각 탭의 `notificationStore`가 담당한다.
 
 대표 흐름:
 
