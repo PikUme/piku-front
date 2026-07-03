@@ -18,6 +18,7 @@ import { Trash2, Loader2, Check } from 'lucide-react';
 import useNotificationStore from '../store/notificationStore';
 import useAuthStore from '../store/authStore';
 import AnonymousProfileIcon from '@/components/common/AnonymousProfileIcon';
+import { publishUnreadCountToSseWorker } from '@/lib/sse/sseSharedWorkerClient';
 
 const RESOURCE_NOT_FOUND =
   'https://api.pikume.com/problems/common/resource-not-found';
@@ -39,7 +40,7 @@ const NotificationsClient = () => {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { user } = useAuthStore();
-  const { decrementUnreadCount } = useNotificationStore();
+  const { setUnreadCount, decrementUnreadCount } = useNotificationStore();
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [selectedDiary, setSelectedDiary] = useState<DiaryDetail | null>(null);
@@ -64,6 +65,10 @@ const NotificationsClient = () => {
 
   const notifications = data?.pages.flatMap((page) => page.content) || [];
 
+  const publishCurrentUnreadCount = () => {
+    publishUnreadCountToSseWorker(useNotificationStore.getState().unreadCount);
+  };
+
   const readMutation = useMutation({
     mutationFn: markNotificationAsRead,
     onSuccess: () => {
@@ -75,11 +80,8 @@ const NotificationsClient = () => {
     mutationFn: markAllNotificationsAsRead,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      // 모든 알림을 읽음 처리했으므로 unread count를 0으로 설정
-      const unreadCount = notifications.filter(n => !n.isRead).length;
-      for (let i = 0; i < unreadCount; i++) {
-        decrementUnreadCount();
-      }
+      setUnreadCount(0);
+      publishUnreadCountToSseWorker(0);
     },
   });
 
@@ -108,6 +110,7 @@ const NotificationsClient = () => {
       try {
         await readMutation.mutateAsync(notification.id);
         decrementUnreadCount();
+        publishCurrentUnreadCount();
       } catch (error) {
         if (hasProblemType(error, RESOURCE_NOT_FOUND)) {
           queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -178,6 +181,7 @@ const NotificationsClient = () => {
       onSuccess: () => {
         if (!notification.isRead) {
           decrementUnreadCount();
+          publishCurrentUnreadCount();
         }
       },
       onError: (error) => {

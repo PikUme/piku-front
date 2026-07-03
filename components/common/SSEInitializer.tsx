@@ -9,6 +9,8 @@ import {
   getAccessToken,
   refreshAccessToken,
 } from '@/lib/auth/tokenManager';
+import { createSseSharedWorkerConnection } from '@/lib/sse/sseSharedWorkerClient';
+import type { SseWorkerToTabMessage } from '@/lib/sse/sharedWorkerProtocol';
 
 const INITIAL_RECONNECT_DELAY = 3000;
 const MAX_RECONNECT_DELAY = 30000;
@@ -44,6 +46,9 @@ const SSEInitializer = () => {
 
     let isMounted = true;
     let isFirstMessage = true;
+    let sharedWorkerConnection: ReturnType<
+      typeof createSseSharedWorkerConnection
+    > = null;
 
     const clearReconnectTimeout = () => {
       if (reconnectTimeoutRef.current) {
@@ -67,6 +72,65 @@ const SSEInitializer = () => {
         }
       }, delay);
     };
+
+    const handleWorkerMessage = (message: SseWorkerToTabMessage) => {
+      switch (message.type) {
+        case 'SET_UNREAD_COUNT':
+          setUnreadCount(message.count);
+          break;
+        case 'INCREMENT_UNREAD_COUNT':
+          incrementUnreadCount();
+          break;
+        case 'REQUEST_TOKEN_REFRESH':
+          refreshAccessToken()
+            .then((newToken) => {
+              if (isMounted) {
+                sharedWorkerConnection?.postTokenRefreshSucceeded(newToken);
+              }
+            })
+            .catch(() => {
+              if (isMounted) {
+                sharedWorkerConnection?.postTokenRefreshFailed(
+                  Boolean(getAccessToken()),
+                );
+              }
+            });
+          break;
+        case 'AUTH_FAILED':
+          break;
+      }
+    };
+
+    const token = getAccessToken();
+    if (!token) return;
+
+    sharedWorkerConnection = createSseSharedWorkerConnection({
+      token,
+      serverUrl: getServerURL(),
+      onMessage: handleWorkerMessage,
+    });
+
+    if (sharedWorkerConnection) {
+      const handleWorkerVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          sharedWorkerConnection?.notifyVisible(getAccessToken());
+        }
+      };
+
+      document.addEventListener(
+        'visibilitychange',
+        handleWorkerVisibilityChange,
+      );
+
+      return () => {
+        isMounted = false;
+        sharedWorkerConnection?.dispose();
+        document.removeEventListener(
+          'visibilitychange',
+          handleWorkerVisibilityChange,
+        );
+      };
+    }
 
     const connect = (token: string) => {
       // 언마운트 체크
@@ -149,8 +213,6 @@ const SSEInitializer = () => {
     };
 
     // 초기 연결
-    const token = getAccessToken();
-    if (!token) return;
     connect(token);
 
     const handleVisibilityChange = () => {

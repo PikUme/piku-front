@@ -28,6 +28,11 @@
 ### `lib/auth/`
 - 토큰 접근, 재발급, 인증 실패 처리
 
+### `lib/sse/`
+- SharedWorker 기반 SSE 연결 관리
+- 탭과 worker 사이의 메시지 계약
+- SSE unread count 브로드캐스트와 직접 연결 fallback 보조
+
 ### `lib/utils/`
 - 순수 유틸리티 또는 프레임워크 비의존 공통 함수
 
@@ -72,4 +77,5 @@
 ## 관련 문서
 - `ARCHITECTURE.md`
 - `docs/architecture/runtime-boundaries.md`
+- `docs/architecture/sse-runtime.md`
 - `docs/frontend/runtime-contracts.md`

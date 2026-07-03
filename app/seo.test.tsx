@@ -40,7 +40,7 @@ const getStringArray = (value: Metadata['keywords']) => {
 const getJsonLdData = (html: string) =>
   Array.from(
     html.matchAll(
-      /<script type="application\/ld\+json"[^>]*>(.*?)<\/script>/gs,
+      /<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g,
     ),
   ).map((match) => JSON.parse(match[1]));
 

@@ -13,7 +13,17 @@ import {
 } from '@/lib/api/notification';
 
 const mockPush = vi.fn();
-const mockDecrementUnreadCount = vi.fn();
+const {
+  mockDecrementUnreadCount,
+  mockSetUnreadCount,
+  mockPublishUnreadCountToSseWorker,
+  mockUnreadCountState,
+} = vi.hoisted(() => ({
+  mockDecrementUnreadCount: vi.fn(),
+  mockSetUnreadCount: vi.fn(),
+  mockPublishUnreadCountToSseWorker: vi.fn(),
+  mockUnreadCountState: { value: 3 },
+}));
 
 const mockViewport = vi.hoisted(() => ({
   isDesktop: true,
@@ -58,11 +68,22 @@ vi.mock('@/lib/api/diary', () => ({
   getDiaryById: vi.fn(),
 }));
 
-vi.mock('../../store/notificationStore', () => ({
-  default: () => ({
-    decrementUnreadCount: mockDecrementUnreadCount,
-  }),
+vi.mock('@/lib/sse/sseSharedWorkerClient', () => ({
+  publishUnreadCountToSseWorker: mockPublishUnreadCountToSseWorker,
 }));
+
+vi.mock('../../store/notificationStore', () => {
+  const useNotificationStore = () => ({
+    unreadCount: mockUnreadCountState.value,
+    setUnreadCount: mockSetUnreadCount,
+    decrementUnreadCount: mockDecrementUnreadCount,
+  });
+  useNotificationStore.getState = () => ({
+    unreadCount: mockUnreadCountState.value,
+  });
+
+  return { default: useNotificationStore };
+});
 
 vi.mock('../../store/authStore', () => ({
   default: () => ({
@@ -154,6 +175,13 @@ const renderClient = () => {
 describe('NotificationsClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUnreadCountState.value = 3;
+    mockSetUnreadCount.mockImplementation((count: number) => {
+      mockUnreadCountState.value = count;
+    });
+    mockDecrementUnreadCount.mockImplementation(() => {
+      mockUnreadCountState.value = Math.max(0, mockUnreadCountState.value - 1);
+    });
     mockViewport.isDesktop = true;
     mockDeleteNotification.mockResolvedValue(undefined);
     vi.mocked(markAllNotificationsAsRead).mockResolvedValue(undefined);
@@ -195,7 +223,53 @@ describe('NotificationsClient', () => {
       expect(mockMarkNotificationAsRead).toHaveBeenCalledWith(1);
       expect(mockDecrementUnreadCount).toHaveBeenCalledTimes(1);
     });
+    expect(mockPublishUnreadCountToSseWorker).toHaveBeenCalledWith(2);
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('모든 알림 읽음 처리 성공 시 SharedWorker에 unread count 0을 전파한다', async () => {
+    mockGetNotifications.mockResolvedValue(
+      makePage([
+        makeNotification({
+          id: 11,
+          message: 'first unread',
+        }),
+        makeNotification({
+          id: 12,
+          message: 'second unread',
+        }),
+      ]),
+    );
+
+    renderClient();
+
+    fireEvent.click(await screen.findByText('모두 읽기'));
+
+    await waitFor(() => {
+      expect(markAllNotificationsAsRead).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockPublishUnreadCountToSseWorker).toHaveBeenCalledWith(0);
+  });
+
+  it('읽음 처리 성공 시 렌더 시점이 아니라 현재 store의 unread count를 전파한다', async () => {
+    mockGetNotifications.mockResolvedValue(
+      makePage([makeNotification({ message: 'current count matters' })]),
+    );
+
+    renderClient();
+
+    await screen.findByText('current count matters');
+    mockUnreadCountState.value = 1;
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('current count matters'));
+    });
+
+    await waitFor(() => {
+      expect(mockMarkNotificationAsRead).toHaveBeenCalledWith(1);
+    });
+    expect(mockPublishUnreadCountToSseWorker).toHaveBeenCalledWith(0);
   });
 
   it('COMMENT 알림 클릭 시 페이지 이동 대신 일기 모달을 연다', async () => {
