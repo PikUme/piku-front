@@ -20,6 +20,14 @@ interface SseSharedWorkerConnection {
 let activePort: MessagePort | null = null;
 let activeClientId: string | null = null;
 
+export const isMobileBrowserForSseWorkerFallback = () => {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
+
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+};
+
 const createClientId = () => {
   if (
     typeof crypto !== 'undefined' &&
@@ -52,7 +60,11 @@ export const createSseSharedWorkerConnection = ({
   serverUrl,
   onMessage,
 }: SseSharedWorkerConnectionOptions): SseSharedWorkerConnection | null => {
-  if (typeof window === 'undefined' || !('SharedWorker' in window)) {
+  if (
+    typeof window === 'undefined' ||
+    !('SharedWorker' in window) ||
+    isMobileBrowserForSseWorkerFallback()
+  ) {
     return null;
   }
 

@@ -66,6 +66,13 @@ class MockSharedWorker {
   }
 }
 
+const setUserAgent = (userAgent: string) => {
+  vi.stubGlobal('navigator', {
+    ...window.navigator,
+    userAgent,
+  });
+};
+
 describe('SSEInitializer', () => {
   beforeEach(() => {
     eventSources.length = 0;
@@ -139,6 +146,36 @@ describe('SSEInitializer', () => {
       token: 'new-access-token',
     });
   });
+
+  it.each([
+    [
+      'iOS Safari',
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1',
+    ],
+    [
+      'Android Chrome',
+      'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
+    ],
+    [
+      'iOS Google app',
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) GSA/322.0.0.34 Mobile/15E148 Safari/604.1',
+    ],
+    [
+      'Android Google app',
+      'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/UP1A.231005.007; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/126.0.6478.110 Mobile Safari/537.36 GSA/15.24.38.28.arm64',
+    ],
+  ])(
+    '%s에서는 SharedWorker가 있어도 직접 SSE fallback을 사용한다',
+    (_browserName, userAgent) => {
+      vi.stubGlobal('SharedWorker', MockSharedWorker);
+      setUserAgent(userAgent);
+
+      render(<SSEInitializer />);
+
+      expect(sharedWorkerPorts).toHaveLength(0);
+      expect(eventSources).toHaveLength(1);
+    },
+  );
 
   it('상태 코드 없는 네트워크 오류에서는 토큰 재발급을 시도하지 않는다', () => {
     render(<SSEInitializer />);
