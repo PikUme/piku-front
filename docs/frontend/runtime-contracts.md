@@ -74,4 +74,5 @@ API 응답 형식, 상태 관리 경계, 인증/알림/URL 처리 규칙이 바�
 ## 관련 문서
 - `ARCHITECTURE.md`
 - `docs/architecture/runtime-boundaries.md`
+- `docs/architecture/sse-runtime.md`
 - `docs/frontend/testing-and-verification.md`

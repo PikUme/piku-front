@@ -77,4 +77,5 @@
 ## 관련 문서
 - `ARCHITECTURE.md`
 - `docs/architecture/runtime-boundaries.md`
+- `docs/architecture/sse-runtime.md`
 - `docs/frontend/runtime-contracts.md`

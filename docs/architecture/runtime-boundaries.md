@@ -32,6 +32,7 @@
 - SSE 재연결은 3초에서 시작하는 exponential backoff를 적용하고, 연결이 다시 성공하면 지연 시간을 초기화한다.
 - 상태 코드가 없는 SSE 오류가 반복되면 자동 타이머 재연결을 중단한다.
 - SharedWorker 지원 환경에서는 같은 브라우저 origin의 여러 탭이 하나의 SSE 서버 연결을 공유해야 한다.
+- 모바일 브라우저에서는 SharedWorker 지원 여부와 무관하게 기존 탭 단위 직접 SSE 연결로 fallback해야 한다.
 - SharedWorker를 만들 수 없는 환경에서는 기존 탭 단위 직접 SSE 연결로 fallback해야 한다.
 - FCM 초기화 실패는 알림 기능 저하로 끝나야 하며, 핵심 화면 진입을 막지 않아야 한다.
 - 이미지 로드 실패는 대체 UI 또는 안전한 비표시 상태로 수렴해야 한다.
@@ -45,5 +46,6 @@
 
 ## 관련 문서
 - `ARCHITECTURE.md`
+- `docs/architecture/sse-runtime.md`
 - `docs/frontend/runtime-contracts.md`
 - `docs/frontend/testing-and-verification.md`

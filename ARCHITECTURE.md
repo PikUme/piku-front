@@ -72,6 +72,7 @@
 ## 상세 문서
 - `docs/architecture/directory-map.md`
 - `docs/architecture/runtime-boundaries.md`
+- `docs/architecture/sse-runtime.md`
 - `docs/frontend/runtime-contracts.md`
 - `docs/frontend/testing-and-verification.md`
 - `docs/process/documentation-rules.md`
