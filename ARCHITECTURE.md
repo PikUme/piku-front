@@ -20,7 +20,7 @@
 
 ### `lib/`
 런타임 공통 모듈을 둔다.
-`lib/api`는 HTTP 계약, `lib/auth`는 토큰/재발급 로직, `lib/sse`는 SharedWorker 기반 SSE 연결 경계, `lib/utils`는 공통 유틸리티를 담당한다.
+`lib/api`는 HTTP 계약, `lib/auth`는 토큰/재발급 로직, `lib/sse`는 SharedWorker 기반 SSE 연결 경계, `lib/metadata`는 페이지별 SEO·공유 메타데이터 생성 계약, `lib/utils`는 공통 유틸리티를 담당한다.
 
 ### `types/`
 공통 타입 계약을 둔다.
@@ -36,6 +36,8 @@
 - 페이지는 가능하면 얇게 유지하고, 실제 상호작용은 `components/`로 이동한다.
 - 브라우저 전용 동작이 필요한 경우 클라이언트 컴포넌트 경계를 명시한다.
 - 라우트 구조를 변경하면 URL 체계뿐 아니라 진입 책임과 연결 문서도 함께 점검한다.
+- 공개 페이지의 canonical, `og:url`, 공유 카드 문구와 공통 공유 이미지 URL은 `lib/metadata`의 공통 생성기를 사용한다.
+- 기본 OG/Twitter 이미지 자산은 `app/opengraph-image.png`와 `app/twitter-image.png` 파일 기반 메타데이터 위치에 둔다.
 
 ## 상태와 데이터 흐름
 - 서버 데이터 조회와 캐시는 주로 `React Query`가 담당한다.

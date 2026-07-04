@@ -4,6 +4,7 @@ import { deleteDiary, getDiaryById } from '@/lib/api/diary';
 import type { DiaryDetail } from '@/types/diary';
 import { sendFriendRequest } from '@/lib/api/friend';
 import { FriendshipStatus } from '@/types/friend';
+import DiaryDetailClient from '../DiaryDetailClient';
 
 const mockPush = vi.fn();
 const mockBack = vi.fn();
@@ -107,8 +108,6 @@ describe('DiaryDetailClient', () => {
   });
 
   it('일기 상세 조회 실패 시 404 이미지를 보여준다', async () => {
-    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
-
     vi.mocked(getDiaryById).mockRejectedValue({
       response: {
         data: {
@@ -129,7 +128,6 @@ describe('DiaryDetailClient', () => {
   });
 
   it('소유자는 더보기 메뉴에서 일기를 수정하고 삭제할 수 있다', async () => {
-    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
     authState = { user: { id: 'owner-id' }, isLoggedIn: true };
     vi.mocked(getDiaryById).mockResolvedValue(diary);
     vi.mocked(deleteDiary).mockResolvedValue();
@@ -152,7 +150,6 @@ describe('DiaryDetailClient', () => {
   });
 
   it('소유자에게 공개범위를 보여준다', async () => {
-    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
     authState = { user: { id: 'owner-id' }, isLoggedIn: true };
     vi.mocked(getDiaryById).mockResolvedValue({ ...diary, status: 'FRIENDS' });
 
@@ -162,7 +159,6 @@ describe('DiaryDetailClient', () => {
   });
 
   it('친구관계가 아니면 친구추가 버튼으로 친구 요청을 보낸다', async () => {
-    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
     authState = { user: { id: 'viewer-id' }, isLoggedIn: true };
     vi.mocked(getDiaryById).mockResolvedValue({
       ...diary,
@@ -191,7 +187,6 @@ describe('DiaryDetailClient', () => {
   });
 
   it('친구 추가 버튼을 반복 클릭해도 친구 요청은 한 번만 보낸다', async () => {
-    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
     authState = { user: { id: 'viewer-id' }, isLoggedIn: true };
     vi.mocked(getDiaryById).mockResolvedValue({
       ...diary,
@@ -216,7 +211,6 @@ describe('DiaryDetailClient', () => {
   });
 
   it('프로필 영역을 피드처럼 가로 메타로 보여주고 hover 시 프로필 카드를 보여준다', async () => {
-    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
     authState = { user: { id: 'viewer-id' }, isLoggedIn: true };
     vi.mocked(getDiaryById).mockResolvedValue({
       ...diary,
@@ -240,7 +234,6 @@ describe('DiaryDetailClient', () => {
   });
 
   it('익명 일기 상세는 isOwner로 작성자 메뉴를 판단하고 프로필 링크를 만들지 않는다', async () => {
-    const { default: DiaryDetailClient } = await import('../DiaryDetailClient');
     authState = { user: { id: 'owner-id' }, isLoggedIn: true };
     vi.mocked(getDiaryById).mockResolvedValue({
       ...diary,

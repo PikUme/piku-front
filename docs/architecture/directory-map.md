@@ -33,6 +33,11 @@
 - 탭과 worker 사이의 메시지 계약
 - SSE unread count 브로드캐스트와 직접 연결 fallback 보조
 
+### `lib/metadata/`
+- 페이지별 SEO 메타데이터 생성
+- canonical, `og:url`, OG 사이트 정보, Twitter Card 공통 계약
+- 모든 공개 페이지가 기본 공유 이미지를 잃지 않도록 공통 OG/Twitter 이미지 URL 정의
+
 ### `lib/utils/`
 - 순수 유틸리티 또는 프레임워크 비의존 공통 함수
 
@@ -63,6 +68,7 @@
 
 ## 새 파일 추가 기준
 - 새 URL이 필요하면 `app/`에 추가한다.
+- 새 공개 페이지 메타데이터는 `lib/metadata`의 공통 생성기를 우선 사용한다.
 - 새 상호작용 UI는 `components/`에 추가한다.
 - 여러 화면이 공유하는 로직만 `hooks/`로 올린다.
 - HTTP 통신은 `lib/api/` 외부에서 직접 정의하지 않는다.

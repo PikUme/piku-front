@@ -39,11 +39,6 @@ export const metadata: Metadata = {
   publisher: "PikUme",
   category: "Lifestyle",
 
-  // canonical 은 metadataBase와 합쳐져 절대 URL로 출력됨
-  alternates: {
-    canonical: "/",
-  },
-
   robots: {
     index: true,
     follow: true,
@@ -85,31 +80,20 @@ export const metadata: Metadata = {
     title: "PikUme",
   },
 
-  // === Open Graph (절대 URL 고정) ===
+  // === Open Graph ===
   openGraph: {
     type: "website",
-    url: BASE_URL, // og:url
     siteName: "PikUme",
     title: "PikUme - 캐릭터 감정 다이어리",
     description: "PIKU 캐릭터로 기록하는 감정 다이어리. 캐릭터와 함께 하루 한 장 일기를 작성하고 친구들과 감정을 공유해보세요.",
     locale: "ko_KR",
-    images: [
-      {
-        url: `${BASE_URL}/piku-og-1200x630.png`, // og:image 절대 경로
-        width: 1200,
-        height: 630,
-        alt: "PikUme - 캐릭터 감정 다이어리",
-        type: "image/png",
-      },
-    ],
   },
 
-  // === Twitter Card (절대 URL 고정) ===
+  // === Twitter Card ===
   twitter: {
     card: "summary_large_image",
     title: "PikUme - 캐릭터 감정 다이어리",
     description: "PIKU 캐릭터로 기록하는 감정 다이어리. 캐릭터와 함께 하루 한 장 일기를 작성하고 친구들과 감정을 공유해보세요.",
-    images: [`${BASE_URL}/piku-og-1200x630.png`], // twitter:image
   },
 };
 

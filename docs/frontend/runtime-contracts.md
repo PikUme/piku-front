@@ -71,6 +71,13 @@ API 응답 형식, 상태 관리 경계, 인증/알림/URL 처리 규칙이 바�
 - ISO 전체 문자열을 직접 URL에 쓰지 않는다.
 - 특정 상세 진입을 위한 쿼리 파라미터는 화면 초기화 후 정리 여부를 명시적으로 결정한다.
 
+## 공유 메타데이터 / URL 계약
+- 공개 페이지의 canonical과 `og:url`은 해당 페이지 경로를 가리켜야 하며, 루트 레이아웃에서 홈 경로를 일괄 상속하지 않는다.
+- 공개 페이지의 SEO/OG/Twitter 문구는 `lib/metadata/createPageMetadata.ts`의 공통 생성기를 우선 사용한다.
+- 기본 공유 이미지 자산은 Next.js 파일 기반 메타데이터 위치인 `app/opengraph-image.png`와 `app/twitter-image.png`에 둔다.
+- 공통 생성기는 하위 페이지가 기본 이미지를 잃지 않도록 `openGraph.images`와 `twitter.images`에 해당 자산 URL, 크기, alt 정보를 명시한다.
+- 동적 일기 공유 이미지를 추가할 때는 같은 URL 계약을 확장하되, 비공개·삭제·조회 불가 상태에서는 공통 기본 이미지를 사용한다.
+
 ## 관련 문서
 - `ARCHITECTURE.md`
 - `docs/architecture/runtime-boundaries.md`
