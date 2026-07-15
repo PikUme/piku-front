@@ -15,6 +15,7 @@ import { trackEvent, FEED_CLICK, FEED_LIKE } from '@/lib/analytics/events';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import FeedSortSubHeader from './FeedSortSubHeader';
+import FeedSkeleton from './FeedSkeleton';
 import { isAnonymousDiaryIdentity } from '@/lib/utils/privacy';
 
 const FeedClient = () => {
@@ -363,10 +364,10 @@ const FeedClient = () => {
     );
   };
 
-  if (feed.length === 0 && loading) {
+  if (feed.length === 0 && (loading || !hasMounted.current)) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <p>피드를 불러오는 중...</p>
+      <div className="mx-auto max-w-[600px] pt-[3.75rem] xl:pt-0">
+        <FeedSkeleton count={2} />
       </div>
     );
   }
@@ -409,9 +410,7 @@ const FeedClient = () => {
           </div>
         ))}
         {loading && !isLoadingDetail && (
-          <div className="flex h-20 items-center justify-center">
-            <p>피드를 더 불러오는 중...</p>
-          </div>
+          <FeedSkeleton count={1} />
         )}
       </div>
       {isLoadingDetail && (
