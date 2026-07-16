@@ -224,6 +224,7 @@ describe('FeedClient', () => {
   it('첫 렌더부터 카드 스켈레톤 2개를 표시한다', () => {
     const markup = renderToStaticMarkup(<FeedClient />);
 
+    expect(markup).toContain('data-testid="feed-sort-subheader"');
     expect(markup.match(/data-testid="feed-skeleton-card"/g) ?? []).toHaveLength(2);
   });
 
@@ -238,6 +239,7 @@ describe('FeedClient', () => {
       name: '피드를 불러오는 중',
     });
 
+    expect(screen.getByTestId('feed-sort-subheader')).toBeInTheDocument();
     expect(
       within(loadingStatus).getAllByTestId('feed-skeleton-card'),
     ).toHaveLength(2);
@@ -322,6 +324,11 @@ describe('FeedClient', () => {
     });
 
     expect(screen.queryByTestId('feed-card-1')).not.toBeInTheDocument();
+    expect(screen.getByTestId('feed-sort-subheader')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '추천순' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     expect(
       within(loadingStatus).getAllByTestId('feed-skeleton-card'),
     ).toHaveLength(2);

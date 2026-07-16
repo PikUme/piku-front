@@ -364,13 +364,8 @@ const FeedClient = () => {
     );
   };
 
-  if (feed.length === 0 && (loading || !hasMounted.current)) {
-    return (
-      <div className="mx-auto max-w-[600px] pt-[3.75rem] xl:pt-0">
-        <FeedSkeleton count={2} />
-      </div>
-    );
-  }
+  const isInitialLoading =
+    feed.length === 0 && (loading || !hasMounted.current);
 
   if (error === 'initial') {
     return (
@@ -393,24 +388,28 @@ const FeedClient = () => {
         onSortChange={handleSortChange}
       />
       <div className="space-y-8">
-        {feed.map((post, index) => (
-          <div
-            key={post.diaryId}
-            ref={index === feed.length - 1 ? lastPostElementRef : null}
-          >
-            <FeedCard
-              post={post}
-              onFriendshipStatusChange={handleFriendshipStatusChange}
-              onContentClick={() => handleContentClick(post.diaryId)}
-              onCommentClick={() => handleCommentClick(post)}
-              onLikeToggle={handleLikeToggle}
-              onCommentCreated={incrementDiaryCommentCount}
-              isMobile={!isDesktop}
-            />
-          </div>
-        ))}
-        {loading && !isLoadingDetail && (
-          <FeedSkeleton count={1} />
+        {isInitialLoading ? (
+          <FeedSkeleton count={2} />
+        ) : (
+          <>
+            {feed.map((post, index) => (
+              <div
+                key={post.diaryId}
+                ref={index === feed.length - 1 ? lastPostElementRef : null}
+              >
+                <FeedCard
+                  post={post}
+                  onFriendshipStatusChange={handleFriendshipStatusChange}
+                  onContentClick={() => handleContentClick(post.diaryId)}
+                  onCommentClick={() => handleCommentClick(post)}
+                  onLikeToggle={handleLikeToggle}
+                  onCommentCreated={incrementDiaryCommentCount}
+                  isMobile={!isDesktop}
+                />
+              </div>
+            ))}
+            {loading && !isLoadingDetail && <FeedSkeleton count={1} />}
+          </>
         )}
       </div>
       {isLoadingDetail && (
