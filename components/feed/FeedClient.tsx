@@ -263,7 +263,9 @@ const FeedClient = () => {
       if (loading) return;
       if (observer.current) observer.current.disconnect();
 
+      const observerGeneration = requestGenerationRef.current;
       observer.current = new IntersectionObserver(entries => {
+        if (observerGeneration !== requestGenerationRef.current) return;
         if (entries[0].isIntersecting && hasMore) {
           loadMore();
         }

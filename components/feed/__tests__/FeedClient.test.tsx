@@ -411,6 +411,49 @@ describe('FeedClient', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('정렬 변경 전에 등록된 관찰 콜백은 새 정렬의 다음 페이지를 요청하지 않는다', async () => {
+    const recommended = createDeferred<CursorPage<FeedDiary>>();
+    const staleObserverRequest = createDeferred<CursorPage<FeedDiary>>();
+    mockGetFeedCursor
+      .mockResolvedValueOnce(makeResponse([1], 'old-cursor', true))
+      .mockReturnValueOnce(recommended.promise)
+      .mockReturnValueOnce(staleObserverRequest.promise);
+
+    render(<FeedClient />);
+
+    expect(await screen.findByTestId('feed-card-1')).toBeInTheDocument();
+    const oldSortIntersectionCallback = intersectionCallback;
+
+    fireEvent.click(screen.getByRole('button', { name: '추천순' }));
+    await waitFor(() => {
+      expect(mockGetFeedCursor).toHaveBeenNthCalledWith(
+        2,
+        null,
+        20,
+        'recommended',
+      );
+    });
+
+    await act(async () => {
+      oldSortIntersectionCallback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        new MockIntersectionObserver(
+          () => {},
+        ) as unknown as IntersectionObserver,
+      );
+    });
+
+    expect(mockGetFeedCursor).toHaveBeenCalledTimes(2);
+    mockGetFeedCursor.mockReset();
+
+    await act(async () => {
+      recommended.resolve(makeResponse([10], null, false));
+    });
+
+    expect(await screen.findByTestId('feed-card-10')).toBeInTheDocument();
+    expect(screen.queryByTestId('feed-card-1')).not.toBeInTheDocument();
+  });
+
   it('이미 선택된 정렬을 다시 누르면 재요청하지 않고 기존 목록을 유지한다', async () => {
     mockGetFeedCursor.mockResolvedValueOnce(makeResponse([10, 11], 'cursor-latest-1', true));
 
