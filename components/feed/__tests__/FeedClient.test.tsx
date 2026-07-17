@@ -218,6 +218,7 @@ const createDeferred = <T,>() => {
 describe('FeedClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetFeedCursor.mockReset();
     mockViewport.isDesktop = true;
     vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
@@ -444,7 +445,6 @@ describe('FeedClient', () => {
     });
 
     expect(mockGetFeedCursor).toHaveBeenCalledTimes(2);
-    mockGetFeedCursor.mockReset();
 
     await act(async () => {
       recommended.resolve(makeResponse([10], null, false));
