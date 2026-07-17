@@ -17,7 +17,9 @@ describe('FeedPage', () => {
     });
 
     expect(screen.getAllByTestId('feed-skeleton-card')).toHaveLength(2);
-    expect(loadingStatus.parentElement).toHaveClass('xl:pt-[73px]');
+    expect(loadingStatus.parentElement).toHaveClass(
+      'xl:pt-[calc(4.5rem+1px)]',
+    );
     expect(screen.queryByText('피드를 불러오는 중...')).not.toBeInTheDocument();
   });
 });

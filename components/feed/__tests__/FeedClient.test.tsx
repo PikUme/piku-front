@@ -204,6 +204,17 @@ const makeResponse = (
 
 const createPendingPromise = <T,>() => new Promise<T>(() => {});
 
+const createDeferred = <T,>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return { promise, resolve, reject };
+};
+
 describe('FeedClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -332,6 +343,72 @@ describe('FeedClient', () => {
     expect(
       within(loadingStatus).getAllByTestId('feed-skeleton-card'),
     ).toHaveLength(2);
+  });
+
+  it('같은 정렬로 돌아와도 가장 최근 요청의 결과만 반영한다', async () => {
+    const latestA = createDeferred<CursorPage<FeedDiary>>();
+    const recommendedB = createDeferred<CursorPage<FeedDiary>>();
+    const latestC = createDeferred<CursorPage<FeedDiary>>();
+    mockGetFeedCursor
+      .mockReturnValueOnce(latestA.promise)
+      .mockReturnValueOnce(recommendedB.promise)
+      .mockReturnValueOnce(latestC.promise);
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(mockGetFeedCursor).toHaveBeenNthCalledWith(1, null, 20, 'latest');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '추천순' }));
+    await waitFor(() => {
+      expect(mockGetFeedCursor).toHaveBeenNthCalledWith(
+        2,
+        null,
+        20,
+        'recommended',
+      );
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '최신순' }));
+    await waitFor(() => {
+      expect(mockGetFeedCursor).toHaveBeenNthCalledWith(3, null, 20, 'latest');
+    });
+
+    await act(async () => {
+      latestA.resolve(makeResponse([1], null, false));
+    });
+
+    let loadingStatus = screen.getByRole('status', {
+      name: '피드를 불러오는 중',
+    });
+    expect(
+      within(loadingStatus).getAllByTestId('feed-skeleton-card'),
+    ).toHaveLength(2);
+    expect(screen.queryAllByTestId(/^feed-card-/)).toHaveLength(0);
+
+    await act(async () => {
+      recommendedB.resolve(makeResponse([2], null, false));
+    });
+
+    loadingStatus = screen.getByRole('status', {
+      name: '피드를 불러오는 중',
+    });
+    expect(
+      within(loadingStatus).getAllByTestId('feed-skeleton-card'),
+    ).toHaveLength(2);
+    expect(screen.queryAllByTestId(/^feed-card-/)).toHaveLength(0);
+
+    await act(async () => {
+      latestC.resolve(makeResponse([3], null, false));
+    });
+
+    expect(await screen.findByTestId('feed-card-3')).toBeInTheDocument();
+    expect(screen.queryByTestId('feed-card-1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('feed-card-2')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('status', { name: '피드를 불러오는 중' }),
+    ).not.toBeInTheDocument();
   });
 
   it('이미 선택된 정렬을 다시 누르면 재요청하지 않고 기존 목록을 유지한다', async () => {

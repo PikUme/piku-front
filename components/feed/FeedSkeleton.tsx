@@ -39,7 +39,6 @@ const FeedSkeleton = ({ count }: FeedSkeletonProps) => (
   <div
     role="status"
     aria-label="피드를 불러오는 중"
-    aria-busy="true"
     className="space-y-8"
   >
     <span className="sr-only">피드를 불러오는 중</span>

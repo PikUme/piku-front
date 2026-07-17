@@ -28,6 +28,7 @@ const FeedClient = () => {
   const [error, setError] = useState<'initial' | 'next' | null>(null);
   const [selectedSort, setSelectedSort] = useState<FeedSortMode>('latest');
   const activeSortRef = useRef<FeedSortMode>('latest');
+  const requestGenerationRef = useRef(0);
   const observer = useRef<IntersectionObserver | null>(null);
   const hasMounted = useRef(false);
   const hasDetailHistoryEntryRef = useRef(false);
@@ -230,12 +231,13 @@ const FeedClient = () => {
 
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
+    const requestGeneration = ++requestGenerationRef.current;
     setLoading(true);
     setError(null);
     const sortAtStart = activeSortRef.current;
     try {
       const data = await getFeedCursor(nextCursor, 20, sortAtStart);
-      if (activeSortRef.current !== sortAtStart) return;
+      if (requestGeneration !== requestGenerationRef.current) return;
       setFeed(prevFeed => {
         const existingIds = new Set(prevFeed.map(p => p.diaryId));
         const uniqueNewItems = data.items.filter(
@@ -246,11 +248,11 @@ const FeedClient = () => {
       setNextCursor(data.nextCursor);
       setHasMore(data.nextCursor != null && data.hasNext);
     } catch (err) {
-      if (activeSortRef.current !== sortAtStart) return;
+      if (requestGeneration !== requestGenerationRef.current) return;
       console.error('Error fetching feed:', err);
       setError(feedLengthRef.current === 0 ? 'initial' : 'next');
     } finally {
-      if (activeSortRef.current === sortAtStart) {
+      if (requestGeneration === requestGenerationRef.current) {
         setLoading(false);
       }
     }
@@ -283,6 +285,7 @@ const FeedClient = () => {
   const handleSortChange = useCallback(async (sort: FeedSortMode) => {
     if (sort === activeSortRef.current) return;
 
+    const requestGeneration = ++requestGenerationRef.current;
     setSelectedSort(sort);
     activeSortRef.current = sort;
     setFeed([]);
@@ -292,16 +295,16 @@ const FeedClient = () => {
     setLoading(true);
     try {
       const data = await getFeedCursor(null, 20, sort);
-      if (activeSortRef.current !== sort) return;
+      if (requestGeneration !== requestGenerationRef.current) return;
       setFeed(data.items);
       setNextCursor(data.nextCursor);
       setHasMore(data.nextCursor != null && data.hasNext);
     } catch (err) {
-      if (activeSortRef.current !== sort) return;
+      if (requestGeneration !== requestGenerationRef.current) return;
       console.error('Error fetching feed:', err);
       setError('initial');
     } finally {
-      if (activeSortRef.current === sort) {
+      if (requestGeneration === requestGenerationRef.current) {
         setLoading(false);
       }
     }

@@ -17,7 +17,7 @@ const FeedPage = () => {
     <div className="w-full">
       <Suspense
         fallback={
-          <div className="mx-auto max-w-[600px] pt-[3.75rem] xl:pt-[73px]">
+          <div className="mx-auto max-w-[600px] pt-[3.75rem] xl:pt-[calc(4.5rem+1px)]">
             <FeedSkeleton count={2} />
           </div>
         }

@@ -18,6 +18,7 @@ describe('FeedSkeleton', () => {
 
     expect(skeletonCards).toHaveLength(2);
     expect(assistiveLabel).toHaveClass('sr-only');
+    expect(loadingStatus).not.toHaveAttribute('aria-busy');
     skeletonCards.forEach(card => {
       expect(card).toHaveAttribute('aria-hidden', 'true');
     });
