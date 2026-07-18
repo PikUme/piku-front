@@ -1,10 +1,12 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import HomeCalendar from '../HomeCalendar';
 import type { DiaryDetail } from '@/types/diary';
 
 const loadDiaryDetailMock = vi.fn();
+const refetchMonthlyDiariesMock = vi.fn();
 let selectedDiaryMock: DiaryDetail | null = null;
+let currentDateMock = new Date('2026-05-15T00:00:00');
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -71,7 +73,7 @@ vi.mock('@/hooks/useFriendManagement', () => ({
 
 vi.mock('@/hooks/useCalendarNavigation', () => ({
   useCalendarNavigation: () => ({
-    currentDate: new Date('2026-05-15T00:00:00'),
+    currentDate: currentDateMock,
     setCurrentDate: vi.fn(),
     isPickerOpen: false,
     setIsPickerOpen: vi.fn(),
@@ -86,6 +88,7 @@ vi.mock('@/hooks/useDiaryData', () => ({
     pikus: {},
     selectedDiary: selectedDiaryMock,
     isLoading: false,
+    refetchMonthlyDiaries: refetchMonthlyDiariesMock,
     loadDiaryDetail: loadDiaryDetailMock,
     closeDiaryDetail: vi.fn(),
     removeDiary: vi.fn(),
@@ -97,7 +100,21 @@ vi.mock('@/hooks/useBodyScrollLock', () => ({
 }));
 
 vi.mock('@/components/calendar/PikuCalendar', () => ({
-  default: () => <div data-testid="piku-calendar">calendar</div>,
+  default: ({
+    imageRecoveryStatus,
+    onImageError,
+  }: {
+    imageRecoveryStatus: string;
+    onImageError: () => void;
+  }) => (
+    <div
+      data-testid="piku-calendar"
+      data-recovery-status={imageRecoveryStatus}
+    >
+      calendar
+      <button onClick={onImageError}>이미지 오류</button>
+    </div>
+  ),
 }));
 
 vi.mock('@/components/diary/DiaryDetailModal', () => ({
@@ -130,6 +147,8 @@ describe('HomeCalendar view switch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     selectedDiaryMock = null;
+    currentDateMock = new Date('2026-05-15T00:00:00');
+    refetchMonthlyDiariesMock.mockResolvedValue(undefined);
   });
 
   it('홈 캘린더는 보기 전환 없이 달력만 보여준다', () => {
@@ -163,5 +182,134 @@ describe('HomeCalendar view switch', () => {
     render(<HomeCalendar />);
 
     expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
+  });
+
+  it('같은 사용자와 연월의 여러 이미지 오류를 한 번의 재조회로 합친다', async () => {
+    let resolveRefetch: (() => void) | undefined;
+    refetchMonthlyDiariesMock.mockReturnValue(
+      new Promise<void>(resolve => {
+        resolveRefetch = resolve;
+      }),
+    );
+
+    render(<HomeCalendar />);
+
+    fireEvent.click(screen.getByRole('button', { name: '이미지 오류' }));
+    fireEvent.click(screen.getByRole('button', { name: '이미지 오류' }));
+    fireEvent.click(screen.getByRole('button', { name: '이미지 오류' }));
+
+    expect(refetchMonthlyDiariesMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('piku-calendar')).toHaveAttribute(
+      'data-recovery-status',
+      'recovering',
+    );
+
+    resolveRefetch?.();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('piku-calendar')).toHaveAttribute(
+        'data-recovery-status',
+        'exhausted',
+      );
+    });
+  });
+
+  it('월별 재조회가 실패해도 복구 상태를 최종 실패로 수렴시킨다', async () => {
+    refetchMonthlyDiariesMock.mockRejectedValue(
+      new Error('monthly diary failure'),
+    );
+
+    render(<HomeCalendar />);
+
+    fireEvent.click(screen.getByRole('button', { name: '이미지 오류' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('piku-calendar')).toHaveAttribute(
+        'data-recovery-status',
+        'exhausted',
+      );
+    });
+    expect(refetchMonthlyDiariesMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('표시 연월이 바뀌면 이미지 복구 기회를 다시 부여한다', async () => {
+    const { rerender } = render(<HomeCalendar />);
+
+    fireEvent.click(screen.getByRole('button', { name: '이미지 오류' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('piku-calendar')).toHaveAttribute(
+        'data-recovery-status',
+        'exhausted',
+      );
+    });
+
+    currentDateMock = new Date('2026-06-15T00:00:00');
+    rerender(<HomeCalendar />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('piku-calendar')).toHaveAttribute(
+        'data-recovery-status',
+        'idle',
+      );
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '이미지 오류' }));
+
+    expect(refetchMonthlyDiariesMock).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expect(screen.getByTestId('piku-calendar')).toHaveAttribute(
+        'data-recovery-status',
+        'exhausted',
+      );
+    });
+  });
+
+  it('조회 대상 사용자가 바뀌면 이미지 복구 기회를 다시 부여한다', async () => {
+    const { rerender } = render(
+      <HomeCalendar
+        viewedUser={{
+          userId: 'friend-1',
+          nickname: '친구 1',
+          avatar: '',
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '이미지 오류' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('piku-calendar')).toHaveAttribute(
+        'data-recovery-status',
+        'exhausted',
+      );
+    });
+
+    rerender(
+      <HomeCalendar
+        viewedUser={{
+          userId: 'friend-2',
+          nickname: '친구 2',
+          avatar: '',
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('piku-calendar')).toHaveAttribute(
+        'data-recovery-status',
+        'idle',
+      );
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '이미지 오류' }));
+
+    expect(refetchMonthlyDiariesMock).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expect(screen.getByTestId('piku-calendar')).toHaveAttribute(
+        'data-recovery-status',
+        'exhausted',
+      );
+    });
   });
 });

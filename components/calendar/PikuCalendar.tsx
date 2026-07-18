@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
@@ -19,6 +19,8 @@ import type { SwipeableHandlers } from 'react-swipeable';
 import useAuthStore from '../store/authStore';
 import type { Friend } from '@/types/friend';
 
+export type ImageRecoveryStatus = 'idle' | 'recovering' | 'exhausted';
+
 interface PikuCalendarProps {
   targetUser: Friend | undefined;
   currentDate: Date;
@@ -28,56 +30,61 @@ interface PikuCalendarProps {
   onDayClick: (diaryId: number) => void;
   onMonthChange?: (date: Date) => void;
   isMyCalendar: boolean;
+  imageRecoveryStatus: ImageRecoveryStatus;
+  onImageError: () => void;
 }
 
 interface CalendarDayImageProps {
   dateKey: string;
   imageUrl: string;
+  imageRecoveryStatus: ImageRecoveryStatus;
+  onImageError: () => void;
+  fallback: ReactNode;
 }
 
-const CalendarDayImage = ({ dateKey, imageUrl }: CalendarDayImageProps) => {
-  const [isLoaded, setIsLoaded] = useState(false);
+type CalendarDayImageStatus = 'loading' | 'loaded' | 'failed';
 
-  useEffect(() => {
-    setIsLoaded(false);
+const CalendarDayImage = ({
+  dateKey,
+  imageUrl,
+  imageRecoveryStatus,
+  onImageError,
+  fallback,
+}: CalendarDayImageProps) => {
+  const [status, setStatus] = useState<CalendarDayImageStatus>('loading');
+  const hasReportedErrorRef = useRef(false);
 
-    const preloadImage = new window.Image();
-    const markLoaded = () => setIsLoaded(true);
+  const skeleton = (
+    <div
+      data-testid={`calendar-skeleton-${dateKey}`}
+      className="absolute inset-0 animate-pulse bg-gray-200 dark:bg-gray-700"
+    />
+  );
 
-    preloadImage.src = imageUrl;
+  const handleError = () => {
+    if (hasReportedErrorRef.current) return;
 
-    if (preloadImage.complete) {
-      markLoaded();
-      return;
-    }
+    hasReportedErrorRef.current = true;
+    setStatus('failed');
+    onImageError();
+  };
 
-    preloadImage.addEventListener('load', markLoaded);
-    preloadImage.addEventListener('error', markLoaded);
-
-    return () => {
-      preloadImage.removeEventListener('load', markLoaded);
-      preloadImage.removeEventListener('error', markLoaded);
-    };
-  }, [imageUrl]);
+  if (status === 'failed') {
+    return imageRecoveryStatus === 'exhausted' ? fallback : skeleton;
+  }
 
   return (
     <>
-      {!isLoaded && (
-        <div
-          data-testid={`calendar-skeleton-${dateKey}`}
-          className="absolute inset-0 animate-pulse bg-gray-200 dark:bg-gray-700"
-        />
-      )}
+      {status === 'loading' && skeleton}
       <Image
-        key={imageUrl}
         data-testid={`calendar-image-${dateKey}`}
         src={imageUrl}
-        alt={`piku for ${dateKey}`}
+        alt=""
         fill
-        onLoad={() => setIsLoaded(true)}
-        onError={() => setIsLoaded(true)}
+        onLoad={() => setStatus('loaded')}
+        onError={handleError}
         className={`object-cover transition-opacity duration-200 ${
-          isLoaded ? 'opacity-100' : 'opacity-0'
+          status === 'loaded' ? 'opacity-100' : 'opacity-0'
         }`}
         sizes="(max-width: 768px) 12vw, (max-width: 1200px) 8vw, 6vw"
       />
@@ -94,6 +101,8 @@ const PikuCalendar = ({
   onDayClick,
   onMonthChange,
   isMyCalendar,
+  imageRecoveryStatus,
+  onImageError,
 }: PikuCalendarProps) => {
   const router = useRouter();
   const monthStart = startOfMonth(currentDate);
@@ -141,6 +150,17 @@ const PikuCalendar = ({
           const canView = pikuData && isCurrentMonth;
           const canCreate =
             isMyCalendar && !pikuData && isCurrentMonth && !isFutureDate;
+          const dayNumber = (
+            <span
+              className={`${getDayClassName(
+                day,
+                isCurrentMonth,
+                isFutureDate
+              )} font-medium`}
+            >
+              {format(day, 'd')}
+            </span>
+          );
 
           const handleClick = () => {
             if (canView) {
@@ -166,19 +186,15 @@ const PikuCalendar = ({
             >
               {pikuData && isCurrentMonth ? (
                 <CalendarDayImage
+                  key={pikuData.imageUrl}
                   dateKey={dateKey}
                   imageUrl={pikuData.imageUrl}
+                  imageRecoveryStatus={imageRecoveryStatus}
+                  onImageError={onImageError}
+                  fallback={dayNumber}
                 />
               ) : (
-                <span
-                  className={`${getDayClassName(
-                    day,
-                    isCurrentMonth,
-                    isFutureDate
-                  )} font-medium`}
-                >
-                  {format(day, 'd')}
-                </span>
+                dayNumber
               )}
             </div>
           );
