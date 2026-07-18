@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMediaQuery } from 'react-responsive';
 import { startOfDay } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '@/components/store/authStore';
-import PikuCalendar from '@/components/calendar/PikuCalendar';
+import PikuCalendar, {
+  type ImageRecoveryStatus,
+} from '@/components/calendar/PikuCalendar';
 import HomeCalendarHeader from '@/components/home/HomeCalendarHeader';
 import DiaryDetailModal from '@/components/diary/DiaryDetailModal';
 import DiaryStoryModal from '@/components/diary/DiaryStoryModal';
@@ -71,11 +73,73 @@ const HomeCalendar = ({
     pikus,
     selectedDiary,
     isLoading,
+    refetchMonthlyDiaries,
     loadDiaryDetail,
     closeDiaryDetail,
     removeDiary,
   } = useDiaryData(currentDate, user, viewedUser);
   useBodyScrollLock(isLoading);
+
+  const recoveryScopeKey = `${
+    viewedUser?.userId ?? user?.id ?? 'none'
+  }:${currentDate.getFullYear()}-${currentDate.getMonth() + 1}`;
+  const [imageRecoveryState, setImageRecoveryState] = useState<{
+    scopeKey: string;
+    status: ImageRecoveryStatus;
+  }>({
+    scopeKey: recoveryScopeKey,
+    status: 'idle',
+  });
+  const recoveryAttemptRef = useRef({
+    scopeKey: recoveryScopeKey,
+    attempted: false,
+  });
+  const imageRecoveryStatus =
+    imageRecoveryState.scopeKey === recoveryScopeKey
+      ? imageRecoveryState.status
+      : 'idle';
+
+  useEffect(() => {
+    recoveryAttemptRef.current = {
+      scopeKey: recoveryScopeKey,
+      attempted: false,
+    };
+    setImageRecoveryState({
+      scopeKey: recoveryScopeKey,
+      status: 'idle',
+    });
+  }, [recoveryScopeKey]);
+
+  const handleImageError = useCallback(() => {
+    if (recoveryAttemptRef.current.scopeKey !== recoveryScopeKey) {
+      recoveryAttemptRef.current = {
+        scopeKey: recoveryScopeKey,
+        attempted: false,
+      };
+    }
+
+    if (recoveryAttemptRef.current.attempted) return;
+
+    recoveryAttemptRef.current.attempted = true;
+    const requestScope = recoveryScopeKey;
+    setImageRecoveryState({
+      scopeKey: requestScope,
+      status: 'recovering',
+    });
+
+    void refetchMonthlyDiaries()
+      .catch(() => undefined)
+      .then(() => {
+        setImageRecoveryState(currentState =>
+          currentState.scopeKey === requestScope
+            ? {
+                scopeKey: requestScope,
+                status: 'exhausted',
+              }
+            : currentState,
+        );
+      });
+  }, [recoveryScopeKey, refetchMonthlyDiaries]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -181,6 +245,8 @@ const HomeCalendar = ({
             onDayClick={handleDayClick}
             onMonthChange={setCurrentDate}
             isMyCalendar={isOwner}
+            imageRecoveryStatus={imageRecoveryStatus}
+            onImageError={handleImageError}
           />
         </motion.div>
       </AnimatePresence>
