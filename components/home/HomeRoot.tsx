@@ -17,14 +17,10 @@ export default function HomeRoot() {
     setIsLoggedIn(!!token && !!user);
   }, [user]);
 
-  // SSR 시 로딩 상태만 보여주고 클라이언트에서 실제 컴포넌트 렌더링
+  // 클라이언트에서 인증 상태를 확인한 뒤 실제 컴포넌트 렌더링
   if (!isClient) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <p>피드를 불러오는 중...</p>
-      </div>
-    );
+    return null;
   }
 
   return isLoggedIn ? <HomeCalendar /> : <FeedClient />;
-} 
+}

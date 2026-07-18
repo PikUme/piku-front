@@ -15,6 +15,7 @@ import { trackEvent, FEED_CLICK, FEED_LIKE } from '@/lib/analytics/events';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import FeedSortSubHeader from './FeedSortSubHeader';
+import FeedSkeleton from './FeedSkeleton';
 import { isAnonymousDiaryIdentity } from '@/lib/utils/privacy';
 
 const FeedClient = () => {
@@ -27,6 +28,7 @@ const FeedClient = () => {
   const [error, setError] = useState<'initial' | 'next' | null>(null);
   const [selectedSort, setSelectedSort] = useState<FeedSortMode>('latest');
   const activeSortRef = useRef<FeedSortMode>('latest');
+  const requestGenerationRef = useRef(0);
   const observer = useRef<IntersectionObserver | null>(null);
   const hasMounted = useRef(false);
   const hasDetailHistoryEntryRef = useRef(false);
@@ -229,12 +231,13 @@ const FeedClient = () => {
 
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
+    const requestGeneration = ++requestGenerationRef.current;
     setLoading(true);
     setError(null);
     const sortAtStart = activeSortRef.current;
     try {
       const data = await getFeedCursor(nextCursor, 20, sortAtStart);
-      if (activeSortRef.current !== sortAtStart) return;
+      if (requestGeneration !== requestGenerationRef.current) return;
       setFeed(prevFeed => {
         const existingIds = new Set(prevFeed.map(p => p.diaryId));
         const uniqueNewItems = data.items.filter(
@@ -245,11 +248,11 @@ const FeedClient = () => {
       setNextCursor(data.nextCursor);
       setHasMore(data.nextCursor != null && data.hasNext);
     } catch (err) {
-      if (activeSortRef.current !== sortAtStart) return;
+      if (requestGeneration !== requestGenerationRef.current) return;
       console.error('Error fetching feed:', err);
       setError(feedLengthRef.current === 0 ? 'initial' : 'next');
     } finally {
-      if (activeSortRef.current === sortAtStart) {
+      if (requestGeneration === requestGenerationRef.current) {
         setLoading(false);
       }
     }
@@ -260,7 +263,9 @@ const FeedClient = () => {
       if (loading) return;
       if (observer.current) observer.current.disconnect();
 
+      const observerGeneration = requestGenerationRef.current;
       observer.current = new IntersectionObserver(entries => {
+        if (observerGeneration !== requestGenerationRef.current) return;
         if (entries[0].isIntersecting && hasMore) {
           loadMore();
         }
@@ -282,6 +287,7 @@ const FeedClient = () => {
   const handleSortChange = useCallback(async (sort: FeedSortMode) => {
     if (sort === activeSortRef.current) return;
 
+    const requestGeneration = ++requestGenerationRef.current;
     setSelectedSort(sort);
     activeSortRef.current = sort;
     setFeed([]);
@@ -291,16 +297,16 @@ const FeedClient = () => {
     setLoading(true);
     try {
       const data = await getFeedCursor(null, 20, sort);
-      if (activeSortRef.current !== sort) return;
+      if (requestGeneration !== requestGenerationRef.current) return;
       setFeed(data.items);
       setNextCursor(data.nextCursor);
       setHasMore(data.nextCursor != null && data.hasNext);
     } catch (err) {
-      if (activeSortRef.current !== sort) return;
+      if (requestGeneration !== requestGenerationRef.current) return;
       console.error('Error fetching feed:', err);
       setError('initial');
     } finally {
-      if (activeSortRef.current === sort) {
+      if (requestGeneration === requestGenerationRef.current) {
         setLoading(false);
       }
     }
@@ -363,13 +369,8 @@ const FeedClient = () => {
     );
   };
 
-  if (feed.length === 0 && loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <p>피드를 불러오는 중...</p>
-      </div>
-    );
-  }
+  const isInitialLoading =
+    feed.length === 0 && (loading || !hasMounted.current);
 
   if (error === 'initial') {
     return (
@@ -392,26 +393,28 @@ const FeedClient = () => {
         onSortChange={handleSortChange}
       />
       <div className="space-y-8">
-        {feed.map((post, index) => (
-          <div
-            key={post.diaryId}
-            ref={index === feed.length - 1 ? lastPostElementRef : null}
-          >
-            <FeedCard
-              post={post}
-              onFriendshipStatusChange={handleFriendshipStatusChange}
-              onContentClick={() => handleContentClick(post.diaryId)}
-              onCommentClick={() => handleCommentClick(post)}
-              onLikeToggle={handleLikeToggle}
-              onCommentCreated={incrementDiaryCommentCount}
-              isMobile={!isDesktop}
-            />
-          </div>
-        ))}
-        {loading && !isLoadingDetail && (
-          <div className="flex h-20 items-center justify-center">
-            <p>피드를 더 불러오는 중...</p>
-          </div>
+        {isInitialLoading ? (
+          <FeedSkeleton count={2} />
+        ) : (
+          <>
+            {feed.map((post, index) => (
+              <div
+                key={post.diaryId}
+                ref={index === feed.length - 1 ? lastPostElementRef : null}
+              >
+                <FeedCard
+                  post={post}
+                  onFriendshipStatusChange={handleFriendshipStatusChange}
+                  onContentClick={() => handleContentClick(post.diaryId)}
+                  onCommentClick={() => handleCommentClick(post)}
+                  onLikeToggle={handleLikeToggle}
+                  onCommentCreated={incrementDiaryCommentCount}
+                  isMobile={!isDesktop}
+                />
+              </div>
+            ))}
+            {loading && !isLoadingDetail && <FeedSkeleton count={1} />}
+          </>
         )}
       </div>
       {isLoadingDetail && (

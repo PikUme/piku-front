@@ -1,4 +1,5 @@
 import FeedClient from '@/components/feed/FeedClient';
+import FeedSkeleton from '@/components/feed/FeedSkeleton';
 import { createPageMetadata } from '@/lib/metadata/createPageMetadata';
 import { Suspense } from 'react';
 
@@ -16,8 +17,8 @@ const FeedPage = () => {
     <div className="w-full">
       <Suspense
         fallback={
-          <div className="flex h-full w-full items-center justify-center pt-20">
-            피드를 불러오는 중...
+          <div className="mx-auto max-w-[600px] pt-[3.75rem] xl:pt-[calc(4.5rem+1px)]">
+            <FeedSkeleton count={2} />
           </div>
         }
       >

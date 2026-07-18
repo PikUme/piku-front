@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act, fireEvent, within } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import FeedClient from '../FeedClient';
 import { getFeedCursor } from '@/lib/api/feed';
 import { getDiaryById } from '@/lib/api/diary';
@@ -201,9 +202,23 @@ const makeResponse = (
   hasNext,
 });
 
+const createPendingPromise = <T,>() => new Promise<T>(() => {});
+
+const createDeferred = <T,>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return { promise, resolve, reject };
+};
+
 describe('FeedClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetFeedCursor.mockReset();
     mockViewport.isDesktop = true;
     vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
@@ -216,6 +231,31 @@ describe('FeedClient', () => {
     await waitFor(() => {
       expect(mockGetFeedCursor).toHaveBeenCalledWith(null, 20, 'latest');
     });
+  });
+
+  it('첫 렌더부터 카드 스켈레톤 2개를 표시한다', () => {
+    const markup = renderToStaticMarkup(<FeedClient />);
+
+    expect(markup).toContain('data-testid="feed-sort-subheader"');
+    expect(markup.match(/data-testid="feed-skeleton-card"/g) ?? []).toHaveLength(2);
+  });
+
+  it('첫 페이지를 불러오는 동안 카드 스켈레톤 2개를 표시한다', async () => {
+    mockGetFeedCursor.mockReturnValue(
+      createPendingPromise<CursorPage<FeedDiary>>(),
+    );
+
+    render(<FeedClient />);
+
+    const loadingStatus = await screen.findByRole('status', {
+      name: '피드를 불러오는 중',
+    });
+
+    expect(screen.getByTestId('feed-sort-subheader')).toBeInTheDocument();
+    expect(
+      within(loadingStatus).getAllByTestId('feed-skeleton-card'),
+    ).toHaveLength(2);
+    expect(screen.queryByText('피드를 불러오는 중...')).not.toBeInTheDocument();
   });
 
   it('피드 아이템을 렌더링한다', async () => {
@@ -273,6 +313,147 @@ describe('FeedClient', () => {
     expect(screen.getByRole('button', { name: '추천순' })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('정렬 변경 요청 중에는 이전 목록 대신 카드 스켈레톤 2개를 표시한다', async () => {
+    mockGetFeedCursor.mockResolvedValueOnce(
+      makeResponse([1, 2], 'cursor-latest-1', true),
+    );
+    mockGetFeedCursor.mockReturnValueOnce(
+      createPendingPromise<CursorPage<FeedDiary>>(),
+    );
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('feed-card-1')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '추천순' }));
+    });
+
+    const loadingStatus = await screen.findByRole('status', {
+      name: '피드를 불러오는 중',
+    });
+
+    expect(screen.queryByTestId('feed-card-1')).not.toBeInTheDocument();
+    expect(screen.getByTestId('feed-sort-subheader')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '추천순' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(
+      within(loadingStatus).getAllByTestId('feed-skeleton-card'),
+    ).toHaveLength(2);
+  });
+
+  it('같은 정렬로 돌아와도 가장 최근 요청의 결과만 반영한다', async () => {
+    const latestA = createDeferred<CursorPage<FeedDiary>>();
+    const recommendedB = createDeferred<CursorPage<FeedDiary>>();
+    const latestC = createDeferred<CursorPage<FeedDiary>>();
+    mockGetFeedCursor
+      .mockReturnValueOnce(latestA.promise)
+      .mockReturnValueOnce(recommendedB.promise)
+      .mockReturnValueOnce(latestC.promise);
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(mockGetFeedCursor).toHaveBeenNthCalledWith(1, null, 20, 'latest');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '추천순' }));
+    await waitFor(() => {
+      expect(mockGetFeedCursor).toHaveBeenNthCalledWith(
+        2,
+        null,
+        20,
+        'recommended',
+      );
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '최신순' }));
+    await waitFor(() => {
+      expect(mockGetFeedCursor).toHaveBeenNthCalledWith(3, null, 20, 'latest');
+    });
+
+    await act(async () => {
+      latestA.resolve(makeResponse([1], null, false));
+    });
+
+    let loadingStatus = screen.getByRole('status', {
+      name: '피드를 불러오는 중',
+    });
+    expect(
+      within(loadingStatus).getAllByTestId('feed-skeleton-card'),
+    ).toHaveLength(2);
+    expect(screen.queryAllByTestId(/^feed-card-/)).toHaveLength(0);
+
+    await act(async () => {
+      recommendedB.resolve(makeResponse([2], null, false));
+    });
+
+    loadingStatus = screen.getByRole('status', {
+      name: '피드를 불러오는 중',
+    });
+    expect(
+      within(loadingStatus).getAllByTestId('feed-skeleton-card'),
+    ).toHaveLength(2);
+    expect(screen.queryAllByTestId(/^feed-card-/)).toHaveLength(0);
+
+    await act(async () => {
+      latestC.resolve(makeResponse([3], null, false));
+    });
+
+    expect(await screen.findByTestId('feed-card-3')).toBeInTheDocument();
+    expect(screen.queryByTestId('feed-card-1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('feed-card-2')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('status', { name: '피드를 불러오는 중' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('정렬 변경 전에 등록된 관찰 콜백은 새 정렬의 다음 페이지를 요청하지 않는다', async () => {
+    const recommended = createDeferred<CursorPage<FeedDiary>>();
+    const staleObserverRequest = createDeferred<CursorPage<FeedDiary>>();
+    mockGetFeedCursor
+      .mockResolvedValueOnce(makeResponse([1], 'old-cursor', true))
+      .mockReturnValueOnce(recommended.promise)
+      .mockReturnValueOnce(staleObserverRequest.promise);
+
+    render(<FeedClient />);
+
+    expect(await screen.findByTestId('feed-card-1')).toBeInTheDocument();
+    const oldSortIntersectionCallback = intersectionCallback;
+
+    fireEvent.click(screen.getByRole('button', { name: '추천순' }));
+    await waitFor(() => {
+      expect(mockGetFeedCursor).toHaveBeenNthCalledWith(
+        2,
+        null,
+        20,
+        'recommended',
+      );
+    });
+
+    await act(async () => {
+      oldSortIntersectionCallback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        new MockIntersectionObserver(
+          () => {},
+        ) as unknown as IntersectionObserver,
+      );
+    });
+
+    expect(mockGetFeedCursor).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      recommended.resolve(makeResponse([10], null, false));
+    });
+
+    expect(await screen.findByTestId('feed-card-10')).toBeInTheDocument();
+    expect(screen.queryByTestId('feed-card-1')).not.toBeInTheDocument();
+  });
+
   it('이미 선택된 정렬을 다시 누르면 재요청하지 않고 기존 목록을 유지한다', async () => {
     mockGetFeedCursor.mockResolvedValueOnce(makeResponse([10, 11], 'cursor-latest-1', true));
 
@@ -321,6 +502,33 @@ describe('FeedClient', () => {
     const cards = screen.getAllByTestId(/^feed-card-/);
     const ids = cards.map(c => c.getAttribute('data-testid'));
     expect(ids).toEqual(['feed-card-1', 'feed-card-2', 'feed-card-3']);
+  });
+
+  it('다음 페이지를 불러오는 동안 기존 목록 아래에 카드 스켈레톤 1개를 표시한다', async () => {
+    mockGetFeedCursor.mockResolvedValueOnce(
+      makeResponse([1, 2], 'cursor-1', true),
+    );
+    mockGetFeedCursor.mockReturnValueOnce(
+      createPendingPromise<CursorPage<FeedDiary>>(),
+    );
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('feed-card-1')).toBeInTheDocument();
+      expect(screen.getByTestId('feed-card-2')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      intersectionCallback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        new MockIntersectionObserver(() => {}) as unknown as IntersectionObserver,
+      );
+    });
+
+    expect(screen.getByTestId('feed-card-1')).toBeInTheDocument();
+    expect(screen.getByTestId('feed-card-2')).toBeInTheDocument();
+    expect(screen.getAllByTestId('feed-skeleton-card')).toHaveLength(1);
   });
 
   it('hasNext가 false이면 종료 메시지를 표시한다', async () => {
