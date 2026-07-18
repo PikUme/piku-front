@@ -232,7 +232,10 @@ const FeedCard = ({
   return (
     <>
       {/* <div className="w-full rounded-lg border bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"> */}
-      <div className="w-full rounded-xl border border-gray-200 bg-white shadow-md p-4 dark:border-gray-700 dark:bg-gray-800">
+      <div
+        data-testid="feed-card"
+        className="w-full rounded-xl border border-gray-200 bg-white shadow-md p-4 dark:border-gray-700 dark:bg-gray-800"
+      >
         <div className="flex items-center justify-between p-3">
           <div className="relative flex items-center">
             {isAnonymousPost || !post.userId ? (

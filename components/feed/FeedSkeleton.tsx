@@ -19,18 +19,17 @@ const FeedSkeletonCard = () => (
     <div className={`aspect-square w-full rounded ${placeholderClassName}`} />
 
     <div className="flex gap-3 p-3">
-      <div className={`h-6 w-14 rounded ${placeholderClassName}`} />
-      <div className={`h-6 w-14 rounded ${placeholderClassName}`} />
+      <div className={`h-7 w-14 rounded ${placeholderClassName}`} />
+      <div className={`h-7 w-14 rounded ${placeholderClassName}`} />
     </div>
 
-    <div className="space-y-2 px-3">
-      <div className={`h-4 w-2/3 rounded ${placeholderClassName}`} />
-      <div className={`h-4 w-5/6 rounded ${placeholderClassName}`} />
+    <div className="px-3">
+      <div className={`h-5 w-5/6 rounded ${placeholderClassName}`} />
     </div>
 
     <div className="mt-2 flex items-center gap-3 border-t border-gray-200 p-3 dark:border-gray-700">
-      <div className={`h-4 flex-1 rounded ${placeholderClassName}`} />
-      <div className={`h-4 w-8 rounded ${placeholderClassName}`} />
+      <div className={`h-5 flex-1 rounded ${placeholderClassName}`} />
+      <div className={`h-5 w-8 rounded ${placeholderClassName}`} />
     </div>
   </div>
 );
