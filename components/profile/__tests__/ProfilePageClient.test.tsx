@@ -18,6 +18,10 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
+vi.mock('next/image', () => ({
+  default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => <img {...props} />,
+}));
+
 vi.mock('@/components/store/authStore', () => ({
   default: () => ({ user: { id: 'user-1' } }),
 }));
@@ -69,15 +73,17 @@ describe('ProfilePageClient', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
-  it('프로필 API 실패 후 스켈레톤을 기존 실패 안내로 교체한다', async () => {
+  it('프로필 API 실패 후 스켈레톤을 404 이미지로 교체한다', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     getUserProfile.mockRejectedValue(new Error('network error'));
 
     render(<ProfilePageClient userId="user-1" />);
 
-    expect(
-      await screen.findByText('프로필 정보를 찾을 수 없습니다.'),
-    ).toBeInTheDocument();
+    const notFoundImage = await screen.findByRole('img', {
+      name: '프로필 정보를 찾을 수 없습니다.',
+    });
+
+    expect(notFoundImage).toHaveAttribute('src', '/404.png');
     await waitFor(() =>
       expect(screen.queryByRole('status')).not.toBeInTheDocument(),
     );

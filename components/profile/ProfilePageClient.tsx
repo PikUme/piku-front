@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import ProfileClient from '@/components/profile/ProfileClient';
 import ProfileSkeleton from '@/components/profile/ProfileSkeleton';
@@ -69,8 +70,14 @@ const ProfilePageClient = ({ userId }: ProfilePageClientProps) => {
 
   if (!profileData) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <p>프로필 정보를 찾을 수 없습니다.</p>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6 dark:bg-black">
+        <Image
+          src="/404.png"
+          alt="프로필 정보를 찾을 수 없습니다."
+          width={1536}
+          height={1024}
+          className="h-auto w-full max-w-2xl"
+        />
       </div>
     );
   }
