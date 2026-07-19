@@ -28,15 +28,30 @@ describe('RequireAuth', () => {
     });
   });
 
-  it('인증 확인 중에는 children을 렌더링하지 않고 로그인으로 보내지 않는다', () => {
+  it('인증 확인 중에는 화면 문구 없이 접근 가능한 스피너를 표시한다', () => {
     render(
       <RequireAuth>
         <p>protected content</p>
       </RequireAuth>,
     );
 
+    const status = screen.getByRole('status', {
+      name: '인증 상태 확인 중',
+    });
+    const spinner = status.querySelector('svg');
+
     expect(screen.queryByText('protected content')).not.toBeInTheDocument();
-    expect(screen.getByText('인증 상태를 확인하는 중입니다...')).toBeInTheDocument();
+    expect(status).toHaveClass(
+      'flex',
+      'h-screen',
+      'items-center',
+      'justify-center',
+    );
+    expect(spinner).toHaveAttribute('aria-hidden', 'true');
+    expect(spinner).toHaveClass('h-8', 'w-8', 'motion-safe:animate-spin');
+    expect(
+      screen.getByText('인증 상태를 확인하는 중입니다...'),
+    ).toHaveClass('sr-only');
     expect(replaceMock).not.toHaveBeenCalled();
   });
 

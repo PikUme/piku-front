@@ -2,6 +2,7 @@
 
 import { useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import useAuthStore from '@/components/store/authStore';
 
 interface RequireAuthProps {
@@ -20,8 +21,16 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
 
   if (authStatus === 'checking') {
     return (
-      <div className="flex h-screen items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-        인증 상태를 확인하는 중입니다...
+      <div
+        role="status"
+        aria-label="인증 상태 확인 중"
+        className="flex h-screen items-center justify-center"
+      >
+        <Loader2
+          aria-hidden="true"
+          className="h-8 w-8 text-gray-400 motion-safe:animate-spin dark:text-gray-500"
+        />
+        <span className="sr-only">인증 상태를 확인하는 중입니다...</span>
       </div>
     );
   }
