@@ -18,7 +18,6 @@ const ProfileMonthSkeletonCard = () => (
 const ProfileSkeleton = () => (
   <div
     role="status"
-    aria-label="프로필을 불러오는 중"
     className="w-full bg-white"
   >
     <span className="sr-only">프로필을 불러오는 중</span>

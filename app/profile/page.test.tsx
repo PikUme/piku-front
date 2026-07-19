@@ -28,9 +28,7 @@ describe('ProfileRedirectPage', () => {
   it('현재 사용자 프로필로 이동하는 동안 같은 스켈레톤을 표시한다', async () => {
     render(<ProfileRedirectPage />);
 
-    expect(
-      screen.getByRole('status', { name: '프로필을 불러오는 중' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeInTheDocument();
     expect(
       screen.queryByText('프로필 페이지로 이동 중입니다...'),
     ).not.toBeInTheDocument();

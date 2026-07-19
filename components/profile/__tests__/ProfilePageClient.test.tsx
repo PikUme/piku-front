@@ -38,9 +38,7 @@ describe('ProfilePageClient', () => {
 
     render(<ProfilePageClient userId="user-1" />);
 
-    expect(
-      screen.getByRole('status', { name: '프로필을 불러오는 중' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeInTheDocument();
     expect(
       screen.queryByText('프로필을 불러오는 중...'),
     ).not.toBeInTheDocument();
@@ -68,9 +66,7 @@ describe('ProfilePageClient', () => {
     expect(
       screen.getByRole('button', { name: '프로필 편집' }),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('status', { name: '프로필을 불러오는 중' }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('프로필 API 실패 후 스켈레톤을 기존 실패 안내로 교체한다', async () => {
@@ -83,9 +79,7 @@ describe('ProfilePageClient', () => {
       await screen.findByText('프로필 정보를 찾을 수 없습니다.'),
     ).toBeInTheDocument();
     await waitFor(() =>
-      expect(
-        screen.queryByRole('status', { name: '프로필을 불러오는 중' }),
-      ).not.toBeInTheDocument(),
+      expect(screen.queryByRole('status')).not.toBeInTheDocument(),
     );
 
     expect(consoleError).toHaveBeenCalledWith(

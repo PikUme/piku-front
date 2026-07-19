@@ -35,9 +35,7 @@ describe('RequireAuth', () => {
       </RequireAuth>,
     );
 
-    const status = screen.getByRole('status', {
-      name: '인증 상태 확인 중',
-    });
+    const status = screen.getByRole('status');
     const spinner = status.querySelector('svg');
 
     expect(screen.queryByText('protected content')).not.toBeInTheDocument();
@@ -47,10 +45,11 @@ describe('RequireAuth', () => {
       'items-center',
       'justify-center',
     );
+    expect(status).not.toHaveAttribute('aria-label');
     expect(spinner).toHaveAttribute('aria-hidden', 'true');
     expect(spinner).toHaveClass('h-8', 'w-8', 'motion-safe:animate-spin');
     expect(
-      screen.getByText('인증 상태를 확인하는 중입니다...'),
+      screen.getByText('인증 상태를 확인하는 중입니다…'),
     ).toHaveClass('sr-only');
     expect(replaceMock).not.toHaveBeenCalled();
   });
