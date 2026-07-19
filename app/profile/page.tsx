@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import RequireAuth from '@/components/auth/RequireAuth';
+import ProfileSkeleton from '@/components/profile/ProfileSkeleton';
 import useAuthStore from '@/components/store/authStore';
 
 const ProfileRedirectContent = () => {
@@ -15,11 +16,7 @@ const ProfileRedirectContent = () => {
     }
   }, [user, router]);
 
-  return (
-    <div className="flex items-center justify-center h-screen">
-      <p>프로필 페이지로 이동 중입니다...</p>
-    </div>
-  );
+  return <ProfileSkeleton />;
 };
 
 const ProfileRedirectPage = () => {

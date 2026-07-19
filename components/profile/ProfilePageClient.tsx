@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import ProfileClient from '@/components/profile/ProfileClient';
+import ProfileSkeleton from '@/components/profile/ProfileSkeleton';
 import Header from '@/components/profile/Header';
 import { UserProfileResponseDTO } from '@/types/profile';
 import { getUserProfile } from '@/lib/api/user';
@@ -63,11 +64,7 @@ const ProfilePageClient = ({ userId }: ProfilePageClientProps) => {
   }, [userId, currentUser, router, pathname]);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <p>프로필을 불러오는 중...</p>
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
   if (!profileData) {
@@ -86,4 +83,4 @@ const ProfilePageClient = ({ userId }: ProfilePageClientProps) => {
   );
 };
 
-export default ProfilePageClient; 
+export default ProfilePageClient;
