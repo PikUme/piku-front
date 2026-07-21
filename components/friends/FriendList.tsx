@@ -5,6 +5,7 @@ import UserProfile from '@/components/common/UserProfile';
 import { Friend } from '@/types/friend';
 import { deleteFriend, getFriends } from '@/lib/api/friend';
 import FriendActionConfirmModal from '@/components/feed/FriendActionConfirmModal';
+import FriendListSkeleton from '@/components/friends/FriendListSkeleton';
 
 const PAGE_SIZE = 20;
 
@@ -77,6 +78,10 @@ const FriendList = () => {
     }
   };
 
+  if (isLoading && !initialLoad) {
+    return <FriendListSkeleton count={5} />;
+  }
+
   if (initialLoad && friends.length === 0 && !isLoading) {
     return (
       <div className="text-center text-gray-500 py-10">
@@ -115,12 +120,8 @@ const FriendList = () => {
           );
         })}
       </ul>
-      {isLoading && (
-        <div className="text-center py-4">
-          친구를 불러오는 중...
-        </div>
-      )}
-      
+      {isLoading && <FriendListSkeleton count={1} />}
+
       {/* 친구 끊기 확인 모달 */}
       <FriendActionConfirmModal
         isOpen={isModalOpen}
@@ -138,4 +139,4 @@ const FriendList = () => {
   );
 };
 
-export default FriendList; 
+export default FriendList;
