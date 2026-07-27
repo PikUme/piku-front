@@ -324,6 +324,7 @@ describe('FeedCard 사진 없는 일기', () => {
 
     const moreButton = await screen.findByRole('button', { name: '더 보기' });
     expect(content).toHaveClass('text-[15px]', 'line-clamp-5');
+    expect(content).not.toHaveClass('block');
     expect(moreButton).toHaveAttribute(
       'aria-controls',
       'feed-text-content-1',
@@ -337,6 +338,7 @@ describe('FeedCard 사진 없는 일기', () => {
       screen.queryByRole('button', { name: '더 보기' }),
     ).not.toBeInTheDocument();
     expect(content).not.toHaveClass('line-clamp-5');
+    expect(content).toHaveClass('block');
     expect(
       screen.getByRole('status', {
         name: '일기 전체 내용이 펼쳐졌습니다.',

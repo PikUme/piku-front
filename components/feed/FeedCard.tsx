@@ -372,8 +372,8 @@ const FeedCard = ({
             <span
               id={`feed-text-content-${post.diaryId}`}
               ref={textContentRef}
-              className={`mt-3 block whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-900 dark:text-gray-100 ${
-                isContentExpanded ? '' : 'line-clamp-5'
+              className={`mt-3 whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-900 dark:text-gray-100 ${
+                isContentExpanded ? 'block' : 'line-clamp-5'
               }`}
             >
               {post.content}
