@@ -358,6 +358,7 @@ const FeedCard = ({
           <button
             type="button"
             aria-label="일기 상세 보기"
+            aria-describedby={`feed-text-content-${post.diaryId}`}
             onClick={onContentClick}
             className="block w-full text-left"
           >

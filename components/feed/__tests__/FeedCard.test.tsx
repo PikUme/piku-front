@@ -280,7 +280,12 @@ describe('FeedCard 사진 없는 일기', () => {
     const onContentClick = vi.fn();
     renderFeedCard(makePost({ imgUrls: [] }), { onContentClick });
 
-    fireEvent.click(screen.getByRole('button', { name: '일기 상세 보기' }));
+    const detailButton = screen.getByRole('button', {
+      name: '일기 상세 보기',
+    });
+    expect(detailButton).toHaveAccessibleDescription('피드 일기');
+
+    fireEvent.click(detailButton);
 
     expect(onContentClick).toHaveBeenCalledTimes(1);
   });
