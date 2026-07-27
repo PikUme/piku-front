@@ -11,6 +11,7 @@
 ## Global Constraints
 
 - 모든 구현은 별도 git worktree와 `feature/feed-without-photo-card` 브랜치에서 수행한다.
+- 모든 `npm`, `npx`, Node 기반 검증 명령은 `PATH=/Users/yk/.nvm/versions/node/v24.12.0/bin:$PATH`를 앞에 두고 Node 24.12.0으로 실행한다. 시스템 기본 Node 26은 Vitest의 JSDOM `localStorage`를 덮어써 기준선 테스트를 실패시킨다.
 - production code를 작성하기 전에 해당 동작을 검증하는 테스트를 먼저 추가하고 예상한 이유로 실패하는지 확인한다.
 - 사진 없는 본문의 글자 크기는 `15px`, 기본 최대 노출은 다섯 줄이다.
 - 사진이 없으면 외부 placeholder URL, 빈 이미지, 캐러셀 화살표와 페이지 점을 렌더링하지 않는다.
