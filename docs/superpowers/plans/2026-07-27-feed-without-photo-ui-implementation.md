@@ -189,9 +189,9 @@ const photoUrl =
         />
         오늘의 일기
       </span>
-      <p className="mt-3 whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-900 dark:text-gray-100">
+      <span className="mt-3 block whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-900 dark:text-gray-100">
         {post.content}
-      </p>
+      </span>
     </button>
   </div>
 )}
@@ -379,7 +379,7 @@ Expected: 긴 사진 없는 본문에서 `더 보기` 버튼을 찾지 못해 �
 React import에 `useEffect`를 추가하고 텍스트 본문용 ref와 상태를 `FeedCard` 내부에 둔다.
 
 ```tsx
-const textContentRef = useRef<HTMLParagraphElement>(null);
+const textContentRef = useRef<HTMLSpanElement>(null);
 const [isTextOverflowing, setIsTextOverflowing] = useState(false);
 ```
 
@@ -406,15 +406,15 @@ useEffect(() => {
 사진 없는 본문 요소에는 안정적인 id, ref, 다섯 줄 clamp를 연결한다.
 
 ```tsx
-<p
+<span
   id={`feed-text-content-${post.diaryId}`}
   ref={textContentRef}
-  className={`mt-3 whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-900 dark:text-gray-100 ${
+  className={`mt-3 block whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-900 dark:text-gray-100 ${
     isContentExpanded ? '' : 'line-clamp-5'
   }`}
 >
   {post.content}
-</p>
+</span>
 ```
 
 텍스트 상세 보기 버튼의 형제 요소로 `더 보기`를 배치해 상세 열기 click과 중첩되지 않게 한다.

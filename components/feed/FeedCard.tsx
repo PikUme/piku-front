@@ -9,7 +9,7 @@ import {
   MoreIcon,
   ShareIcon,
 } from '../icons/FeedIcons';
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import useAuthStore from '../store/authStore';
 import { createComment } from '@/lib/api/comment';
 import { useRouter } from 'next/navigation';
@@ -59,6 +59,8 @@ const FeedCard = ({
   } | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
+  const [isTextOverflowing, setIsTextOverflowing] = useState(false);
+  const textContentRef = useRef<HTMLSpanElement>(null);
 
   const { user } = useAuthStore();
   const router = useRouter();
@@ -229,6 +231,22 @@ const FeedCard = ({
   const photoUrl =
     post.imgUrls[currentImageIndex] ?? post.imgUrls[0];
 
+  useEffect(() => {
+    if (photoUrl || isContentExpanded) {
+      return;
+    }
+
+    const updateTextOverflow = () => {
+      const element = textContentRef.current;
+      if (!element) return;
+      setIsTextOverflowing(element.scrollHeight > element.clientHeight);
+    };
+
+    updateTextOverflow();
+    window.addEventListener('resize', updateTextOverflow);
+    return () => window.removeEventListener('resize', updateTextOverflow);
+  }, [photoUrl, post.content, isContentExpanded]);
+
   return (
     <>
       {/* <div className="w-full rounded-lg border bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"> */}
@@ -350,10 +368,36 @@ const FeedCard = ({
               />
               오늘의 일기
             </span>
-            <span className="mt-3 block whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-900 dark:text-gray-100">
+            <span
+              id={`feed-text-content-${post.diaryId}`}
+              ref={textContentRef}
+              className={`mt-3 block whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-900 dark:text-gray-100 ${
+                isContentExpanded ? '' : 'line-clamp-5'
+              }`}
+            >
               {post.content}
             </span>
           </button>
+          {isTextOverflowing && !isContentExpanded && (
+            <button
+              type="button"
+              aria-controls={`feed-text-content-${post.diaryId}`}
+              aria-expanded={isContentExpanded}
+              onClick={() => setIsContentExpanded(true)}
+              className="mt-2 text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              더 보기
+            </button>
+          )}
+          {isContentExpanded && (
+            <span
+              role="status"
+              aria-label="일기 전체 내용이 펼쳐졌습니다."
+              className="sr-only"
+            >
+              일기 전체 내용이 펼쳐졌습니다.
+            </span>
+          )}
         </div>
       )}
 

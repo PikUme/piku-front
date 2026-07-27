@@ -296,4 +296,67 @@ describe('FeedCard 사진 없는 일기', () => {
     );
     expect(screen.queryByText('오늘의 일기')).not.toBeInTheDocument();
   });
+
+  it('다섯 줄을 넘는 본문만 더 보기로 카드 안에서 펼친다', async () => {
+    const longContent =
+      '아무 약속도 없는 하루를 천천히 보냈다. '.repeat(20).trim();
+    const onContentClick = vi.fn();
+    renderFeedCard(makePost({ imgUrls: [], content: longContent }), {
+      onContentClick,
+    });
+
+    const content = screen.getByText(longContent);
+    Object.defineProperty(content, 'scrollHeight', {
+      configurable: true,
+      value: 140,
+    });
+    Object.defineProperty(content, 'clientHeight', {
+      configurable: true,
+      value: 100,
+    });
+
+    fireEvent.resize(window);
+
+    const moreButton = await screen.findByRole('button', { name: '더 보기' });
+    expect(content).toHaveClass('text-[15px]', 'line-clamp-5');
+    expect(moreButton).toHaveAttribute(
+      'aria-controls',
+      'feed-text-content-1',
+    );
+    expect(moreButton).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(moreButton);
+
+    expect(onContentClick).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('button', { name: '더 보기' }),
+    ).not.toBeInTheDocument();
+    expect(content).not.toHaveClass('line-clamp-5');
+    expect(
+      screen.getByRole('status', {
+        name: '일기 전체 내용이 펼쳐졌습니다.',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('다섯 줄을 넘지 않는 본문에는 더 보기를 표시하지 않는다', () => {
+    const contentText = '짧은 일기';
+    renderFeedCard(makePost({ imgUrls: [], content: contentText }));
+
+    const content = screen.getByText(contentText);
+    Object.defineProperty(content, 'scrollHeight', {
+      configurable: true,
+      value: 80,
+    });
+    Object.defineProperty(content, 'clientHeight', {
+      configurable: true,
+      value: 80,
+    });
+
+    fireEvent.resize(window);
+
+    expect(
+      screen.queryByRole('button', { name: '더 보기' }),
+    ).not.toBeInTheDocument();
+  });
 });
