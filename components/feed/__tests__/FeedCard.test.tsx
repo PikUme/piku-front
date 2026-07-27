@@ -6,6 +6,7 @@ import { cancelFriendRequest, sendFriendRequest } from '@/lib/api/friend';
 import useAuthStore from '@/components/store/authStore';
 import { FriendshipStatus } from '@/types/friend';
 import type { FeedDiary } from '@/types/diary';
+import type { ComponentProps } from 'react';
 
 const mockPush = vi.fn();
 
@@ -57,6 +58,26 @@ const makePost = (overrides: Partial<FeedDiary> = {}): FeedDiary => ({
   isOwner: false,
   ...overrides,
 });
+
+const renderFeedCard = (
+  post: FeedDiary,
+  overrides: Partial<ComponentProps<typeof FeedCard>> = {},
+) => {
+  const props: ComponentProps<typeof FeedCard> = {
+    post,
+    onFriendshipStatusChange: vi.fn(),
+    onContentClick: vi.fn(),
+    onCommentClick: vi.fn(),
+    onLikeToggle: vi.fn(),
+    isMobile: false,
+    ...overrides,
+  };
+
+  return {
+    ...render(<FeedCard {...props} />),
+    props,
+  };
+};
 
 describe('FeedCard comments', () => {
   beforeEach(() => {
@@ -215,5 +236,64 @@ describe('FeedCard comments', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '친구 추가' })).not.toBeInTheDocument();
     expect(document.querySelector('a[href="/profile/null"]')).not.toBeInTheDocument();
+  });
+});
+
+describe('FeedCard 사진 없는 일기', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    act(() => {
+      useAuthStore.setState({
+        authStatus: 'authenticated',
+        isLoggedIn: true,
+        user: {
+          id: 'viewer-id',
+          email: 'viewer@example.com',
+          nickname: 'viewer',
+          avatar: '',
+        },
+      });
+    });
+  });
+
+  it('사진이 없으면 이미지 대신 텍스트 본문을 표시한다', () => {
+    renderFeedCard(
+      makePost({
+        imgUrls: [],
+        content: '사진 없이 남기는 오늘의 기록',
+      }),
+    );
+
+    expect(
+      screen.queryByRole('img', { name: 'Diary image' }),
+    ).not.toBeInTheDocument();
+    expect(
+      document.querySelector('img[src="https://via.placeholder.com/600"]'),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('오늘의 일기')).toBeInTheDocument();
+    expect(
+      screen.getByText('사진 없이 남기는 오늘의 기록'),
+    ).toBeInTheDocument();
+  });
+
+  it('사진 없는 본문에서 일기 상세 보기를 선택할 수 있다', () => {
+    const onContentClick = vi.fn();
+    renderFeedCard(makePost({ imgUrls: [] }), { onContentClick });
+
+    fireEvent.click(screen.getByRole('button', { name: '일기 상세 보기' }));
+
+    expect(onContentClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('사진이 있으면 기존 이미지 카드를 유지한다', () => {
+    renderFeedCard(
+      makePost({ imgUrls: ['https://example.com/original.png'] }),
+    );
+
+    expect(screen.getByRole('img', { name: 'Diary image' })).toHaveAttribute(
+      'src',
+      'https://example.com/original.png',
+    );
+    expect(screen.queryByText('오늘의 일기')).not.toBeInTheDocument();
   });
 });

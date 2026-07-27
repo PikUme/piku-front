@@ -227,7 +227,7 @@ const FeedCard = ({
   };
 
   const photoUrl =
-    post.imgUrls?.[currentImageIndex] || 'https://via.placeholder.com/600';
+    post.imgUrls[currentImageIndex] ?? post.imgUrls[0];
 
   return (
     <>
@@ -287,28 +287,29 @@ const FeedCard = ({
         </button> */}
       </div>
 
+      {photoUrl ? (
         <div {...swipeHandlers} className="relative aspect-square w-full">
           <div
             className="h-full w-full cursor-pointer"
             onClick={onContentClick}
           >
-        <Image
-          src={photoUrl}
-          alt="Diary image"
-          fill
-          className='rounded'
-          style={{ objectFit: 'cover' }}
-          priority
-        />
+            <Image
+              src={photoUrl}
+              alt="Diary image"
+              fill
+              className="rounded"
+              style={{ objectFit: 'cover' }}
+              priority
+            />
           </div>
-          {post.imgUrls && post.imgUrls.length > 1 && (
+          {post.imgUrls.length > 1 && (
             <>
               {currentImageIndex > 0 && (
                 <button
                   onClick={handlePrevImage}
                   className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white transition-colors hover:bg-black/75"
                 >
-                  <ChevronLeft size={20} className='cursor-pointer'/>
+                  <ChevronLeft size={20} className="cursor-pointer" />
                 </button>
               )}
               {currentImageIndex < post.imgUrls.length - 1 && (
@@ -316,7 +317,7 @@ const FeedCard = ({
                   onClick={handleNextImage}
                   className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-1 text-white transition-colors hover:bg-black/75"
                 >
-                  <ChevronRight size={20} className='cursor-pointer'/>
+                  <ChevronRight size={20} className="cursor-pointer" />
                 </button>
               )}
               <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 space-x-1.5">
@@ -333,7 +334,28 @@ const FeedCard = ({
               </div>
             </>
           )}
-      </div>
+        </div>
+      ) : (
+        <div className="border-y border-gray-100 px-5 py-6 dark:border-gray-700">
+          <button
+            type="button"
+            aria-label="일기 상세 보기"
+            onClick={onContentClick}
+            className="block w-full text-left"
+          >
+            <span className="flex items-center gap-2 text-[10px] font-semibold tracking-wide text-amber-700 dark:text-yellow-300">
+              <span
+                aria-hidden="true"
+                className="h-1.5 w-1.5 rounded-full bg-yellow-400"
+              />
+              오늘의 일기
+            </span>
+            <span className="mt-3 block whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-900 dark:text-gray-100">
+              {post.content}
+            </span>
+          </button>
+        </div>
+      )}
 
       <div className="p-3">
         <div className="flex justify-between">
@@ -359,25 +381,10 @@ const FeedCard = ({
         </div>
       </div>
 
-      <div className="px-3">
-        {isContentExpanded ? (
-          <p className="text-sm whitespace-pre-wrap">
-            {isAnonymousPost ? (
-              <span className="mr-1 font-semibold">{displayNickname}</span>
-            ) : (
-              <Link
-                href={`/profile/${post.userId}`}
-                className="mr-1 font-semibold hover:underline"
-                onClick={e => e.stopPropagation()}
-              >
-                {displayNickname}
-              </Link>
-            )}{' '}
-            {post.content}
-          </p>
-        ) : (
-          <div className="flex items-baseline text-sm">
-            <p className="truncate">
+      {photoUrl && (
+        <div className="px-3">
+          {isContentExpanded ? (
+            <p className="text-sm whitespace-pre-wrap">
               {isAnonymousPost ? (
                 <span className="mr-1 font-semibold">{displayNickname}</span>
               ) : (
@@ -389,22 +396,39 @@ const FeedCard = ({
                   {displayNickname}
                 </Link>
               )}{' '}
-              <span>{post.content}</span>
+              {post.content}
             </p>
-            {post.content.length > 30 && (
-              <button
-                onClick={e => {
-                  e.stopPropagation();
-                  setIsContentExpanded(true);
-                }}
-                className="ml-1 flex-shrink-0 text-gray-500 cursor-pointer"
-              >
-                더 보기
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="flex items-baseline text-sm">
+              <p className="truncate">
+                {isAnonymousPost ? (
+                  <span className="mr-1 font-semibold">{displayNickname}</span>
+                ) : (
+                  <Link
+                    href={`/profile/${post.userId}`}
+                    className="mr-1 font-semibold hover:underline"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {displayNickname}
+                  </Link>
+                )}{' '}
+                <span>{post.content}</span>
+              </p>
+              {post.content.length > 30 && (
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    setIsContentExpanded(true);
+                  }}
+                  className="ml-1 flex-shrink-0 text-gray-500 cursor-pointer"
+                >
+                  더 보기
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <form
         onSubmit={handleCommentSubmit}
