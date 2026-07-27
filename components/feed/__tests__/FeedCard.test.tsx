@@ -302,27 +302,15 @@ describe('FeedCard 사진 없는 일기', () => {
     expect(screen.queryByText('오늘의 일기')).not.toBeInTheDocument();
   });
 
-  it('다섯 줄을 넘는 본문만 더 보기로 카드 안에서 펼친다', async () => {
-    const longContent =
-      '아무 약속도 없는 하루를 천천히 보냈다. '.repeat(20).trim();
+  it('100자를 넘는 본문을 더 보기로 카드 안에서 펼친다', () => {
+    const longContent = '가'.repeat(101);
     const onContentClick = vi.fn();
     renderFeedCard(makePost({ imgUrls: [], content: longContent }), {
       onContentClick,
     });
 
     const content = screen.getByText(longContent);
-    Object.defineProperty(content, 'scrollHeight', {
-      configurable: true,
-      value: 140,
-    });
-    Object.defineProperty(content, 'clientHeight', {
-      configurable: true,
-      value: 100,
-    });
-
-    fireEvent.resize(window);
-
-    const moreButton = await screen.findByRole('button', { name: '더 보기' });
+    const moreButton = screen.getByRole('button', { name: '더 보기' });
     expect(content).toHaveClass('text-[15px]', 'line-clamp-5');
     expect(content).not.toHaveClass('block');
     expect(moreButton).toHaveAttribute(
@@ -346,21 +334,22 @@ describe('FeedCard 사진 없는 일기', () => {
     ).toBeInTheDocument();
   });
 
-  it('다섯 줄을 넘지 않는 본문에는 더 보기를 표시하지 않는다', () => {
-    const contentText = '짧은 일기';
+  it('100자 이하여도 개행으로 여섯 줄이면 더 보기를 표시한다', () => {
+    const multilineContent = '첫째\n둘째\n셋째\n넷째\n다섯째\n여섯째';
+    renderFeedCard(makePost({ imgUrls: [], content: multilineContent }));
+
+    expect(screen.getByRole('button', { name: '더 보기' })).toBeInTheDocument();
+  });
+
+  it('100자 이하이고 다섯 줄 이하인 본문에는 더 보기를 표시하지 않는다', () => {
+    const contentText = [
+      '가'.repeat(20),
+      '나'.repeat(19),
+      '다'.repeat(19),
+      '라'.repeat(19),
+      '마'.repeat(19),
+    ].join('\n');
     renderFeedCard(makePost({ imgUrls: [], content: contentText }));
-
-    const content = screen.getByText(contentText);
-    Object.defineProperty(content, 'scrollHeight', {
-      configurable: true,
-      value: 80,
-    });
-    Object.defineProperty(content, 'clientHeight', {
-      configurable: true,
-      value: 80,
-    });
-
-    fireEvent.resize(window);
 
     expect(
       screen.queryByRole('button', { name: '더 보기' }),

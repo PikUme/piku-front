@@ -4,7 +4,7 @@
 
 **Goal:** 사진 URL이 없는 피드 일기를 placeholder 이미지 없이 `15px` 텍스트 중심 카드로 표시하고, 긴 본문을 다섯 줄에서 접어 같은 카드 안에서 펼칠 수 있게 한다.
 
-**Architecture:** `FeedClient`의 데이터와 이벤트 흐름은 유지하고 `FeedCard`가 현재 이미지 URL의 존재 여부로 이미지형과 텍스트형 주 콘텐츠를 선택한다. 사진 없는 본문의 줄 넘침과 펼침 여부는 `FeedCard`의 로컬 상태로 관리하며, 실제 렌더링 높이는 클라이언트에서 측정한다.
+**Architecture:** `FeedClient`의 데이터와 이벤트 흐름은 유지하고 `FeedCard`가 현재 이미지 URL의 존재 여부로 이미지형과 텍스트형 주 콘텐츠를 선택한다. 사진 없는 본문의 `더 보기` 노출 여부는 본문 100자 초과 또는 명시적인 6줄 이상 조건에서 렌더링 중 파생하고, 펼침 여부만 `FeedCard`의 로컬 상태로 관리한다.
 
 **Tech Stack:** Next.js 15, React 19, TypeScript, Tailwind CSS 4, Vitest 4, Testing Library
 
@@ -288,82 +288,24 @@ git commit -m "feat: 사진 없는 피드에 텍스트 카드 표시"
 
 ---
 
-### Task 2: 다섯 줄 넘침 판별과 카드 내부 펼치기
+### Task 2: 단순 기준의 `더 보기`와 카드 내부 펼치기
 
 **Files:**
 - Modify: `components/feed/FeedCard.tsx`
 - Test: `components/feed/__tests__/FeedCard.test.tsx`
 
 **Interfaces:**
-- Consumes: 사진 없는 본문 요소의 `scrollHeight`, `clientHeight`, 브라우저 `resize` 이벤트
-- Produces: 실제 다섯 줄을 넘는 경우에만 노출되는 `더 보기`, 카드 내부 전문 펼침, 접근성 상태 안내
+- Consumes: 사진 없는 본문의 문자열 길이와 명시적인 개행 수
+- Produces: 100자를 넘거나 6줄 이상인 경우 노출되는 `더 보기`, 카드 내부 전문 펼침, 접근성 상태 안내
 
-- [ ] **Step 1: 넘침 여부와 펼침 동작의 실패 테스트를 작성한다**
+- [ ] **Step 1: 단순 노출 기준과 펼침 동작의 실패 테스트를 작성한다**
 
-`FeedCard.test.tsx`의 사진 없는 일기 describe에 다음 테스트를 추가한다. DOM 높이는 실제 본문 요소에만 지정하고, resize 이벤트로 사용자가 폭을 변경한 것과 같은 재측정을 실행한다.
+`FeedCard.test.tsx`의 사진 없는 일기 describe에 다음 동작을 검증한다.
 
-```tsx
-it('다섯 줄을 넘는 본문만 더 보기로 카드 안에서 펼친다', async () => {
-  const longContent =
-    '아무 약속도 없는 하루를 천천히 보냈다. '.repeat(20).trim();
-  const onContentClick = vi.fn();
-  renderFeedCard(makePost({ imgUrls: [], content: longContent }), {
-    onContentClick,
-  });
-
-  const content = screen.getByText(longContent);
-  Object.defineProperty(content, 'scrollHeight', {
-    configurable: true,
-    value: 140,
-  });
-  Object.defineProperty(content, 'clientHeight', {
-    configurable: true,
-    value: 100,
-  });
-
-  fireEvent.resize(window);
-
-  const moreButton = await screen.findByRole('button', { name: '더 보기' });
-  expect(content).toHaveClass('text-[15px]', 'line-clamp-5');
-  expect(moreButton).toHaveAttribute(
-    'aria-controls',
-    'feed-text-content-1',
-  );
-  expect(moreButton).toHaveAttribute('aria-expanded', 'false');
-
-  fireEvent.click(moreButton);
-
-  expect(onContentClick).not.toHaveBeenCalled();
-  expect(
-    screen.queryByRole('button', { name: '더 보기' }),
-  ).not.toBeInTheDocument();
-  expect(content).not.toHaveClass('line-clamp-5');
-  expect(
-    screen.getByRole('status', { name: '일기 전체 내용이 펼쳐졌습니다.' }),
-  ).toBeInTheDocument();
-});
-
-it('다섯 줄을 넘지 않는 본문에는 더 보기를 표시하지 않는다', () => {
-  const contentText = '짧은 일기';
-  renderFeedCard(makePost({ imgUrls: [], content: contentText }));
-
-  const content = screen.getByText(contentText);
-  Object.defineProperty(content, 'scrollHeight', {
-    configurable: true,
-    value: 80,
-  });
-  Object.defineProperty(content, 'clientHeight', {
-    configurable: true,
-    value: 80,
-  });
-
-  fireEvent.resize(window);
-
-  expect(
-    screen.queryByRole('button', { name: '더 보기' }),
-  ).not.toBeInTheDocument();
-});
-```
+- 100자를 넘는 한 문단은 `더 보기`를 표시한다.
+- 100자 이하여도 명시적인 개행으로 6줄 이상이면 `더 보기`를 표시한다.
+- 100자 이하이고 명시적인 5줄 이하이면 `더 보기`를 표시하지 않는다.
+- `더 보기`를 누르면 상세 callback 없이 같은 카드에서 전문을 펼친다.
 
 - [ ] **Step 2: 신규 테스트가 더 보기 기능 부재로 실패하는지 확인한다**
 
@@ -373,43 +315,30 @@ Run:
 npm run test:run -- components/feed/__tests__/FeedCard.test.tsx
 ```
 
-Expected: 긴 사진 없는 본문에서 `더 보기` 버튼을 찾지 못해 첫 신규 테스트가 FAIL한다.
+Expected: 긴 한 문단과 6줄 본문에서 `더 보기` 버튼을 찾지 못해 신규 테스트가 FAIL한다.
 
-- [ ] **Step 3: 본문 측정과 펼침 상태를 최소 구현한다**
+- [ ] **Step 3: 문자열에서 노출 여부를 파생하고 펼침 상태를 최소 구현한다**
 
-React import에 `useEffect`를 추가하고 텍스트 본문용 ref와 상태를 `FeedCard` 내부에 둔다.
-
-```tsx
-const textContentRef = useRef<HTMLSpanElement>(null);
-const [isTextOverflowing, setIsTextOverflowing] = useState(false);
-```
-
-사진 없는 접힌 본문의 실제 높이를 최초 렌더링과 resize 때 측정한다. 펼친 뒤에는 측정 listener를 제거한다.
+기준값을 모듈 상수로 선언한다.
 
 ```tsx
-useEffect(() => {
-  if (photoUrl || isContentExpanded) {
-    return;
-  }
-
-  const updateTextOverflow = () => {
-    const element = textContentRef.current;
-    if (!element) return;
-    setIsTextOverflowing(element.scrollHeight > element.clientHeight);
-  };
-
-  updateTextOverflow();
-  window.addEventListener('resize', updateTextOverflow);
-  return () => window.removeEventListener('resize', updateTextOverflow);
-}, [photoUrl, post.content, isContentExpanded]);
+const TEXT_PREVIEW_CHARACTER_LIMIT = 100;
+const TEXT_PREVIEW_LINE_LIMIT = 5;
 ```
 
-사진 없는 본문 요소에는 안정적인 id, ref, 다섯 줄 clamp를 연결한다.
+본문 문자열에서 `더 보기` 노출 여부를 렌더링 중 계산한다.
+
+```tsx
+const shouldShowTextMore =
+  post.content.length > TEXT_PREVIEW_CHARACTER_LIMIT ||
+  post.content.split(/\r\n|\r|\n/).length > TEXT_PREVIEW_LINE_LIMIT;
+```
+
+사진 없는 본문 요소에는 안정적인 id와 다섯 줄 clamp를 연결한다.
 
 ```tsx
 <span
   id={`feed-text-content-${post.diaryId}`}
-  ref={textContentRef}
   className={`mt-3 whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-900 dark:text-gray-100 ${
     isContentExpanded ? 'block' : 'line-clamp-5'
   }`}
@@ -418,10 +347,10 @@ useEffect(() => {
 </span>
 ```
 
-텍스트 상세 보기 버튼의 형제 요소로 `더 보기`를 배치해 상세 열기 click과 중첩되지 않게 한다.
+텍스트 상세 보기 버튼의 형제 요소로 조건부 `더 보기`를 배치해 상세 열기 click과 중첩되지 않게 한다.
 
 ```tsx
-{isTextOverflowing && !isContentExpanded && (
+{shouldShowTextMore && !isContentExpanded && (
   <button
     type="button"
     aria-controls={`feed-text-content-${post.diaryId}`}
@@ -458,15 +387,16 @@ Expected: 사진 없는 본문의 긴 글, 짧은 글, 사진 카드 회귀와 �
 요구사항 리뷰:
 
 - 사진 없는 본문만 `15px`와 최대 다섯 줄을 적용한다.
-- 실제 `scrollHeight > clientHeight`인 경우에만 `더 보기`가 보인다.
+- 본문이 100자를 넘거나 명시적인 6줄 이상이면 `더 보기`가 보인다.
+- 100자 이하이고 명시적인 5줄 이하이면 `더 보기`가 보이지 않는다.
 - `더 보기`는 상세 모달을 열지 않고 같은 카드에서 clamp를 제거한다.
 - 사진 카드의 기존 30자 기준 `더 보기`는 그대로 유지한다.
 
 코드 품질 리뷰:
 
-- window resize listener가 unmount와 펼침 전환 때 정리된다.
+- DOM 높이 측정, ref, window resize listener가 없다.
 - id가 `diaryId`를 포함해 피드 안에서 충돌하지 않는다.
-- ref와 넘침 상태가 API나 전역 store로 이동하지 않는다.
+- 노출 여부를 effect나 별도 상태에 저장하지 않고 현재 본문에서 파생한다.
 - `더 보기`와 일기 상세 보기 버튼이 중첩되지 않는다.
 - 테스트는 실제 `FeedCard`를 렌더링하고 사용자에게 보이는 요소와 callback을 검증한다.
 

@@ -9,7 +9,7 @@ import {
   MoreIcon,
   ShareIcon,
 } from '../icons/FeedIcons';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import useAuthStore from '../store/authStore';
 import { createComment } from '@/lib/api/comment';
 import { useRouter } from 'next/navigation';
@@ -40,6 +40,9 @@ interface FeedCardProps {
   isMobile: boolean;
 }
 
+const TEXT_PREVIEW_CHARACTER_LIMIT = 100;
+const TEXT_PREVIEW_LINE_LIMIT = 5;
+
 const FeedCard = ({
   post,
   onFriendshipStatusChange,
@@ -59,8 +62,6 @@ const FeedCard = ({
   } | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
-  const [isTextOverflowing, setIsTextOverflowing] = useState(false);
-  const textContentRef = useRef<HTMLSpanElement>(null);
 
   const { user } = useAuthStore();
   const router = useRouter();
@@ -230,22 +231,9 @@ const FeedCard = ({
 
   const photoUrl =
     post.imgUrls[currentImageIndex] ?? post.imgUrls[0];
-
-  useEffect(() => {
-    if (photoUrl || isContentExpanded) {
-      return;
-    }
-
-    const updateTextOverflow = () => {
-      const element = textContentRef.current;
-      if (!element) return;
-      setIsTextOverflowing(element.scrollHeight > element.clientHeight);
-    };
-
-    updateTextOverflow();
-    window.addEventListener('resize', updateTextOverflow);
-    return () => window.removeEventListener('resize', updateTextOverflow);
-  }, [photoUrl, post.content, isContentExpanded]);
+  const shouldShowTextMore =
+    post.content.length > TEXT_PREVIEW_CHARACTER_LIMIT ||
+    post.content.split(/\r\n|\r|\n/).length > TEXT_PREVIEW_LINE_LIMIT;
 
   return (
     <>
@@ -371,7 +359,6 @@ const FeedCard = ({
             </span>
             <span
               id={`feed-text-content-${post.diaryId}`}
-              ref={textContentRef}
               className={`mt-3 whitespace-pre-wrap break-words text-[15px] leading-[1.7] text-gray-900 dark:text-gray-100 ${
                 isContentExpanded ? 'block' : 'line-clamp-5'
               }`}
@@ -379,7 +366,7 @@ const FeedCard = ({
               {post.content}
             </span>
           </button>
-          {isTextOverflowing && !isContentExpanded && (
+          {shouldShowTextMore && !isContentExpanded && (
             <button
               type="button"
               aria-controls={`feed-text-content-${post.diaryId}`}
