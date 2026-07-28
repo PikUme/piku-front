@@ -302,6 +302,45 @@ describe('FeedCard 사진 없는 일기', () => {
     expect(screen.queryByText('오늘의 일기')).not.toBeInTheDocument();
   });
 
+  it('사진이 여러 장이면 기존 캐러셀로 다음 사진을 표시한다', () => {
+    const { container } = renderFeedCard(
+      makePost({
+        imgUrls: [
+          'https://example.com/first.png',
+          'https://example.com/second.png',
+        ],
+      }),
+    );
+
+    expect(screen.getByRole('img', { name: 'Diary image' })).toHaveAttribute(
+      'src',
+      'https://example.com/first.png',
+    );
+
+    const nextImageButton = container.querySelector('button.right-2');
+    expect(nextImageButton).toBeInstanceOf(HTMLButtonElement);
+    fireEvent.click(nextImageButton as HTMLButtonElement);
+
+    expect(screen.getByRole('img', { name: 'Diary image' })).toHaveAttribute(
+      'src',
+      'https://example.com/second.png',
+    );
+  });
+
+  it('사진이 있는 일기는 기존처럼 30자를 넘으면 본문을 펼친다', () => {
+    const content = '가'.repeat(31);
+    renderFeedCard(makePost({ content }));
+
+    fireEvent.click(screen.getByRole('button', { name: '더 보기' }));
+
+    expect(
+      screen.queryByRole('button', { name: '더 보기' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(content).closest('p')).toHaveClass(
+      'whitespace-pre-wrap',
+    );
+  });
+
   it('100자를 넘는 본문을 더 보기로 카드 안에서 펼친다', () => {
     const longContent = '가'.repeat(101);
     const onContentClick = vi.fn();
@@ -310,6 +349,9 @@ describe('FeedCard 사진 없는 일기', () => {
     });
 
     const content = screen.getByText(longContent);
+    const detailButton = screen.getByRole('button', {
+      name: '일기 상세 보기',
+    });
     const moreButton = screen.getByRole('button', { name: '더 보기' });
     expect(content).toHaveClass('text-[15px]', 'line-clamp-5');
     expect(content).not.toHaveClass('block');
@@ -319,9 +361,11 @@ describe('FeedCard 사진 없는 일기', () => {
     );
     expect(moreButton).toHaveAttribute('aria-expanded', 'false');
 
+    moreButton.focus();
     fireEvent.click(moreButton);
 
     expect(onContentClick).not.toHaveBeenCalled();
+    expect(detailButton).toHaveFocus();
     expect(
       screen.queryByRole('button', { name: '더 보기' }),
     ).not.toBeInTheDocument();
@@ -332,6 +376,14 @@ describe('FeedCard 사진 없는 일기', () => {
         name: '일기 전체 내용이 펼쳐졌습니다.',
       }),
     ).toBeInTheDocument();
+  });
+
+  it('사진 없는 일기의 더 보기 버튼에 최소 터치 높이를 제공한다', () => {
+    renderFeedCard(makePost({ imgUrls: [], content: '가'.repeat(101) }));
+
+    expect(screen.getByRole('button', { name: '더 보기' })).toHaveClass(
+      'min-h-8',
+    );
   });
 
   it('100자 이하여도 개행으로 여섯 줄이면 더 보기를 표시한다', () => {

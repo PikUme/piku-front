@@ -62,6 +62,7 @@ const FeedCard = ({
   } | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
+  const textDetailButtonRef = useRef<HTMLButtonElement>(null);
 
   const { user } = useAuthStore();
   const router = useRouter();
@@ -235,6 +236,11 @@ const FeedCard = ({
     post.content.length > TEXT_PREVIEW_CHARACTER_LIMIT ||
     post.content.split(/\r\n|\r|\n/).length > TEXT_PREVIEW_LINE_LIMIT;
 
+  const handleTextContentExpand = () => {
+    setIsContentExpanded(true);
+    textDetailButtonRef.current?.focus();
+  };
+
   return (
     <>
       {/* <div className="w-full rounded-lg border bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"> */}
@@ -344,6 +350,7 @@ const FeedCard = ({
       ) : (
         <div className="border-y border-gray-100 px-5 py-6 dark:border-gray-700">
           <button
+            ref={textDetailButtonRef}
             type="button"
             aria-label="일기 상세 보기"
             aria-describedby={`feed-text-content-${post.diaryId}`}
@@ -371,8 +378,8 @@ const FeedCard = ({
               type="button"
               aria-controls={`feed-text-content-${post.diaryId}`}
               aria-expanded={isContentExpanded}
-              onClick={() => setIsContentExpanded(true)}
-              className="mt-2 text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              onClick={handleTextContentExpand}
+              className="mt-2 inline-flex min-h-8 items-center text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             >
               더 보기
             </button>
