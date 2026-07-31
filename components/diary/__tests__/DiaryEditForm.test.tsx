@@ -14,6 +14,10 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
+vi.mock('next/image', () => ({
+  default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => <img {...props} />,
+}));
+
 vi.mock('@/lib/api/diary', () => ({
   getDiaryById: vi.fn(),
   updateDiary: vi.fn(),
@@ -166,6 +170,34 @@ describe('DiaryEditForm', () => {
     expect(await screen.findByText('본인 일기만 수정할 수 있습니다.')).toBeInTheDocument();
     expect(screen.getByLabelText('일기 내용')).toHaveValue('실패할 수정본');
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('존재하지 않는 일기를 조회하면 404 이미지를 보여준다', async () => {
+    mockGetDiaryById.mockRejectedValue({
+      response: {
+        status: 404,
+        data: {
+          detail: '존재하지 않는 일기입니다.',
+        },
+      },
+    });
+
+    render(<DiaryEditForm diaryId={404} />);
+
+    expect(
+      await screen.findByRole('img', { name: '일기를 찾을 수 없습니다.' }),
+    ).toHaveAttribute('src', '/404.png');
+  });
+
+  it('일기 조회가 404가 아닌 오류로 실패하면 오류 문구를 보여준다', async () => {
+    mockGetDiaryById.mockRejectedValue(new Error('Network error'));
+
+    render(<DiaryEditForm diaryId={1} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Network error');
+    expect(
+      screen.queryByRole('img', { name: '일기를 찾을 수 없습니다.' }),
+    ).not.toBeInTheDocument();
   });
 
   it('취소하면 저장 API를 호출하지 않고 이전 페이지로 돌아간다', async () => {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import TextareaAutosize from 'react-textarea-autosize';
 import { AnimatePresence, motion } from 'framer-motion';
 import { EyeOff, Globe, Lock, Users, X } from 'lucide-react';
+import Image from 'next/image';
 import type { DiaryDetail, PrivacyStatus } from '@/types/diary';
 import { getDiaryById, updateDiary } from '@/lib/api/diary';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
@@ -18,6 +19,9 @@ interface DiaryEditFormProps {
 }
 
 const MAX_CONTENT_LENGTH = 500;
+
+const isNotFoundResponse = (error: unknown) =>
+  (error as { response?: { status?: number } }).response?.status === 404;
 
 const getPrivacyIcon = (value: PrivacyStatus, size = 16) => {
   switch (value) {
@@ -40,6 +44,7 @@ const DiaryEditForm = ({ diaryId }: DiaryEditFormProps) => {
   const [status, setStatus] = useState<PrivacyStatus>('PUBLIC');
   const [content, setContent] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isNotFound, setIsNotFound] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
@@ -49,6 +54,7 @@ const DiaryEditForm = ({ diaryId }: DiaryEditFormProps) => {
   useEffect(() => {
     const loadDiary = async () => {
       setIsLoading(true);
+      setIsNotFound(false);
       setErrorMessage(null);
 
       try {
@@ -57,6 +63,7 @@ const DiaryEditForm = ({ diaryId }: DiaryEditFormProps) => {
         setStatus(diaryDetail.status);
         setContent(diaryDetail.content);
       } catch (error) {
+        setIsNotFound(isNotFoundResponse(error));
         setErrorMessage(
           getApiErrorMessage(error, '일기를 불러오지 못했습니다.'),
         );
@@ -114,11 +121,25 @@ const DiaryEditForm = ({ diaryId }: DiaryEditFormProps) => {
   }
 
   if (!diary) {
+    if (!isNotFound) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6 dark:bg-black">
+          <p role="alert" className="text-sm text-red-500">
+            {errorMessage}
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6 dark:bg-black">
-        <p role="alert" className="text-sm text-red-500">
-          {errorMessage}
-        </p>
+        <Image
+          src="/404.png"
+          alt="일기를 찾을 수 없습니다."
+          width={1536}
+          height={1024}
+          className="h-auto w-full max-w-2xl"
+        />
       </div>
     );
   }
