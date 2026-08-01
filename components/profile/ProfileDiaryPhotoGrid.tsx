@@ -6,6 +6,7 @@ import { Images } from 'lucide-react';
 import { useMediaQuery } from 'react-responsive';
 import DiaryDetailModal from '@/components/diary/DiaryDetailModal';
 import DiaryStoryModal from '@/components/diary/DiaryStoryModal';
+import ProfileDiaryPhotoGridSkeleton from '@/components/profile/ProfileDiaryPhotoGridSkeleton';
 import {
   CalendarDiaryResponseDTO,
   getDiaryById,
@@ -141,7 +142,7 @@ const ProfileDiaryPhotoGrid = ({ userId }: ProfileDiaryPhotoGridProps) => {
   };
 
   if (isLoading) {
-    return <p className="py-8 text-center text-gray-500">사진을 불러오는 중...</p>;
+    return <ProfileDiaryPhotoGridSkeleton count={9} />;
   }
 
   if (isError) {
@@ -156,6 +157,7 @@ const ProfileDiaryPhotoGrid = ({ userId }: ProfileDiaryPhotoGridProps) => {
     <div>
       <div
         aria-label="다이어리 사진 목록"
+        aria-busy={isLoadingMore}
         className="grid grid-cols-3 gap-0.5 md:gap-1"
         data-testid="profile-diary-photo-grid"
       >
@@ -184,16 +186,18 @@ const ProfileDiaryPhotoGrid = ({ userId }: ProfileDiaryPhotoGridProps) => {
             )}
           </button>
         ))}
+        {isLoadingMore && (
+          <ProfileDiaryPhotoGridSkeleton count={3} tilesOnly />
+        )}
       </div>
-      {hasNext && (
+      {hasNext && !isLoadingMore && (
         <div className="mt-4 flex justify-center">
           <button
             type="button"
             onClick={handleLoadMore}
-            disabled={isLoadingMore}
-            className="rounded-full bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:bg-gray-400"
+            className="rounded-full bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-black"
           >
-            {isLoadingMore ? '불러오는 중...' : '더 보기'}
+            더 보기
           </button>
         </div>
       )}

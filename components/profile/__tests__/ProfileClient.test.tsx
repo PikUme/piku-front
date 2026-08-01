@@ -166,6 +166,61 @@ describe('ProfileClient', () => {
     expect(sendFriendRequest).toHaveBeenCalledWith('user-2');
   });
 
+  it('사진 탭 최초 로딩 중 9개의 사진 스켈레톤을 표시한다', async () => {
+    getUserGallery.mockReturnValueOnce(new Promise(() => {}));
+
+    render(<ProfileClient profileData={profileData} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '사진' }));
+
+    const loadingStatus = await screen.findByRole('status');
+
+    expect(loadingStatus).toHaveTextContent('사진을 불러오는 중');
+    expect(
+      screen.getAllByTestId('profile-diary-photo-skeleton-tile'),
+    ).toHaveLength(9);
+    expect(
+      screen.queryByText('사진을 불러오는 중...'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('사진 더 보기 로딩 중 기존 사진 뒤에 3개의 스켈레톤을 표시한다', async () => {
+    getUserGallery
+      .mockResolvedValueOnce({
+        items: [
+          {
+            diaryId: 101,
+            date: '2026-05-02',
+            coverPhotoUrl: '/diary-cover.png',
+            imageCount: 1,
+            status: 'PUBLIC',
+          },
+        ],
+        nextCursor: 'next-cursor',
+        hasNext: true,
+      })
+      .mockReturnValueOnce(new Promise(() => {}));
+
+    render(<ProfileClient profileData={profileData} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '사진' }));
+    fireEvent.click(await screen.findByRole('button', { name: '더 보기' }));
+
+    expect(
+      screen.getByRole('img', { name: '2026-05-02 일기 사진' }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('profile-diary-photo-grid')).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
+    expect(
+      screen.getAllByTestId('profile-diary-photo-skeleton-tile'),
+    ).toHaveLength(3);
+    expect(
+      screen.queryByRole('button', { name: '더 보기' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('Diary 섹션 선택 UI에서 사진을 선택하면 갤러리 API로 사진 그리드를 불러온다', async () => {
     getUserGallery.mockResolvedValueOnce({
       items: [
