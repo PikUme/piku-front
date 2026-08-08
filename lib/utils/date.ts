@@ -34,7 +34,7 @@ export const formatTimeAgo = (dateString: string): string => {
     return `${months}달 전`;
   }
 
-  const years = Math.floor(days / 12);
+  const years = Math.floor(months / 12);
   return `${years}년 전`;
 };
 

@@ -1,5 +1,18 @@
-import { describe, expect, it } from 'vitest';
-import { formatDateParam, isValidDate } from '../date';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { formatDateParam, formatTimeAgo, isValidDate } from '../date';
+
+describe('formatTimeAgo', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('마이크로초가 포함된 약 1년 전 생성 시각을 1년 전으로 표시한다', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-08T00:00:00+09:00'));
+
+    expect(formatTimeAgo('2025-07-10T14:26:31.273397')).toBe('1년 전');
+  });
+});
 
 describe('formatDateParam', () => {
   it('연월일을 YYYY-MM-DD 형식으로 만든다', () => {
