@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { updateDiary, getUserGallery } from '../diary';
+import { generateAiPhotos, getUserGallery, updateDiary } from '../diary';
 import api from '../api';
 
 vi.mock('../api', () => ({
   default: {
     patch: vi.fn(),
     get: vi.fn(),
+    post: vi.fn(),
   },
 }));
 
@@ -36,6 +37,32 @@ describe('diary API', () => {
 });
 
 const mockGet = vi.mocked(api.get);
+const mockPost = vi.mocked(api.post);
+
+describe('generateAiPhotos', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('일기 내용과 characterId를 함께 POST 전송한다', async () => {
+    const photo = { id: 10, url: 'https://example.com/ai.png' };
+    mockPost.mockResolvedValue({ data: photo });
+
+    const result = await generateAiPhotos('오늘의 일기', 7);
+
+    expect(mockPost).toHaveBeenCalledWith('/diary/ai/generate', {
+      content: '오늘의 일기',
+      characterId: 7,
+    });
+    expect(result).toEqual(photo);
+  });
+
+  it('내용이 비어 있으면 POST하지 않는다', async () => {
+    await expect(generateAiPhotos('   ', 7)).resolves.toBeNull();
+
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+});
 
 describe('getUserGallery', () => {
   beforeEach(() => {

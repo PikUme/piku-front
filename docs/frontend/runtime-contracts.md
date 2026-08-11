@@ -16,6 +16,13 @@ API 응답 형식, 상태 관리 경계, 인증/알림/URL 처리 규칙이 바�
 - 폼 validation 에러는 `fieldErrors`를 필드 단위로 소비한다.
 - 일부 성공 응답은 body가 아니라 header 계약을 사용한다. 예: 토큰 재발급 성공은 `Authorization` 헤더에서 새 access token을 읽는다.
 
+## AI 사진 생성 계약
+- 새 일기 작성 화면은 AI 사진 생성 전에 `GET /characters/fixed`로 고정 캐릭터 목록을 조회하고 사용자가 캐릭터 하나를 선택하게 한다.
+- `POST /diary/ai/generate` 요청은 현재 일기 내용인 `content`와 선택한 고정 캐릭터 식별자인 `characterId`를 함께 보낸다.
+- 캐릭터 목록 조회만으로는 AI 생성 가능 횟수를 차감하지 않는다. 실제 생성 요청을 시작할 때만 기존 차감 정책을 적용한다.
+- 프런트는 생성 요청 전에 남은 횟수를 낙관적으로 감소시키고, 실패하면 이전 횟수를 복구한 뒤 캐릭터 선택과 모달 상태를 유지한다.
+- 백엔드 구현이 완료되면 실제 생성 성공 응답, `characterId` validation, AI 생성 가능 횟수 차감을 브라우저 통합 검증으로 확인한다.
+
 ## 익명 일기 계약
 - 일기 공개 범위는 `PUBLIC`, `FRIENDS`, `PRIVATE`, `ANONYMOUS`를 사용한다.
 - 피드 목록과 일기 상세 응답은 모두 `isOwner`를 포함한다. 작성자 권한 판단은 `userId` 비교보다 `isOwner`를 우선한다.
