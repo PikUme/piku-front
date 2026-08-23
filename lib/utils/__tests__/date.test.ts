@@ -12,6 +12,22 @@ describe('formatTimeAgo', () => {
 
     expect(formatTimeAgo('2025-07-10T14:26:31.273397')).toBe('1년 전');
   });
+
+  it('클라이언트보다 1초 앞선 생성 시각은 방금 전으로 표시한다', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-23T19:00:00+09:00'));
+
+    expect(formatTimeAgo('2026-08-23T19:00:01+09:00')).toBe('방금 전');
+  });
+
+  it('클라이언트보다 1분 넘게 앞선 생성 시각은 날짜 정보 없음으로 표시한다', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-23T19:00:00+09:00'));
+
+    expect(formatTimeAgo('2026-08-23T19:01:01+09:00')).toBe(
+      '날짜 정보 없음',
+    );
+  });
 });
 
 describe('formatDateParam', () => {

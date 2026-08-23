@@ -2,8 +2,9 @@ export const formatTimeAgo = (dateString: string): string => {
   const now = new Date();
   const past = new Date(dateString);
   const seconds = Math.floor((now.getTime() - past.getTime()) / 1000);
+  const maxClockSkewSeconds = 60;
 
-  if (Number.isNaN(seconds) || seconds < 0) {
+  if (Number.isNaN(seconds) || seconds < -maxClockSkewSeconds) {
     return '날짜 정보 없음';
   }
 
