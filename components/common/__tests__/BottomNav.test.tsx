@@ -45,7 +45,7 @@ describe('BottomNav', () => {
     pathnameState.value = '/';
   });
 
-  it('로그인 사용자 하단 네비게이션은 아이콘 라벨 텍스트를 보이지 않는다', () => {
+  it('로그인 사용자 하단 네비게이션은 홈, 피드, 오늘의 일기, 검색, 더보기 순서로 표시한다', () => {
     const { container } = render(<BottomNav />);
     const footer = container.querySelector('footer');
 
@@ -59,24 +59,59 @@ describe('BottomNav', () => {
       '친구',
       '더보기',
     ]);
-    expect(screen.getByRole('link', { name: '홈' })).toHaveAttribute('href', '/');
-    expect(screen.getByRole('link', { name: '피드' })).toHaveAttribute('href', '/feed');
-    expect(screen.getByRole('link', { name: '검색' })).toHaveAttribute('href', '/search');
-    expect(screen.getByRole('link', { name: '오늘의 일기' })).toHaveAttribute(
+
+    const controls = Array.from(footer!.querySelectorAll('a, button')).map(
+      element => element.getAttribute('aria-label'),
+    );
+    expect(controls).toEqual(['홈', '피드', '오늘의 일기', '검색', '더보기']);
+
+    const diaryLink = screen.getByRole('link', { name: '오늘의 일기' });
+    expect(diaryLink).toHaveAttribute(
       'href',
       expect.stringMatching(/^\/diary\/new\/\d{4}-\d{2}-\d{2}$/),
     );
+    expect(diaryLink.querySelector('img')).toHaveAttribute(
+      'src',
+      expect.stringContaining('fox-navi.png'),
+    );
+    expect(diaryLink.querySelector('img')).toHaveAttribute('alt', '');
     expect(screen.queryByRole('link', { name: '친구' })).not.toBeInTheDocument();
     expect(within(footer!).getAllByRole('link')).toHaveLength(4);
     expect(screen.getByRole('button', { name: '더보기' })).toBeInTheDocument();
   });
 
-  it('로그인 사용자 하단 네비게이션은 아이콘 전용 상태의 상하 여백을 1.8배로 유지한다', () => {
-    const { container } = render(<BottomNav />);
-    const footer = container.querySelector('footer');
+  it('로그인 사용자 하단 네비게이션은 84px 표면과 58px 여우 이미지를 사용한다', () => {
+    render(<BottomNav />);
 
-    expect(footer).not.toBeNull();
-    expectExpandedVerticalPadding(container, footer!);
+    const navigation = screen.getByRole('navigation', {
+      name: '모바일 하단 네비게이션',
+    });
+    const diaryLink = screen.getByRole('link', { name: '오늘의 일기' });
+    const curve = screen.getByTestId('bottom-nav-curve');
+
+    expect(navigation.parentElement).toHaveClass(
+      'h-[calc(84px_+_env(safe-area-inset-bottom))]',
+    );
+    expect(diaryLink).toHaveClass('top-[6px]', 'h-[58px]', 'w-[58px]');
+    expect(curve).toHaveAttribute('viewBox', '0 0 96 84');
+    expect(curve.querySelector('path')).toHaveAttribute(
+      'd',
+      'M0 35 C4 35 8.2 33.9 9.59 41.77 C12.88 60.4 29.07 74 48 74 C66.93 74 83.12 60.4 86.41 41.77 C87.8 33.9 92 35 96 35 V84 H0 Z',
+    );
+  });
+
+  it('현재 경로에 해당하는 링크는 현재 페이지로 표시한다', () => {
+    pathnameState.value = '/feed';
+
+    render(<BottomNav />);
+
+    expect(screen.getByRole('link', { name: '피드' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(screen.getByRole('link', { name: '홈' })).not.toHaveAttribute(
+      'aria-current',
+    );
   });
 
   it('친구 페이지에서는 더보기 그룹이 활성 상태로 표시된다', () => {

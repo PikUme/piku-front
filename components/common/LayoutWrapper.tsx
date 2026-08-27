@@ -60,7 +60,7 @@ const LayoutWrapper = ({ children }: { children: React.ReactNode }) => {
         }
         
         .main-content-wrapper {
-          padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+          padding-bottom: calc(5.25rem + env(safe-area-inset-bottom));
         }
         
         @media (min-width: 1280px) {
@@ -86,4 +86,4 @@ const LayoutWrapper = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export default LayoutWrapper; 
+export default LayoutWrapper;

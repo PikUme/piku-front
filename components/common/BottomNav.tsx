@@ -1,16 +1,16 @@
 'use client';
 
 import {
-  Home,
   Compass,
-  Search,
-  User,
-  PlusSquare,
-  Menu,
-  Settings,
-  LogOut,
+  Ellipsis,
   HelpCircle,
+  Home,
+  LogOut,
+  Search,
+  Settings,
+  User,
 } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
@@ -26,51 +26,9 @@ const BottomNav = () => {
   const todayDate = `${year}-${month}-${day}`;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
-  const [isPWAiOS, setIsPWAiOS] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const hasModalHistoryEntryRef = useRef(false);
   const pathname = usePathname();
   useBodyScrollLock(isModalOpen);
-
-  useEffect(() => {
-    // iOS 기기 감지
-    const detectiOS = () => {
-      const userAgent = navigator.userAgent.toLowerCase();
-      return /ipad|iphone|ipod/.test(userAgent);
-    };
-
-    // PWA 환경 감지
-    const detectPWA = () => {
-      // PWA가 standalone 모드로 실행 중인지 확인
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-      // iOS Safari에서 홈 스크린에 추가된 PWA인지 확인 (iOS 전용)
-      const isIOSStandalone = (window.navigator as any).standalone === true;
-      
-      return isStandalone || isIOSStandalone;
-    };
-
-    // PWA를 사용하는 iOS 기기인지 확인
-    const detectPWAiOS = () => {
-      return detectiOS() && detectPWA();
-    };
-
-    // 모바일 환경 감지
-    const detectMobile = () => {
-      return window.innerWidth <= 768 && 'ontouchstart' in window;
-    };
-
-    setIsPWAiOS(detectPWAiOS());
-
-    setIsMobile(detectMobile());
-
-    // 화면 크기 변경 감지
-    const handleResize = () => {
-      setIsMobile(detectMobile());
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -123,55 +81,20 @@ const BottomNav = () => {
     };
   }, []);
 
-  const getLinkClass = (path: string, exact = true) => {
-    const isActive = exact ? pathname === path : pathname.startsWith(path);
-    const baseClass = `flex flex-col items-center justify-center text-sm ${
-      isActive ? '' : 'text-gray-400'
+  const isPathActive = (path: string, exact = true) =>
+    exact ? pathname === path : pathname.startsWith(path);
+
+  const getIconClass = (active: boolean) =>
+    `flex h-11 w-11 items-center justify-center justify-self-center transition-colors ${
+      active
+        ? 'text-orange-500 dark:text-orange-400'
+        : 'text-gray-400 dark:text-gray-500'
     }`;
-    
-    // PWA를 사용하는 iOS 모바일에서 크기 증가
-    if (isPWAiOS && isMobile) {
-      return `${baseClass} w-20 py-2`;
-    }
-    
-    return `${baseClass} w-16`;
-  };
 
-  const getMoreLinkClass = () => {
-    const isActive =
-      pathname.startsWith('/profile') ||
-      pathname.startsWith('/settings') ||
-      pathname.startsWith('/friends');
-    const baseClass = `flex flex-col items-center justify-center text-sm cursor-pointer ${
-      isActive ? '' : 'text-gray-400'
-    }`;
-    
-    // PWA를 사용하는 iOS 모바일에서 크기 증가
-    if (isPWAiOS && isMobile) {
-      return `${baseClass} w-20 py-2`;
-    }
-    
-    return `${baseClass} w-16`;
-  };
-
-  // PWA를 사용하는 iOS 모바일에서 BottomNav 스타일 조정
-  const getBottomNavClass = () => {
-    let baseClass = "flex justify-around items-center border-t xl:hidden bg-white dark:bg-black fixed bottom-0 left-0 right-0 z-20";
-    
-    if (isPWAiOS && isMobile) {
-      // PWA를 사용하는 iOS에서 크기 증가 및 safe area 고려
-      return `${baseClass} px-4 pt-[0.9rem] min-h-[80px]`;
-    }
-    return `${baseClass} px-2 pt-[0.9rem]`;
-  };
-
-  // PWA를 사용하는 iOS 모바일에서 아이콘 크기 조정
-  const getIconSize = () => {
-    if (isPWAiOS && isMobile) {
-      return "w-7 h-7";
-    }
-    return "w-6 h-6";
-  };
+  const isMoreActive =
+    pathname.startsWith('/profile') ||
+    pathname.startsWith('/settings') ||
+    pathname.startsWith('/friends');
 
   return (
     <>
@@ -187,35 +110,86 @@ const BottomNav = () => {
         .animate-slide-up {
           animation: slide-up 0.25s ease-out;
         }
-        .bottom-nav {
-          padding-bottom: calc(0.9rem + env(safe-area-inset-bottom));
-        }
       `}</style>
-      <footer className={`${getBottomNavClass()} bottom-nav`}>
-        <Link href="/" aria-label="홈" className={getLinkClass('/')}>
-          <Home className={getIconSize()} />
-        </Link>
-        <Link href="/feed" aria-label="피드" className={getLinkClass('/feed')}>
-          <Compass className={getIconSize()} />
-        </Link>
-        <Link href="/search" aria-label="검색" className={getLinkClass('/search')}>
-          <Search className={getIconSize()} />
-        </Link>
-        <Link
-          href={`/diary/new/${todayDate}`}
-          aria-label="오늘의 일기"
-          className={getLinkClass('/diary/new', false)}
+      <footer className="fixed inset-x-0 bottom-0 z-20 h-[calc(84px_+_env(safe-area-inset-bottom))] xl:hidden">
+        <div
+          aria-hidden="true"
+          className="absolute bottom-0 left-0 top-[35px] w-[calc(50%_-_48px)] bg-white dark:bg-black"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute bottom-0 right-0 top-[35px] w-[calc(50%_-_48px)] bg-white dark:bg-black"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 bottom-0 top-[83px] bg-white dark:bg-black"
+        />
+        <svg
+          data-testid="bottom-nav-curve"
+          aria-hidden="true"
+          viewBox="0 0 96 84"
+          className="absolute left-1/2 top-0 h-[84px] w-[96px] -translate-x-1/2 text-white drop-shadow-[0_-5px_11px_rgba(69,43,20,0.12)] dark:text-black"
         >
-          <PlusSquare className={getIconSize()} />
-        </Link>
-        <button
-          type="button"
-          aria-label="더보기"
-          onClick={openMoreMenu}
-          className={getMoreLinkClass()}
-        >
-          <Menu className={getIconSize()} />
-        </button>
+          <path
+            fill="currentColor"
+            d="M0 35 C4 35 8.2 33.9 9.59 41.77 C12.88 60.4 29.07 74 48 74 C66.93 74 83.12 60.4 86.41 41.77 C87.8 33.9 92 35 96 35 V84 H0 Z"
+          />
+        </svg>
+        <nav aria-label="모바일 하단 네비게이션" className="contents">
+          <div className="absolute left-0 top-[37.5px] grid h-11 w-[calc(50%_-_48px)] grid-cols-[25px_25px] justify-evenly">
+            <Link
+              href="/"
+              aria-label="홈"
+              aria-current={isPathActive('/') ? 'page' : undefined}
+              className={getIconClass(isPathActive('/'))}
+            >
+              <Home className="h-[25px] w-[25px]" />
+            </Link>
+            <Link
+              href="/feed"
+              aria-label="피드"
+              aria-current={isPathActive('/feed') ? 'page' : undefined}
+              className={getIconClass(isPathActive('/feed'))}
+            >
+              <Compass className="h-[25px] w-[25px]" />
+            </Link>
+          </div>
+
+          <Link
+            href={`/diary/new/${todayDate}`}
+            aria-label="오늘의 일기"
+            aria-current={isPathActive('/diary/new', false) ? 'page' : undefined}
+            className="absolute left-1/2 top-[6px] z-10 h-[58px] w-[58px] -translate-x-1/2 overflow-hidden rounded-full shadow-[0_6px_12px_rgba(69,43,20,0.18)]"
+          >
+            <Image
+              src="/fox-navi.png"
+              alt=""
+              fill
+              sizes="58px"
+              className="scale-[1.26] object-cover"
+            />
+          </Link>
+
+          <div className="absolute right-0 top-[37.5px] grid h-11 w-[calc(50%_-_48px)] grid-cols-[25px_25px] justify-evenly">
+            <Link
+              href="/search"
+              aria-label="검색"
+              aria-current={isPathActive('/search') ? 'page' : undefined}
+              className={getIconClass(isPathActive('/search'))}
+            >
+              <Search className="h-[25px] w-[25px]" />
+            </Link>
+            <button
+              type="button"
+              aria-label="더보기"
+              aria-expanded={isModalOpen}
+              onClick={openMoreMenu}
+              className={`${getIconClass(isMoreActive)} cursor-pointer`}
+            >
+              <Ellipsis className="h-[25px] w-[25px]" />
+            </button>
+          </div>
+        </nav>
       </footer>
       {isModalOpen && (
         <div
