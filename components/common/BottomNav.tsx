@@ -113,12 +113,14 @@ const BottomNav = () => {
       `}</style>
       <footer className="fixed inset-x-0 bottom-0 z-20 h-[calc(84px_+_env(safe-area-inset-bottom))] xl:hidden">
         <div
+          data-testid="bottom-nav-surface-left"
           aria-hidden="true"
-          className="absolute bottom-0 left-0 top-[35px] w-[calc(50%_-_48px)] bg-white dark:bg-black"
+          className="absolute bottom-0 left-0 top-[35px] w-[calc(50%_-_48px)] border-t border-black bg-white dark:border-gray-700 dark:bg-black"
         />
         <div
+          data-testid="bottom-nav-surface-right"
           aria-hidden="true"
-          className="absolute bottom-0 right-0 top-[35px] w-[calc(50%_-_48px)] bg-white dark:bg-black"
+          className="absolute bottom-0 right-0 top-[35px] w-[calc(50%_-_48px)] border-t border-black bg-white dark:border-gray-700 dark:bg-black"
         />
         <div
           aria-hidden="true"
@@ -133,6 +135,14 @@ const BottomNav = () => {
           <path
             fill="currentColor"
             d="M0 35 C4 35 8.2 33.9 9.59 41.77 C12.88 60.4 29.07 74 48 74 C66.93 74 83.12 60.4 86.41 41.77 C87.8 33.9 92 35 96 35 V84 H0 Z"
+          />
+          <path
+            data-testid="bottom-nav-outline"
+            fill="none"
+            strokeWidth="1"
+            vectorEffect="non-scaling-stroke"
+            className="stroke-black dark:stroke-gray-700"
+            d="M0 35 C4 35 8.2 33.9 9.59 41.77 C12.88 60.4 29.07 74 48 74 C66.93 74 83.12 60.4 86.41 41.77 C87.8 33.9 92 35 96 35"
           />
         </svg>
         <nav aria-label="모바일 하단 네비게이션" className="contents">

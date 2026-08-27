@@ -100,6 +100,30 @@ describe('BottomNav', () => {
     );
   });
 
+  it('하단 네비게이션은 좌우 평면과 중앙 곡선에 1px 상단 윤곽선을 표시한다', () => {
+    render(<BottomNav />);
+
+    expect(screen.getByTestId('bottom-nav-surface-left')).toHaveClass(
+      'border-t',
+      'border-black',
+      'dark:border-gray-700',
+    );
+    expect(screen.getByTestId('bottom-nav-surface-right')).toHaveClass(
+      'border-t',
+      'border-black',
+      'dark:border-gray-700',
+    );
+
+    const outline = screen.getByTestId('bottom-nav-outline');
+    expect(outline).toHaveAttribute('fill', 'none');
+    expect(outline).toHaveAttribute('stroke-width', '1');
+    expect(outline).toHaveAttribute(
+      'd',
+      'M0 35 C4 35 8.2 33.9 9.59 41.77 C12.88 60.4 29.07 74 48 74 C66.93 74 83.12 60.4 86.41 41.77 C87.8 33.9 92 35 96 35',
+    );
+    expect(outline).toHaveClass('stroke-black', 'dark:stroke-gray-700');
+  });
+
   it('현재 경로에 해당하는 링크는 현재 페이지로 표시한다', () => {
     pathnameState.value = '/feed';
 
