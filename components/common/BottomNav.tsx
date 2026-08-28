@@ -113,38 +113,38 @@ const BottomNav = () => {
       `}</style>
       <footer className="fixed inset-x-0 bottom-0 z-20 h-[calc(84px_+_env(safe-area-inset-bottom))] xl:hidden">
         <div
-          data-testid="bottom-nav-surface-left"
+          data-testid="bottom-nav-surface"
           aria-hidden="true"
-          className="absolute bottom-0 left-0 top-[35px] w-[calc(50%_-_48px)] border-t border-black bg-white dark:border-gray-700 dark:bg-black"
-        />
-        <div
-          data-testid="bottom-nav-surface-right"
-          aria-hidden="true"
-          className="absolute bottom-0 right-0 top-[35px] w-[calc(50%_-_48px)] border-t border-black bg-white dark:border-gray-700 dark:bg-black"
-        />
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 bottom-0 top-[83px] bg-white dark:bg-black"
-        />
-        <svg
-          data-testid="bottom-nav-curve"
-          aria-hidden="true"
-          viewBox="0 0 96 84"
-          className="absolute left-1/2 top-0 h-[84px] w-[96px] -translate-x-1/2 text-white drop-shadow-[0_-5px_11px_rgba(69,43,20,0.12)] dark:text-black"
+          className="absolute inset-0 drop-shadow-[0_-4px_7px_rgba(0,0,0,0.17)] dark:drop-shadow-[0_-4px_7px_rgba(148,163,184,0.12)]"
         >
-          <path
-            fill="currentColor"
-            d="M0 35 C4 35 8.2 33.9 9.59 41.77 C12.88 60.4 29.07 74 48 74 C66.93 74 83.12 60.4 86.41 41.77 C87.8 33.9 92 35 96 35 V84 H0 Z"
+          <div
+            data-testid="bottom-nav-surface-left"
+            className="absolute bottom-0 left-0 top-[35px] w-[calc(50%_-_48px)] border-t border-black bg-white dark:border-gray-700 dark:bg-black"
           />
-          <path
-            data-testid="bottom-nav-outline"
-            fill="none"
-            strokeWidth="1"
-            vectorEffect="non-scaling-stroke"
-            className="stroke-black dark:stroke-gray-700"
-            d="M0 35 C4 35 8.2 33.9 9.59 41.77 C12.88 60.4 29.07 74 48 74 C66.93 74 83.12 60.4 86.41 41.77 C87.8 33.9 92 35 96 35"
+          <div
+            data-testid="bottom-nav-surface-right"
+            className="absolute bottom-0 right-0 top-[35px] w-[calc(50%_-_48px)] border-t border-black bg-white dark:border-gray-700 dark:bg-black"
           />
-        </svg>
+          <div className="absolute inset-x-0 bottom-0 top-[83px] bg-white dark:bg-black" />
+          <svg
+            data-testid="bottom-nav-curve"
+            viewBox="0 0 96 84"
+            className="absolute left-1/2 top-0 h-[84px] w-[96px] -translate-x-1/2 text-white dark:text-black"
+          >
+            <path
+              fill="currentColor"
+              d="M0 35 C4 35 8.2 33.9 9.59 41.77 C12.88 60.4 29.07 74 48 74 C66.93 74 83.12 60.4 86.41 41.77 C87.8 33.9 92 35 96 35 V84 H0 Z"
+            />
+            <path
+              data-testid="bottom-nav-outline"
+              fill="none"
+              strokeWidth="1"
+              vectorEffect="non-scaling-stroke"
+              className="stroke-black dark:stroke-gray-700"
+              d="M0 35 C4 35 8.2 33.9 9.59 41.77 C12.88 60.4 29.07 74 48 74 C66.93 74 83.12 60.4 86.41 41.77 C87.8 33.9 92 35 96 35"
+            />
+          </svg>
+        </div>
         <nav aria-label="모바일 하단 네비게이션" className="contents">
           <div className="absolute left-0 top-[37.5px] grid h-11 w-[calc(50%_-_48px)] grid-cols-[25px_25px] justify-evenly">
             <Link

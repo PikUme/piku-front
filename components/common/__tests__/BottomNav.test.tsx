@@ -124,6 +124,18 @@ describe('BottomNav', () => {
     expect(outline).toHaveClass('stroke-black', 'dark:stroke-gray-700');
   });
 
+  it('하단 네비게이션 배경 전체에 중간 강도의 그림자를 한 번만 적용한다', () => {
+    render(<BottomNav />);
+
+    expect(screen.getByTestId('bottom-nav-surface')).toHaveClass(
+      'drop-shadow-[0_-4px_7px_rgba(0,0,0,0.17)]',
+      'dark:drop-shadow-[0_-4px_7px_rgba(148,163,184,0.12)]',
+    );
+    expect(screen.getByTestId('bottom-nav-curve')).not.toHaveClass(
+      'drop-shadow-[0_-5px_11px_rgba(69,43,20,0.12)]',
+    );
+  });
+
   it('현재 경로에 해당하는 링크는 현재 페이지로 표시한다', () => {
     pathnameState.value = '/feed';
 
