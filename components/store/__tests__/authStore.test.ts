@@ -49,6 +49,27 @@ describe('authStore login', () => {
     expect(useAuthStore.getState().isLoggedIn).toBe(true);
   });
 
+  it('저장된 avatar와 avatarUrl이 다르면 인증 복원 시 avatar 기준으로 맞춘다', async () => {
+    localStorage.setItem(AUTH_TOKEN_KEY, 'access-token');
+
+    await act(async () => {
+      useAuthStore.setState({
+        user: {
+          id: 'u1',
+          email: 'test@test.com',
+          nickname: 'test',
+          avatar: 'characters/fixed/base_image_2.webp',
+          avatarUrl: 'characters/fixed/base_image_1.webp',
+        },
+      });
+      await useAuthStore.getState().checkAuth();
+    });
+
+    const user = useAuthStore.getState().user;
+    expect(user?.avatar).toContain('characters/fixed/base_image_2.webp');
+    expect(user?.avatarUrl).toBe(user?.avatar);
+  });
+
   it('토큰이 없으면 anonymous 상태로 확정한다', async () => {
     await act(async () => {
       await useAuthStore.getState().checkAuth();
@@ -105,12 +126,29 @@ describe('authStore login', () => {
         nickname: 'test',
         avatar: '',
         avatarUrl: 'characters/fixed/img.png',
-      } as any);
+      });
     });
 
     const user = useAuthStore.getState().user;
     expect(user?.avatar).toContain('characters/fixed/img.png');
     expect(user?.avatar).toMatch(/^http/);
+    expect(user?.avatarUrl).toBe(user?.avatar);
+  });
+
+  it('새 avatar로 로그인하면 이전 avatarUrl도 같은 값으로 갱신한다', () => {
+    act(() => {
+      useAuthStore.getState().login({
+        id: 'u1',
+        email: 'test@test.com',
+        nickname: 'test',
+        avatar: 'characters/fixed/base_image_2.webp',
+        avatarUrl: 'characters/fixed/base_image_1.webp',
+      });
+    });
+
+    const user = useAuthStore.getState().user;
+    expect(user?.avatar).toContain('characters/fixed/base_image_2.webp');
+    expect(user?.avatarUrl).toBe(user?.avatar);
   });
 
   it('avatar가 이미 http URL이면 그대로 사용한다', () => {

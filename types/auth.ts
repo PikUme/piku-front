@@ -38,6 +38,7 @@ export interface User {
   email: string;
   nickname: string;
   avatar: string;
+  avatarUrl?: string | null;
 }
 
 export type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
