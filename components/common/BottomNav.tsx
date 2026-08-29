@@ -16,6 +16,9 @@ import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { logout } from '@/lib/api/auth';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import useAuthStore from '@/components/store/authStore';
+import { getBottomNavCharacterImage } from '@/lib/utils/bottomNavCharacter';
+import BottomNavSurface from './BottomNavSurface';
 import InquiryModal from './InquiryModal';
 
 const BottomNav = () => {
@@ -28,6 +31,8 @@ const BottomNav = () => {
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const hasModalHistoryEntryRef = useRef(false);
   const pathname = usePathname();
+  const user = useAuthStore(state => state.user);
+  const characterImage = getBottomNavCharacterImage(user?.avatarUrl);
   useBodyScrollLock(isModalOpen);
 
   const handleLogout = async () => {
@@ -85,7 +90,7 @@ const BottomNav = () => {
     exact ? pathname === path : pathname.startsWith(path);
 
   const getIconClass = (active: boolean) =>
-    `flex h-11 w-11 items-center justify-center justify-self-center transition-colors ${
+    `flex h-11 w-11 touch-manipulation items-center justify-center justify-self-center rounded-full transition-colors hover:text-orange-500 active:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 dark:hover:text-orange-400 dark:focus-visible:ring-orange-300 dark:focus-visible:ring-offset-black ${
       active
         ? 'text-orange-500 dark:text-orange-400'
         : 'text-gray-400 dark:text-gray-500'
@@ -112,39 +117,7 @@ const BottomNav = () => {
         }
       `}</style>
       <footer className="fixed inset-x-0 bottom-0 z-20 h-[calc(84px_+_env(safe-area-inset-bottom))] xl:hidden">
-        <div
-          data-testid="bottom-nav-surface"
-          aria-hidden="true"
-          className="absolute inset-0 drop-shadow-[0_-4px_7px_rgba(0,0,0,0.17)] dark:drop-shadow-[0_-4px_7px_rgba(148,163,184,0.12)]"
-        >
-          <div
-            data-testid="bottom-nav-surface-left"
-            className="absolute bottom-0 left-0 top-[35px] w-[calc(50%_-_48px)] border-t border-black bg-white dark:border-gray-700 dark:bg-black"
-          />
-          <div
-            data-testid="bottom-nav-surface-right"
-            className="absolute bottom-0 right-0 top-[35px] w-[calc(50%_-_48px)] border-t border-black bg-white dark:border-gray-700 dark:bg-black"
-          />
-          <div className="absolute inset-x-0 bottom-0 top-[83px] bg-white dark:bg-black" />
-          <svg
-            data-testid="bottom-nav-curve"
-            viewBox="0 0 96 84"
-            className="absolute left-1/2 top-0 h-[84px] w-[96px] -translate-x-1/2 text-white dark:text-black"
-          >
-            <path
-              fill="currentColor"
-              d="M0 35 C4 35 8.2 33.9 9.59 41.77 C12.88 60.4 29.07 74 48 74 C66.93 74 83.12 60.4 86.41 41.77 C87.8 33.9 92 35 96 35 V84 H0 Z"
-            />
-            <path
-              data-testid="bottom-nav-outline"
-              fill="none"
-              strokeWidth="1"
-              vectorEffect="non-scaling-stroke"
-              className="stroke-black dark:stroke-gray-700"
-              d="M0 35 C4 35 8.2 33.9 9.59 41.77 C12.88 60.4 29.07 74 48 74 C66.93 74 83.12 60.4 86.41 41.77 C87.8 33.9 92 35 96 35"
-            />
-          </svg>
-        </div>
+        <BottomNavSurface testIdPrefix="bottom-nav" />
         <nav aria-label="모바일 하단 네비게이션" className="contents">
           <div className="absolute left-0 top-[37.5px] grid h-11 w-[calc(50%_-_48px)] grid-cols-[25px_25px] justify-evenly">
             <Link
@@ -169,10 +142,10 @@ const BottomNav = () => {
             href={`/diary/new/${todayDate}`}
             aria-label="오늘의 일기"
             aria-current={isPathActive('/diary/new', false) ? 'page' : undefined}
-            className="absolute left-1/2 top-[6px] z-10 h-[58px] w-[58px] -translate-x-1/2 overflow-hidden rounded-full shadow-[0_6px_12px_rgba(69,43,20,0.18)]"
+            className="absolute left-1/2 top-[6px] z-10 h-[58px] w-[58px] -translate-x-1/2 touch-manipulation overflow-hidden rounded-full shadow-[0_6px_12px_rgba(69,43,20,0.18)] transition-opacity hover:opacity-95 active:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 dark:focus-visible:ring-orange-300 dark:focus-visible:ring-offset-black"
           >
             <Image
-              src="/fox-navi.png"
+              src={characterImage}
               alt=""
               fill
               sizes="58px"
