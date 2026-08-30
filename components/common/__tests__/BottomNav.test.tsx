@@ -194,6 +194,20 @@ describe('BottomNav', () => {
     expect(outline).toHaveClass('stroke-gray-200', 'dark:stroke-gray-700');
   });
 
+  it('중앙 윤곽선 이동은 Safari가 지원하는 g transform에 적용한다', () => {
+    render(<BottomNav />);
+
+    const outline = screen.getByTestId('bottom-nav-outline');
+    const outlineGroup = outline.parentElement;
+    const outlineViewport = outlineGroup?.parentElement;
+
+    expect(outlineGroup?.tagName.toLowerCase()).toBe('g');
+    expect(outlineGroup).toHaveAttribute('transform', 'translate(-48 0)');
+    expect(outlineViewport?.tagName.toLowerCase()).toBe('svg');
+    expect(outlineViewport).toHaveAttribute('x', '50%');
+    expect(outlineViewport).not.toHaveAttribute('transform');
+  });
+
   it('하단 네비게이션 배경 전체에 중간 강도의 그림자를 한 번만 적용한다', () => {
     render(<BottomNav />);
 

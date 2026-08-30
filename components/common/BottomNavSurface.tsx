@@ -55,17 +55,18 @@ const BottomNavSurface = ({ testIdPrefix }: BottomNavSurfaceProps) => (
         width="96"
         height="84"
         viewBox="0 0 96 84"
-        transform="translate(-48 0)"
         overflow="visible"
       >
-        <path
-          data-testid={`${testIdPrefix}-outline`}
-          fill="none"
-          strokeWidth="1"
-          vectorEffect="non-scaling-stroke"
-          className="stroke-gray-200 dark:stroke-gray-700"
-          d="M0 35 C4 35 8.2 33.9 9.59 41.77 C12.88 60.4 29.07 74 48 74 C66.93 74 83.12 60.4 86.41 41.77 C87.8 33.9 92 35 96 35"
-        />
+        <g transform="translate(-48 0)">
+          <path
+            data-testid={`${testIdPrefix}-outline`}
+            fill="none"
+            strokeWidth="1"
+            vectorEffect="non-scaling-stroke"
+            className="stroke-gray-200 dark:stroke-gray-700"
+            d="M0 35 C4 35 8.2 33.9 9.59 41.77 C12.88 60.4 29.07 74 48 74 C66.93 74 83.12 60.4 86.41 41.77 C87.8 33.9 92 35 96 35"
+          />
+        </g>
       </svg>
     </svg>
   </div>
