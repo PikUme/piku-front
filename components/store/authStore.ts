@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { getServerURL } from '@/lib/utils/url';
 import { AuthStatus, User } from '@/types/auth';
 import { AUTH_TOKEN_KEY } from '@/lib/constants';
 
@@ -17,10 +16,7 @@ interface AuthState {
 let authCheckPromise: Promise<void> | null = null;
 
 const normalizeUser = (user: User): User => {
-  const rawAvatar = user.avatar || user.avatarUrl || '';
-  const avatar = rawAvatar && !rawAvatar.startsWith('http')
-    ? `${getServerURL()}/${rawAvatar}`
-    : rawAvatar;
+  const avatar = user.avatar || user.avatarUrl || '';
 
   return { ...user, avatar, avatarUrl: avatar || null };
 };
