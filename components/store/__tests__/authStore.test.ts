@@ -99,10 +99,9 @@ describe('authStore login', () => {
     expect(useAuthStore.getState().isLoggedIn).toBe(true);
     expect(user?.id).toBe('u1');
     expect(user?.avatar).toContain('characters/fixed/img.png');
-    expect(user?.avatar).toMatch(/^http/);
   });
 
-  it('avatar 필드가 있으면 풀 URL로 변환한다', () => {
+  it('avatar 필드가 있으면 서버 주소를 붙이지 않고 그대로 사용한다', () => {
     act(() => {
       useAuthStore.getState().login({
         id: 'u1',
@@ -114,8 +113,7 @@ describe('authStore login', () => {
 
     const user = useAuthStore.getState().user;
     expect(useAuthStore.getState().authStatus).toBe('authenticated');
-    expect(user?.avatar).toContain('characters/fixed/img.png');
-    expect(user?.avatar).toMatch(/^http/);
+    expect(user?.avatar).toBe('characters/fixed/img.png');
   });
 
   it('avatarUrl 필드만 있으면 fallback으로 사용한다', () => {
@@ -131,7 +129,6 @@ describe('authStore login', () => {
 
     const user = useAuthStore.getState().user;
     expect(user?.avatar).toContain('characters/fixed/img.png');
-    expect(user?.avatar).toMatch(/^http/);
     expect(user?.avatarUrl).toBe(user?.avatar);
   });
 
