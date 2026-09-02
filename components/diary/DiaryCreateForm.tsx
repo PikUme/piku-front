@@ -57,6 +57,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import ImagePreviewModal from '../common/ImagePreviewModal';
+import AiCharacterSelectionModal from './AiCharacterSelectionModal';
 
 const MAX_TOTAL_PHOTOS = 5;
 
@@ -187,6 +188,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
   const [allPhotos, setAllPhotos] = useState<UnifiedPhoto[]>([]);
   const [privacy, setPrivacy] = useState<PrivacyStatus>(getSavedPrivacy);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+  const [isAiCharacterModalOpen, setIsAiCharacterModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(date);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [displayMonth, setDisplayMonth] = useState(() =>
@@ -209,9 +211,13 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
   const [remainingRequests, setRemainingRequests] = useState<number | null>(null);
   const { user, isLoggedIn } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const aiPhotoButtonRef = useRef<HTMLButtonElement>(null);
+  const completeButtonRef = useRef<HTMLButtonElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  useBodyScrollLock(isDatePickerOpen || isPrivacyModalOpen);
+  useBodyScrollLock(
+    isDatePickerOpen || isPrivacyModalOpen || isAiCharacterModalOpen,
+  );
   const isHeaderVisible = useHeaderVisibility();
 
   const {
@@ -470,7 +476,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
     }
   };
 
-  const handleGenerateAiPhotos = async () => {
+  const handleOpenAiCharacterModal = () => {
     if (allPhotos.length >= MAX_TOTAL_PHOTOS) {
       alert(`사진은 최대 ${MAX_TOTAL_PHOTOS}장까지 추가할 수 있습니다.`);
       return;
@@ -486,6 +492,17 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
       return;
     }
 
+    setIsAiCharacterModalOpen(true);
+  };
+
+  const handleGenerateAiPhotos = async (characterId: number) => {
+    if (allPhotos.length >= MAX_TOTAL_PHOTOS) {
+      alert(`사진은 최대 ${MAX_TOTAL_PHOTOS}장까지 추가할 수 있습니다.`);
+      return;
+    }
+
+    const content = getValues('content');
+
     setIsGeneratingAiPhotos(true);
     
     // 낙관적 업데이트: 요청 전에 횟수 감소
@@ -493,10 +510,11 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
     setRemainingRequests(prev => (prev !== null ? prev - 1 : 0));
     
     try {
-      const newAiPhoto = await generateAiPhotos(content);
+      const newAiPhoto = await generateAiPhotos(content, characterId);
       if (newAiPhoto) {
         const unifiedPhoto: UnifiedPhoto = { ...newAiPhoto, type: 'ai' };
         setAllPhotos(prev => [...prev, unifiedPhoto]);
+        setIsAiCharacterModalOpen(false);
       }
     } catch (error) {
       console.error('Failed to generate AI photos:', error);
@@ -631,6 +649,7 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
                 {'일기 작성'}
             </h1>
             <button
+                ref={completeButtonRef}
                 onClick={handleSubmit(onSubmit)}
                 disabled={isSubmitting}
                 className="font-semibold text-blue-500 disabled:text-gray-400 dark:disabled:text-gray-600 cursor-pointer"
@@ -643,9 +662,11 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
             <div className="flex items-center space-x-3 pb-2">
                 {/* 고정 버튼 영역 */}
                 <button
-                    onClick={handleGenerateAiPhotos}
+                    ref={aiPhotoButtonRef}
+                    onClick={handleOpenAiCharacterModal}
                     disabled={
                         isGeneratingAiPhotos ||
+                        isUploading ||
                         remainingRequests === null ||
                         remainingRequests <= 0 ||
                         totalPhotosCount >= MAX_TOTAL_PHOTOS
@@ -973,6 +994,14 @@ const DiaryCreateForm = ({ date }: DiaryCreateFormProps) => {
             isOpen={isPreviewModalOpen}
             onClose={() => setIsPreviewModalOpen(false)}
             imageUrl={selectedImageUrl}
+        />
+        <AiCharacterSelectionModal
+            isOpen={isAiCharacterModalOpen}
+            isGenerating={isGeneratingAiPhotos}
+            returnFocusRef={aiPhotoButtonRef}
+            fallbackFocusRef={completeButtonRef}
+            onClose={() => setIsAiCharacterModalOpen(false)}
+            onGenerate={handleGenerateAiPhotos}
         />
     </div>
   );

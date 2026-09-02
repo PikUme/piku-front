@@ -63,16 +63,19 @@ export const getRemainingAiRequests = async (): Promise<number> => {
   return response.data.remainingRequests;
 };
 
-export const generateAiPhotos = async (content: string) => {
-   if (!content || content.trim().length === 0) {
-    return Promise.resolve(null);
+export const generateAiPhotos = async (
+  content: string,
+  characterId: number,
+) => {
+  if (!content || content.trim().length === 0) {
+    return null;
   }
 
   const photo = await api.post('/diary/ai/generate', {
     content,
+    characterId,
   });
   return photo.data;
-
 };
 
 export interface CalendarDiaryResponseDTO {
