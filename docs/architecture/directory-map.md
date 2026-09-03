@@ -58,6 +58,11 @@
 ### `e2e/`
 - Playwright 브라우저 테스트
 
+### `screenshots/`
+- 화면과 사용자 흐름별 캡처 이미지 및 검증 메모
+- `README.md`는 한국어 흐름 설명과 캡처 위치를 연결하는 인덱스
+- 저장 기준은 `docs/frontend/testing-and-verification.md`를 따른다
+
 ### `scripts/`
 - 로컬 개발과 빌드 보조 스크립트
 

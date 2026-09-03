@@ -20,6 +20,7 @@ dist
 /playwright-report
 /test-results
 /.playwright-browsers
+/screenshots/**/.playwright-cli/
 
 # next.js
 /.next/
