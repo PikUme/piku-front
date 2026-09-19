@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderToString } from 'react-dom/server';
 import FriendsClient from '../FriendsClient';
 import { getFriendRequests } from '@/lib/api/friend';
 
@@ -63,11 +64,36 @@ describe('FriendsClient', () => {
 
     render(<FriendsClient />);
 
-    expect(screen.getByText('받은 친구 요청이 없습니다.')).toBeInTheDocument();
+    expect(await screen.findByText('받은 친구 요청이 없습니다.')).toBeInTheDocument();
     expect(screen.queryByTestId('friend-list')).not.toBeInTheDocument();
     await waitFor(() => {
       expect(mockGetFriendRequests).toHaveBeenCalledWith(0, 10);
     });
+  });
+
+  it('첫 렌더에서는 조회 성공 전 빈 목록 대신 로딩 상태를 보여준다', () => {
+    searchParamsState.value = 'tab=requests';
+
+    const html = renderToString(<FriendsClient />);
+
+    expect(html).toContain('요청 목록을 불러오는 중...');
+    expect(html).not.toContain('받은 친구 요청이 없습니다.');
+  });
+
+  it('첫 조회를 기다리는 동안 빈 목록을 숨기고 빈 응답 성공 후 표시한다', async () => {
+    searchParamsState.value = 'tab=requests';
+    let resolvePage!: (value: Awaited<ReturnType<typeof getFriendRequests>>) => void;
+    mockGetFriendRequests.mockReturnValueOnce(new Promise(resolve => { resolvePage = resolve; }));
+    render(<FriendsClient />);
+
+    expect(screen.getByText('요청 목록을 불러오는 중...')).toBeInTheDocument();
+    expect(screen.queryByText('받은 친구 요청이 없습니다.')).not.toBeInTheDocument();
+
+    await act(async () => resolvePage({ requests: [], hasNext: false, totalElements: 0 }));
+
+    expect(screen.getByText('받은 친구 요청이 없습니다.')).toBeInTheDocument();
+    expect(screen.queryByText('요청 목록을 불러오는 중...')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('최초 페이지 이후에는 교차 이벤트를 기다리고 전체 요청 수를 배지에 표시한다', async () => {
@@ -103,6 +129,9 @@ describe('FriendsClient', () => {
     mockGetFriendRequests.mockRejectedValueOnce(new Error('network')).mockResolvedValue({ ...firstPage, hasNext: false });
     render(<FriendsClient />);
     const retry = await screen.findByRole('button', { name: '다시 시도' });
+    expect(screen.getByRole('alert')).toHaveTextContent('친구 요청 목록을 불러오지 못했습니다.');
+    expect(screen.queryByText('받은 친구 요청이 없습니다.')).not.toBeInTheDocument();
+    expect(screen.queryByText('요청 목록을 불러오는 중...')).not.toBeInTheDocument();
     expect(mockGetFriendRequests.mock.calls).toEqual([[0, 10]]);
     fireEvent.click(retry);
     await screen.findByText('첫 요청');
@@ -118,6 +147,8 @@ describe('FriendsClient', () => {
     await act(async () => intersectionCallback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver));
     expect(screen.getByText('첫 요청')).toBeInTheDocument();
     expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('친구 요청 목록을 불러오지 못했습니다.');
+    expect(screen.queryByText('받은 친구 요청이 없습니다.')).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: '다시 시도' }));
     await screen.findByText('둘째 요청');
     expect(mockGetFriendRequests.mock.calls).toEqual([[0, 10], [1, 10], [1, 10]]);

@@ -23,7 +23,7 @@ const FriendsClient = () => {
   const [activeTab, setActiveTab] = useState<FriendsTab>(tabFromSearchParams);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [requestsHasMore, setRequestsHasMore] = useState(true);
-  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestsLoading, setRequestsLoading] = useState(true);
   const [requestsError, setRequestsError] = useState<string | null>(null);
   const [totalRequests, setTotalRequests] = useState(0);
   const observer = useRef<IntersectionObserver | null>(null);
@@ -160,7 +160,7 @@ const FriendsClient = () => {
         <div>
           {activeTab === 'friends' ? (
             <FriendList />
-          ) : (
+          ) : requests.length === 0 && (requestsLoading || requestsError) ? null : (
             <FriendRequestList
               requests={requests}
               onAccept={handleAccept}
