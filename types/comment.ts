@@ -1,4 +1,4 @@
-import type { Page } from './api';
+import type { OffsetPageResponse } from './api';
 
 // 댓글 작성자 정보
 // 더 이상 RootComment에 포함되지 않으므로 주석 처리 또는 삭제 가능
@@ -15,7 +15,7 @@ export interface Comment {
   id: number;
   diaryId: number;
   userId: string | null;
-  nickname: string;
+  nickname: string | null;
   avatar: string | null;
   content: string;
   parentId: number | null;
@@ -56,4 +56,4 @@ export interface CommentListResponse {
 */
 
 // 루트 댓글 페이지 응답 타입
-export type CommentPage = Page<Comment>;
+export type CommentPage = OffsetPageResponse<Comment>;

@@ -64,7 +64,7 @@ const CommentItem = ({
   const hasMore = replyState?.hasMore ?? false;
 
   const isAnonymousComment = comment.userId === null;
-  const displayNickname = isAnonymousComment ? '익명' : comment.nickname;
+  const displayNickname = isAnonymousComment ? '익명' : comment.nickname || '사용자';
   const isOwner =
     user && comment.userId ? String(user.id) === comment.userId : false;
   const canReply = comment.canReply ?? comment.parentId === null;

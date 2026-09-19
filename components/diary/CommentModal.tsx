@@ -46,7 +46,12 @@ const CommentModal = ({
   const [commentReplies, setCommentReplies] = useState<
     Record<number, CommentRepliesState>
   >({});
-  const [page, setPage] = useState(0);
+  // 요청 잠금과 페이지는 다음 렌더 전에도 즉시 갱신한다.
+  const requestGenerationRef = useRef(0);
+  const rootPaginationRef = useRef({ page: 0, hasMore: true, isLoading: false });
+  const replyPaginationRef = useRef(
+    new Map<number, { page: number; hasMore: boolean; isLoading: boolean }>(),
+  );
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [totalComments, setTotalComments] = useState(initialCommentCount);
@@ -70,26 +75,39 @@ const CommentModal = ({
     }
   }, [scrollToCommentId, comments, commentReplies]);
 
-  const fetchComments = async (isNewFetch: boolean = false) => {
-    if (isLoading || (!hasMore && !isNewFetch)) return;
+  const fetchComments = async () => {
+    const pagination = rootPaginationRef.current;
+    if (pagination.isLoading || !pagination.hasMore) return;
 
+    pagination.isLoading = true;
     setIsLoading(true);
-    const pageToFetch = isNewFetch ? 0 : page;
+    const generation = requestGenerationRef.current;
+    const pageToFetch = pagination.page;
 
     try {
       const data = await getRootComments(diaryId, pageToFetch, 10);
-      setComments(prev =>
-        isNewFetch ? data.content : [...prev, ...data.content],
-      );
-      setPage(pageToFetch + 1);
+      if (generation !== requestGenerationRef.current) return;
+      setComments(prev => {
+        const existing = pageToFetch === 0 ? [] : prev;
+        const ids = new Set(existing.map(comment => comment.id));
+        const newComments = data.content.filter(comment => {
+          if (ids.has(comment.id)) return false;
+          ids.add(comment.id);
+          return true;
+        });
+        return [...existing, ...newComments];
+      });
+      pagination.page = pageToFetch + 1;
+      pagination.hasMore = !data.last;
       setHasMore(!data.last);
-      if (isNewFetch) {
-        setTotalComments(data.totalElements);
-      }
     } catch (error) {
+      if (generation !== requestGenerationRef.current) return;
       console.error('댓글을 불러오는데 실패했습니다:', error);
     } finally {
-      setIsLoading(false);
+      if (generation === requestGenerationRef.current) {
+        pagination.isLoading = false;
+        setIsLoading(false);
+      }
     }
   };
 
@@ -105,12 +123,12 @@ const CommentModal = ({
     if (currentState.isShown) {
       setCommentReplies(prev => ({
         ...prev,
-        [comment.id]: { ...currentState, isShown: false },
+        [comment.id]: { ...(prev[comment.id] || currentState), isShown: false },
       }));
     } else {
       setCommentReplies(prev => ({
         ...prev,
-        [comment.id]: { ...currentState, isShown: true },
+        [comment.id]: { ...(prev[comment.id] || currentState), isShown: true },
       }));
       if (currentState.list.length === 0 && currentState.hasMore) {
         await handleFetchReplies(comment.id);
@@ -126,41 +144,89 @@ const CommentModal = ({
       isLoading: false,
       isShown: true,
     };
-    if (currentState.isLoading || !currentState.hasMore) return;
+    const pagination = replyPaginationRef.current.get(commentId) || {
+      page: currentState.page,
+      hasMore: currentState.hasMore,
+      isLoading: false,
+    };
+    if (pagination.isLoading || !pagination.hasMore) return;
 
+    pagination.isLoading = true;
+    replyPaginationRef.current.set(commentId, pagination);
+    const generation = requestGenerationRef.current;
+    const pageToFetch = pagination.page;
     setCommentReplies(prev => ({
       ...prev,
-      [commentId]: { ...currentState, isLoading: true },
+      [commentId]: { ...(prev[commentId] || currentState), isLoading: true },
     }));
 
     try {
-      const data = await getReplies(commentId, currentState.page, 5);
-      setCommentReplies(prev => ({
-        ...prev,
-        [commentId]: {
-          ...prev[commentId],
-          list: [...prev[commentId].list, ...data.content],
-          page: prev[commentId].page + 1,
-          hasMore: !data.last,
-          isLoading: false,
-        },
-      }));
+      const data = await getReplies(commentId, pageToFetch, 5);
+      if (generation !== requestGenerationRef.current) return;
+      pagination.page = pageToFetch + 1;
+      pagination.hasMore = !data.last;
+      setCommentReplies(prev => {
+        const current = prev[commentId] || currentState;
+        const ids = new Set(current.list.map(comment => comment.id));
+        const newReplies = data.content.filter(comment => {
+          if (ids.has(comment.id)) return false;
+          ids.add(comment.id);
+          return true;
+        });
+        return {
+          ...prev,
+          [commentId]: {
+            ...current,
+            list: [...current.list, ...newReplies],
+            page: pageToFetch + 1,
+            hasMore: !data.last,
+            isLoading: false,
+          },
+        };
+      });
     } catch (error) {
+      if (generation !== requestGenerationRef.current) return;
       console.error('답글을 불러오는데 실패했습니다:', error);
       setCommentReplies(prev => ({
         ...prev,
         [commentId]: { ...prev[commentId], isLoading: false },
       }));
+    } finally {
+      if (generation === requestGenerationRef.current) {
+        pagination.isLoading = false;
+      }
     }
   };
 
   useEffect(() => {
-    fetchComments(true);
+    requestGenerationRef.current += 1;
+    rootPaginationRef.current = { page: 0, hasMore: true, isLoading: false };
+    replyPaginationRef.current = new Map();
+    setComments([]);
+    setCommentReplies({});
+    setHasMore(true);
+    setTotalComments(initialCommentCount);
+    setReplyTo(null);
+    setEditingComment(null);
+    setNewComment('');
+    setIsSubmitting(false);
+    setScrollToCommentId(null);
+    setIsLoading(true);
+    const generation = requestGenerationRef.current;
+    queueMicrotask(() => {
+      // StrictMode에서 정리된 첫 setup은 요청을 시작하지 않는다.
+      if (generation === requestGenerationRef.current) void fetchComments();
+    });
+
+    return () => {
+      // 이전 일기와 해제된 모달의 응답·오류·finally를 무효화한다.
+      requestGenerationRef.current += 1;
+    };
   }, [diaryId]);
 
   const handleSetReplyTo = (comment: Comment) => {
     setReplyTo(comment);
-    setNewComment(`@${comment.nickname} `);
+    setNewComment(`@${comment.userId === null ? '익명' : comment.nickname || '사용자'} `);
     inputRef.current?.focus();
   };
 
@@ -172,6 +238,7 @@ const CommentModal = ({
   const handleCreateComment = async () => {
     if (!isLoggedIn || !user || !newComment.trim()) return;
 
+    const generation = requestGenerationRef.current;
     setIsSubmitting(true);
     const tempId = Date.now();
     const isReply = replyTo !== null;
@@ -179,7 +246,7 @@ const CommentModal = ({
 
     const contentToSend =
       isReply && replyTo
-        ? newComment.replace(`@${replyTo.nickname} `, '')
+        ? newComment.replace(`@${replyTo.userId === null ? '익명' : replyTo.nickname || '사용자'} `, '')
         : newComment;
 
     const optimisticComment: Comment = {
@@ -242,6 +309,7 @@ const CommentModal = ({
         content: contentToSend.trim(),
         parentId,
       });
+      if (generation !== requestGenerationRef.current) return;
 
       const finalComment = {
         ...optimisticComment,
@@ -265,6 +333,7 @@ const CommentModal = ({
         );
       }
     } catch (error) {
+      if (generation !== requestGenerationRef.current) return;
       console.error('댓글 작성 실패:', error);
       const revertedTotal = totalComments;
       setTotalComments(revertedTotal);
@@ -291,7 +360,7 @@ const CommentModal = ({
       setReplyTo(originalReplyTo);
       alert('댓글 작성에 실패했습니다. 다시 시도해주세요.');
     } finally {
-      setIsSubmitting(false);
+      if (generation === requestGenerationRef.current) setIsSubmitting(false);
     }
   };
 
@@ -308,8 +377,10 @@ const CommentModal = ({
   };
 
   const handleSubmitComment = async () => {
+    const generation = requestGenerationRef.current;
     if (editingComment) {
       await handleUpdateComment(editingComment.id, newComment);
+      if (generation !== requestGenerationRef.current) return;
       setEditingComment(null);
       setNewComment('');
     } else {
@@ -319,9 +390,11 @@ const CommentModal = ({
 
   const handleUpdateComment = async (commentId: number, content: string) => {
     if (!content.trim()) return;
+    const generation = requestGenerationRef.current;
 
-    const originalComments = comments;
-    const originalReplies = commentReplies;
+    const originalContent = comments.find(comment => comment.id === commentId)?.content
+      ?? Object.values(commentReplies).flatMap(state => state.list)
+        .find(comment => comment.id === commentId)?.content;
 
     const updateInList = (list: Comment[]) =>
       list.map(c => (c.id === commentId ? { ...c, content } : c));
@@ -341,10 +414,20 @@ const CommentModal = ({
     try {
       await updateComment(commentId, content);
     } catch (error) {
+      if (generation !== requestGenerationRef.current) return;
       console.error('댓글 수정 실패:', error);
       alert('댓글 수정에 실패했습니다.');
-      setComments(originalComments);
-      setCommentReplies(originalReplies);
+      const restoreContent = (list: Comment[]) => list.map(comment =>
+        comment.id === commentId && comment.content === content && originalContent !== undefined
+          ? { ...comment, content: originalContent }
+          : comment,
+      );
+      setComments(restoreContent);
+      setCommentReplies(prev => Object.fromEntries(
+        Object.entries(prev).map(([parentId, state]) => [
+          parentId, { ...state, list: restoreContent(state.list) },
+        ]),
+      ));
     }
   };
 
@@ -352,6 +435,7 @@ const CommentModal = ({
     commentId: number,
     parentId: number | null,
   ) => {
+    const generation = requestGenerationRef.current;
     if (parentId) {
       setCommentReplies(prev => ({
         ...prev,
@@ -375,6 +459,7 @@ const CommentModal = ({
     try {
       await deleteComment(commentId);
     } catch (error) {
+      if (generation !== requestGenerationRef.current) return;
       console.error('댓글 삭제 실패:', error);
       alert('댓글 삭제에 실패했습니다.');
       // Revert logic can be complex, for now, we just show an alert
@@ -421,7 +506,7 @@ const CommentModal = ({
             />
           ))}
           {isLoading && <p className="text-center">댓글 로딩 중...</p>}
-          {!isLoading && hasMore && comments.length > 0 && (
+          {!isLoading && hasMore && (
             <button
               onClick={() => fetchComments()}
               className="w-full text-center text-sm text-gray-500 hover:underline"
@@ -446,7 +531,7 @@ const CommentModal = ({
               editingComment
                 ? '댓글 수정...'
                 : replyTo
-                  ? `@${replyTo.nickname}님에게 답글 남기기`
+                  ? `@${replyTo.userId === null ? '익명' : replyTo.nickname || '사용자'}님에게 답글 남기기`
                   : '댓글 달기...'
             }
             isSubmitting={isSubmitting}

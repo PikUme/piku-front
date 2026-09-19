@@ -9,6 +9,7 @@ import {
   FriendshipStatus,
 } from '@/types/friend';
 import api from '@/lib/api/api';
+import type { OffsetPageResponse } from '@/types/api';
 
 const pendingFriendRequestByUserId = new Map<
   string,
@@ -18,10 +19,9 @@ const pendingFriendRequestByUserId = new Map<
 // 친구 목록
 export const getFriends = async (page: number, size: number): Promise<PaginatedFriendsResponse> => {
   try {
-    const response = await api.get('/relation', {
+    const response = await api.get<OffsetPageResponse<Friend>>('/relation', {
       params: { page, size },
     });
-    // 백엔드 응답이 Page<Friend> 형태라고 가정
     return {
       friends: response.data.content,
       hasNext: !response.data.last,
@@ -64,7 +64,7 @@ export const getFriendRequests = async (
   size: number,
 ): Promise<PaginatedFriendRequestsResponse> => {
   try {
-    const response = await api.get('/relation/requests', {
+    const response = await api.get<OffsetPageResponse<FriendRequest>>('/relation/requests', {
       params: { page, size },
     });
     return {

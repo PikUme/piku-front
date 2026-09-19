@@ -1,7 +1,7 @@
 export interface Friend {
   userId: string;
   nickname: string;
-  avatar: string;
+  avatar: string | null;
 }
 
 export interface PaginatedFriendsResponse {
