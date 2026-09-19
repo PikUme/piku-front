@@ -15,6 +15,7 @@
 | 친구 요청과 취소 | 피드·프로필·작성자 정보에서 친구 추가 → 요청 상태 확인 → 취소 확인 → 취소 결과 확인, 피드 작성자 선택 → 프로필 이동 | [모바일](friend-request-elements-flow/mobile/) · [데스크톱](friend-request-elements-flow/desktop/) |
 | 좋아요 알림 확인 | 알림 목록 → 좋아요 알림 선택 → 연결된 일기 상세 → 읽음 처리된 알림 목록 확인 | [모바일](notification-click-flow/mobile/) · [데스크톱](notification-click-flow/desktop/) |
 | 댓글 알림 확인 | 알림 목록 → 댓글 알림 선택 → 연결된 일기 상세 → 댓글 확인 → 읽음 처리된 알림 목록 확인 | [모바일](notification-click-flow/mobile/) · [데스크톱](notification-click-flow/desktop/) |
+| 페이지 응답 통합 조회 | 실제 백엔드 로그인 → 친구·받은 요청·검색 추가 조회 → 상세·모달·스토리 댓글·답글 조회 → 네트워크 단절·동일 페이지 재시도 | [데스크톱](page-response/desktop/2026-09-19/) · [모바일](page-response/mobile/2026-09-19/) |
 
 ## 화면 모음
 
