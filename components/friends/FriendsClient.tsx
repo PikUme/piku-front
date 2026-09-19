@@ -22,53 +22,85 @@ const FriendsClient = () => {
   const tabFromSearchParams = getTabFromSearchParams(searchParams);
   const [activeTab, setActiveTab] = useState<FriendsTab>(tabFromSearchParams);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
-  const [requestsPage, setRequestsPage] = useState(0);
   const [requestsHasMore, setRequestsHasMore] = useState(true);
   const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestsError, setRequestsError] = useState<string | null>(null);
   const [totalRequests, setTotalRequests] = useState(0);
   const observer = useRef<IntersectionObserver | null>(null);
+  const requestState = useRef({
+    page: 0,
+    hasMore: true,
+    inFlight: false,
+    active: false,
+    failed: false,
+  });
 
   const loadMoreRequests = useCallback(async () => {
-    if (requestsLoading || !requestsHasMore) return;
+    const state = requestState.current;
+    if (!state.active || state.inFlight || !state.hasMore) return;
+    state.inFlight = true;
+    state.failed = false;
+    const page = state.page;
     setRequestsLoading(true);
+    setRequestsError(null);
 
     try {
-      const data = await getFriendRequests(requestsPage, 10);
+      const data = await getFriendRequests(page, 10);
+      if (!state.active) return;
       setRequests(prev => {
         const existingUserIds = new Set(prev.map(req => req.userId));
-        const newRequests = data.requests.filter(
-          req => !existingUserIds.has(req.userId),
-        );
+        const newRequests = data.requests.filter(req => {
+          if (existingUserIds.has(req.userId)) return false;
+          existingUserIds.add(req.userId);
+          return true;
+        });
         return [...prev, ...newRequests];
       });
+      state.hasMore = data.hasNext;
+      state.page = page + 1;
       setRequestsHasMore(data.hasNext);
       setTotalRequests(data.totalElements);
-      setRequestsPage(prev => prev + 1);
     } catch (error) {
+      if (!state.active) return;
+      state.failed = true;
+      setRequestsError('친구 요청 목록을 불러오지 못했습니다.');
       console.error('친구 요청 목록을 불러오는데 실패했습니다:', error);
     } finally {
-      setRequestsLoading(false);
+      state.inFlight = false;
+      if (state.active) setRequestsLoading(false);
     }
-  }, [requestsPage, requestsLoading, requestsHasMore]);
+  }, []);
 
   const lastRequestElementRef = useCallback(
-    (node: HTMLLIElement) => {
-      if (requestsLoading) return;
-      if (observer.current) observer.current.disconnect();
+    (node: HTMLLIElement | null) => {
+      observer.current?.disconnect();
+      observer.current = null;
+      if (!node || requestsLoading || !requestsHasMore || requestsError) return;
 
-      observer.current = new IntersectionObserver(entries => {
-        if (entries[0].isIntersecting && requestsHasMore) {
-          loadMoreRequests();
+      const nextObserver = new IntersectionObserver(entries => {
+        if (
+          observer.current === nextObserver &&
+          entries[0]?.isIntersecting &&
+          !requestState.current.failed
+        ) {
+          void loadMoreRequests();
         }
       });
 
-      if (node) observer.current.observe(node);
+      observer.current = nextObserver;
+      nextObserver.observe(node);
     },
-    [requestsLoading, requestsHasMore, loadMoreRequests],
+    [requestsLoading, requestsHasMore, requestsError, loadMoreRequests],
   );
 
   useEffect(() => {
-    loadMoreRequests();
+    const state = requestState.current;
+    state.active = true;
+    void loadMoreRequests();
+    return () => {
+      state.active = false;
+      observer.current?.disconnect();
+    };
   }, [loadMoreRequests]);
 
   useEffect(() => {
@@ -139,6 +171,17 @@ const FriendsClient = () => {
           {requestsLoading && (
             <div className="text-center p-4">
               <p>요청 목록을 불러오는 중...</p>
+            </div>
+          )}
+          {requestsError && (
+            <div className="py-4 text-center" role="alert">
+              <p>{requestsError}</p>
+              <button
+                onClick={() => void loadMoreRequests()}
+                className="mt-2 underline cursor-pointer"
+              >
+                다시 시도
+              </button>
             </div>
           )}
         </div>

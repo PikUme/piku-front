@@ -1,12 +1,12 @@
 import { Friend } from '@/types/friend';
-import { Page } from '@/types/api';
+import type { OffsetPageResponse } from '@/types/api';
 import api from './api';
 
 export const searchUsers = async (
   keyword: string,
   page: number,
   size: number = 20
-): Promise<Page<Friend>> => {
+): Promise<OffsetPageResponse<Friend>> => {
   if (!keyword.trim()) {
     return {
       content: [],
@@ -31,7 +31,7 @@ export const searchUsers = async (
   }
 
   try {
-    const response = await api.get<Page<Friend>>('/search', {
+    const response = await api.get<OffsetPageResponse<Friend>>('/search', {
       params: { keyword, page, size },
     });
     return response.data;
