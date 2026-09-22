@@ -91,7 +91,7 @@ const Sidebar = () => {
 
   return (
     <>
-      <aside className="hidden xl:flex flex-col border-r border-gray-300 dark:border-gray-700 fixed h-full bg-white w-64 transition-all duration-300">
+      <aside className="hidden xl:flex flex-col border-r border-gray-300 dark:border-gray-700 fixed top-0 h-full bg-white w-64 transition-all duration-300">
         <div className="px-4 py-8">
           <Link
             href="/"
