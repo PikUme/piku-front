@@ -11,50 +11,85 @@ const PAGE_SIZE = 20;
 
 const FriendList = () => {
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [page, setPage] = useState(0);
   const [hasNext, setHasNext] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const observer = useRef<IntersectionObserver | null>(null);
+  const requestState = useRef({
+    page: 0,
+    hasNext: true,
+    inFlight: false,
+    active: false,
+    failed: false,
+  });
   
   // 모달 상태 관리
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
   
-  const lastFriendElementRef = useCallback((node: HTMLLIElement | null) => {
-    if (isLoading) return;
-    if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasNext) {
-        setPage(prevPage => prevPage + 1);
-      }
-    });
-    if (node) observer.current.observe(node);
-  }, [isLoading, hasNext]);
-
-  const fetchFriends = useCallback(async (pageNum: number) => {
+  const fetchFriends = useCallback(async () => {
+    const state = requestState.current;
+    if (!state.active || state.inFlight || !state.hasNext) return;
+    state.inFlight = true;
+    state.failed = false;
+    const pageNum = state.page;
     setIsLoading(true);
+    setError(null);
     try {
       const data = await getFriends(pageNum, PAGE_SIZE);
-      const newFriends = data.friends || [];
-      setFriends(prevFriends =>
-        pageNum === 0 ? newFriends : [...prevFriends, ...newFriends],
-      );
+      if (!state.active) return;
+      setFriends(prevFriends => {
+        const combined = pageNum === 0 ? [] : [...prevFriends];
+        const ids = new Set(combined.map(friend => friend.userId));
+        for (const friend of data.friends) {
+          if (ids.has(friend.userId)) continue;
+          ids.add(friend.userId);
+          combined.push(friend);
+        }
+        return combined;
+      });
+      state.page = pageNum + 1;
+      state.hasNext = data.hasNext;
       setHasNext(data.hasNext);
     } catch (error) {
+      if (!state.active) return;
+      state.failed = true;
+      setError('친구 목록을 불러오지 못했습니다.');
       console.error('친구 목록을 불러오는데 실패했습니다:', error);
     } finally {
-      setIsLoading(false);
-      setInitialLoad(true);
+      state.inFlight = false;
+      if (state.active) {
+        setIsLoading(false);
+        setInitialLoad(true);
+      }
     }
   }, []);
 
+  const lastFriendElementRef = useCallback(
+    (node: HTMLLIElement | null) => {
+      observer.current?.disconnect();
+      if (!node || isLoading || !hasNext || error) return;
+      observer.current = new IntersectionObserver(entries => {
+        if (entries[0]?.isIntersecting && !requestState.current.failed) {
+          void fetchFriends();
+        }
+      });
+      observer.current.observe(node);
+    },
+    [fetchFriends, isLoading, hasNext, error],
+  );
+
   useEffect(() => {
-    if (!hasNext && page > 0) return; // 다음 페이지가 없고 첫 페이지가 아니면 요청 X
-    if (initialLoad && page === 0) return; // 이미 초기 로딩이 완료된 경우 첫 페이지 재요청 방지
-    fetchFriends(page);
-  }, [fetchFriends, page, hasNext, initialLoad]);
+    const state = requestState.current;
+    state.active = true;
+    void fetchFriends();
+    return () => {
+      state.active = false;
+      observer.current?.disconnect();
+    };
+  }, [fetchFriends]);
 
   const handleDeleteFriend = (friend: Friend) => {
     setSelectedFriend(friend);
@@ -82,7 +117,7 @@ const FriendList = () => {
     return <FriendListSkeleton count={5} />;
   }
 
-  if (initialLoad && friends.length === 0 && !isLoading) {
+  if (initialLoad && friends.length === 0 && !isLoading && !error) {
     return (
       <div className="text-center text-gray-500 py-10">
         친구 목록이 비었습니다.
@@ -121,6 +156,17 @@ const FriendList = () => {
         })}
       </ul>
       {isLoading && <FriendListSkeleton count={1} />}
+      {error && (
+        <div className="py-4 text-center" role="alert">
+          <p>{error}</p>
+          <button
+            onClick={() => void fetchFriends()}
+            className="mt-2 underline cursor-pointer"
+          >
+            다시 시도
+          </button>
+        </div>
+      )}
 
       {/* 친구 끊기 확인 모달 */}
       <FriendActionConfirmModal
