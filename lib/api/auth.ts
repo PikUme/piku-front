@@ -3,7 +3,7 @@ import { AUTH_TOKEN_KEY } from '@/lib/constants';
 import generateUUID from '@/lib/utils/uuidGenerator';
 import { PwdResetRequest } from '@/types/auth';
 import { EmailVerificationRequest } from '@/types/auth';
-import type { User } from '@/types/auth';
+import type { User, SignupVerificationSentResponse, SignupEmailVerifiedResponse } from '@/types/auth';
 import type { MessageResponse } from '@/types/api';
 
 interface SignupData {
@@ -11,6 +11,7 @@ interface SignupData {
   password: string;
   nickname: string;
   character: string;
+  emailVerificationToken: string;
 }
 
 export const signup = async (data: SignupData): Promise<MessageResponse> => {
@@ -24,8 +25,8 @@ export const signup = async (data: SignupData): Promise<MessageResponse> => {
 
 export const sendSignUpVerificationEmail = async (
   email: string,
-): Promise<MessageResponse> => {
-  const response = await api.post<MessageResponse>(
+): Promise<SignupVerificationSentResponse> => {
+  const response = await api.post<SignupVerificationSentResponse>(
     '/auth/send-verification/sign-up',
     { email },
   );
@@ -37,12 +38,13 @@ export const getAllowedEmailDomains = async () => {
   return response.data;
 };
 
-export const verifyCode = async (
-  data: EmailVerificationRequest,
-): Promise<MessageResponse> => {
+export function verifyCode(data: EmailVerificationRequest & { type: 'SIGN_UP' }): Promise<SignupEmailVerifiedResponse>;
+export function verifyCode(data: EmailVerificationRequest & { type: 'PASSWORD_RESET' }): Promise<MessageResponse>;
+export function verifyCode(data: EmailVerificationRequest): Promise<MessageResponse>;
+export async function verifyCode(data: EmailVerificationRequest): Promise<MessageResponse> {
   const response = await api.post<MessageResponse>('/auth/verify-code', data);
   return response.data;
-};
+}
 
 export const sendVerificationCode = async (
   email: string,

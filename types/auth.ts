@@ -1,3 +1,5 @@
+import type { MessageResponse } from '@/types/api';
+
 export interface Agreements {
   terms: boolean;
   privacy: boolean;
@@ -31,6 +33,9 @@ export interface AuthFormProps {
   errors?: { email?: string; password?: string; passwordConfirm?: string };
   emailDomains?: string[];
   isSendingVerification?: boolean;
+  isVerifyingCode?: boolean;
+  resendSeconds?: number;
+  codeSeconds?: number;
 }
 
 export interface User {
@@ -52,4 +57,14 @@ export interface EmailVerificationRequest {
   email: string;
   code: string;
   type: 'SIGN_UP' | 'PASSWORD_RESET';
+}
+
+export interface SignupVerificationSentResponse extends MessageResponse {
+  expiresAt: string;
+  resendAvailableAt: string;
+}
+
+export interface SignupEmailVerifiedResponse extends MessageResponse {
+  emailVerificationToken: string;
+  expiresAt: string;
 }
