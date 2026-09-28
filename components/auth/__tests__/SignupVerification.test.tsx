@@ -33,6 +33,7 @@ describe('기존 회원가입 이메일 인증', () => {
     vi.useFakeTimers();
     vi.setSystemTime(originTime);
     vi.clearAllMocks();
+    post.mockReset();
     media.desktop = true;
     vi.mocked(api.get).mockImplementation(async url => ({ data: url === '/auth/email-domains' ? ['gmail.com'] : [{ id: 1, type: 'CAT', displayImageUrl: '/cat.png' }] }));
     post.mockImplementation(async url => ({ data: url === '/auth/send-verification/sign-up' ? sent : url === '/auth/verify-code' ? verified : { message: '회원가입 성공' } }));
@@ -134,6 +135,80 @@ describe('기존 회원가입 이메일 인증', () => {
       expect(screen.getByRole('button', { name: '인증완료' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: '회원 가입' })).toBeEnabled();
     }
+  });
+
+  it.each([true, false])('데스크톱 여부 %s: 인증 전에는 예약할 수 없고 인증 토큰으로 닉네임을 예약한다', async desktop => {
+    media.desktop = desktop;
+    await act(async () => render(<SignupClient />));
+    change('닉네임을 입력해주세요', '테스터');
+    expect(screen.getByRole('button', { name: '예약' })).toBeDisabled();
+    await verifyEmail();
+    post.mockResolvedValueOnce({ data: { nickname: '테스터', expiresAt: '2026-09-28T00:03:00Z' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '예약' })));
+    expect(post).toHaveBeenCalledWith('/auth/signup/nickname-reservations', { emailVerificationToken: 'verification-token', nickname: '테스터' });
+    expect(screen.getByText(/테스터.*예약.*3:00/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '예약됨' })).toBeDisabled();
+    await act(async () => vi.advanceTimersByTime(180000));
+    expect(screen.getByText(/예약.*만료/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '예약' })).toBeEnabled();
+  });
+
+  it('새 닉네임 예약 실패 시 기존 예약과 이메일 인증을 유지하고 가입을 막지 않는다', async () => {
+    await act(async () => render(<SignupClient />));
+    await verifyEmail();
+    completeFields();
+    fireEvent.click(screen.getByAltText('캐릭터 CAT'));
+    post.mockResolvedValueOnce({ data: { nickname: '테스터', expiresAt: '2026-09-28T00:03:00Z' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '예약' })));
+    change('닉네임을 입력해주세요', '다른이름');
+    post.mockRejectedValueOnce({ response: { data: { type: 'https://api.pikume.com/problems/nickname/unavailable', title: 'Conflict', status: 409, detail: '예약할 수 없는 닉네임입니다.', instance: '/api/auth/signup/nickname-reservations', code: 'NICKNAME_UNAVAILABLE' } } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '예약' })));
+    expect(screen.getByText('예약할 수 없는 닉네임입니다.')).toBeInTheDocument();
+    expect(screen.getByText(/테스터.*예약.*3:00/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '회원 가입' })).toBeEnabled();
+    change('닉네임을 입력해주세요', '테스터');
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '회원 가입' })));
+    expect(post).toHaveBeenLastCalledWith('/auth/signup', { email: 'tester@gmail.com', password: 'password1!', nickname: '테스터', fixedCharacterId: 1, emailVerificationToken: 'verification-token' });
+  });
+
+  it('예약 중 이메일을 바꾸면 늦은 예약 응답을 무시한다', async () => {
+    let resolve!: (value: unknown) => void;
+    await act(async () => render(<SignupClient />));
+    await verifyEmail();
+    change('닉네임을 입력해주세요', '테스터');
+    post.mockImplementationOnce(() => new Promise(r => { resolve = r; }));
+    fireEvent.click(screen.getByRole('button', { name: '예약' }));
+    expect(screen.getByRole('button', { name: '예약 중...' })).toBeDisabled();
+    change('이메일을 입력해주세요', 'other@gmail.com');
+    await act(async () => resolve({ data: { nickname: '테스터', expiresAt: '2026-09-28T00:03:00Z' } }));
+    expect(screen.queryByText(/테스터.*예약.*3:00/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '예약' })).toBeDisabled();
+  });
+
+  it('예약의 인증 만료 응답은 재인증을 안내한다', async () => {
+    await act(async () => render(<SignupClient />));
+    await verifyEmail();
+    change('닉네임을 입력해주세요', '테스터');
+    post.mockRejectedValueOnce({ response: { data: { type: 'https://api.pikume.com/problems/email-verification/token-expired', title: 'Gone', status: 410, detail: '이메일 인증이 만료되었습니다.', instance: '/api/auth/signup/nickname-reservations', code: 'TOKEN_EXPIRED' } } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '예약' })));
+    expect(screen.getByText('이메일 인증이 만료되었습니다.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '인증완료' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '예약' })).toBeDisabled();
+  });
+
+  it('서버가 반환한 기존 예약 만료 시각을 사용하고 새 예약 성공 시 표시를 교체한다', async () => {
+    await act(async () => render(<SignupClient />));
+    await verifyEmail();
+    change('닉네임을 입력해주세요', '테스터');
+    post.mockResolvedValueOnce({ data: { nickname: '테스터', expiresAt: '2026-09-28T00:03:00Z' } });
+    await act(async () => vi.advanceTimersByTime(60000));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '예약' })));
+    expect(screen.getByText(/테스터.*예약.*2:00/)).toBeInTheDocument();
+    change('닉네임을 입력해주세요', '새이름');
+    post.mockResolvedValueOnce({ data: { nickname: '새이름', expiresAt: '2026-09-28T00:04:00Z' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '예약' })));
+    expect(screen.getByText(/새이름.*예약.*3:00/)).toBeInTheDocument();
+    expect(screen.queryByText(/테스터.*예약.*2:00/)).not.toBeInTheDocument();
   });
 
 });

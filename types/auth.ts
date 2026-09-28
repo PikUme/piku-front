@@ -36,6 +36,11 @@ export interface AuthFormProps {
   isVerifyingCode?: boolean;
   resendSeconds?: number;
   codeSeconds?: number;
+  handleReserveNickname?: () => void;
+  isReservingNickname?: boolean;
+  isNicknameReserved?: boolean;
+  nicknameReservationMessage?: string;
+  nicknameReservationError?: string;
 }
 
 export interface User {
@@ -66,5 +71,10 @@ export interface SignupVerificationSentResponse extends MessageResponse {
 
 export interface SignupEmailVerifiedResponse extends MessageResponse {
   emailVerificationToken: string;
+  expiresAt: string;
+}
+
+export interface SignupNicknameReservation {
+  nickname: string;
   expiresAt: string;
 }

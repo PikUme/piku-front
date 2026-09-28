@@ -77,6 +77,12 @@ API 응답 형식, 상태 관리 경계, 인증/알림/URL 처리 규칙이 바�
 - 이메일 변경·재전송·인증 만료 시 이전 인증 상태를 정리한다. 이메일 변경 전 요청의 늦은 응답은 현재 상태에 반영하지 않는다.
 - 가입 오류의 `code`가 `TOKEN_INVALID`, `TOKEN_EXPIRED`, `TOKEN_ALREADY_USED`이면 재인증을 안내한다. 다른 실패에서는 유효한 인증을 유지하고 입력을 수정해 재시도할 수 있다.
 
+### 회원가입 닉네임 예약
+- 기존 회원가입 화면의 예약 버튼은 인증 완료 후 `POST /auth/signup/nickname-reservations`에 `{emailVerificationToken, nickname}`을 보낸다. 응답의 `nickname`, UTC ISO `expiresAt`으로 실제 예약된 이름과 남은 시간을 표시한다.
+- 예약은 선택사항이며 최초 예약부터 3분간 유지된다. 같은 이름의 재요청으로 시간이 연장되지 않는다. 새 이름 예약이 성공하면 기존 예약을 교체하고, 실패하면 기존 예약과 유효한 이메일 인증을 유지한다.
+- 이메일 변경·인증 만료 시 예약 표시도 정리하고 이전 요청의 응답을 무시한다. 예약의 `TOKEN_INVALID`, `TOKEN_EXPIRED`, `TOKEN_ALREADY_USED` 오류는 다시 이메일 인증을 요구한다.
+- 예약 만료나 예약 실패만으로 가입을 막지 않는다. 가입 요청 시 해당 닉네임의 실제 사용 가능 여부와 예약 소유권은 서버가 판단한다.
+
 ## 알림 및 상호작용 패턴
 - 읽음 처리와 unread count는 실패 시 상태가 어긋나지 않도록 함께 설계한다.
 - SSE unread count는 SharedWorker가 탭 사이에 브로드캐스트하고, 각 탭의 `notificationStore`가 화면 상태로 반영한다.

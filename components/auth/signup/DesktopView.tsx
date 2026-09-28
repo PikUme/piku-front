@@ -23,6 +23,11 @@ const DesktopView = ({
   isVerifyingCode,
   resendSeconds,
   codeSeconds,
+  handleReserveNickname,
+  isReservingNickname,
+  isNicknameReserved,
+  nicknameReservationMessage,
+  nicknameReservationError,
 }: AuthFormProps) => {
   const isAgreed = agreements.terms && agreements.privacy;
 
@@ -47,6 +52,11 @@ const DesktopView = ({
           isVerifyingCode={isVerifyingCode}
           resendSeconds={resendSeconds}
           codeSeconds={codeSeconds}
+          handleReserveNickname={handleReserveNickname}
+          isReservingNickname={isReservingNickname}
+          isNicknameReserved={isNicknameReserved}
+          nicknameReservationMessage={nicknameReservationMessage}
+          nicknameReservationError={nicknameReservationError}
         />
       </div>
       <div className="flex flex-col h-full">
