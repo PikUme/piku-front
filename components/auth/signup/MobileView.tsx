@@ -30,6 +30,11 @@ const MobileView = ({
   isVerifyingCode,
   resendSeconds,
   codeSeconds,
+  handleReserveNickname,
+  isReservingNickname,
+  isNicknameReserved,
+  nicknameReservationMessage,
+  nicknameReservationError,
 }: MobileViewProps) => {
   const isAgreed = agreements.terms && agreements.privacy;
   return (
@@ -50,10 +55,15 @@ const MobileView = ({
             errors={errors}
             emailDomains={emailDomains}
             isSendingVerification={isSendingVerification}
-          isLoading={isLoading}
-          isVerifyingCode={isVerifyingCode}
-          resendSeconds={resendSeconds}
-          codeSeconds={codeSeconds}
+              isLoading={isLoading}
+              isVerifyingCode={isVerifyingCode}
+              resendSeconds={resendSeconds}
+              codeSeconds={codeSeconds}
+              handleReserveNickname={handleReserveNickname}
+              isReservingNickname={isReservingNickname}
+              isNicknameReserved={isNicknameReserved}
+              nicknameReservationMessage={nicknameReservationMessage}
+              nicknameReservationError={nicknameReservationError}
           />
         )}
         {step === 2 && <CharacterSelection handleChange={handleChange} values={values} />}
@@ -63,7 +73,7 @@ const MobileView = ({
           <button
             onClick={nextStep}
             className="w-full bg-black dark:bg-gray-200 text-white dark:text-black py-3 rounded-full text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-900 dark:hover:bg-gray-400 cursor-pointer"
-            disabled={!isEmailVerified || !isAgreed || !!errors?.email || !!errors?.password || !!errors?.passwordConfirm}
+            disabled={isLoading || !isEmailVerified || !isAgreed || !!errors?.email || !!errors?.password || !!errors?.passwordConfirm}
           >
             다음
           </button>

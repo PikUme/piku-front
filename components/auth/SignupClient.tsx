@@ -8,12 +8,13 @@ import {
   sendSignUpVerificationEmail,
   verifyCode,
   getAllowedEmailDomains,
+  reserveSignupNickname,
 } from '@/lib/api/auth';
 import { getApiErrorMessage, getProblemDetail } from '@/lib/utils/apiError';
 import { useRouter } from 'next/navigation';
 import MobileView from './signup/MobileView';
 import DesktopView from './signup/DesktopView';
-import { AuthValues, SignupVerificationSentResponse } from '@/types/auth';
+import { AuthValues, SignupVerificationSentResponse, SignupNicknameReservation } from '@/types/auth';
 
 const SignupClient = () => {
   const [step, setStep] = useState(1);
@@ -35,6 +36,10 @@ const SignupClient = () => {
   const router = useRouter();
   const [sentVerification, setSentVerification] = useState<SignupVerificationSentResponse | null>(null);
   const [emailVerification, setEmailVerification] = useState<{ token: string; expiresAt: number } | null>(null);
+  const [nicknameReservation, setNicknameReservation] = useState<SignupNicknameReservation | null>(null);
+  const [isReservingNickname, setIsReservingNickname] = useState(false);
+  const [nicknameReservationError, setNicknameReservationError] = useState('');
+  const nicknameRequestPending = useRef(false);
   const [now, setNow] = useState(Date.now);
   const emailRequestVersion = useRef(0);
   const emailRequestPending = useRef(false);
@@ -44,7 +49,23 @@ const SignupClient = () => {
   const isVerificationSent = sentVerification !== null && Date.parse(sentVerification.expiresAt) > now;
   const resendSeconds = sentVerification ? Math.max(0, Math.ceil((Date.parse(sentVerification.resendAvailableAt) - now) / 1000)) : 0;
   const codeSeconds = sentVerification ? Math.max(0, Math.ceil((Date.parse(sentVerification.expiresAt) - now) / 1000)) : 0;
-  const isLoading = isSubmitting || isSendingVerification || isVerifyingCode;
+  const isLoading = isSubmitting || isSendingVerification || isVerifyingCode || isReservingNickname;
+  const reservationSeconds = nicknameReservation ? Math.max(0, Math.ceil((Date.parse(nicknameReservation.expiresAt) - now) / 1000)) : 0;
+  const isNicknameReserved = nicknameReservation?.nickname === values.nickname && reservationSeconds > 0;
+  const nicknameReservationMessage = nicknameReservation
+    ? reservationSeconds > 0
+      ? `${nicknameReservation.nickname} 예약 중 · ${Math.floor(reservationSeconds / 60)}:${String(reservationSeconds % 60).padStart(2, '0')} 남음. 예약 시간은 연장되지 않습니다.`
+      : '닉네임 예약이 만료되었습니다. 다시 예약할 수 있습니다.'
+    : '이메일 인증 후 닉네임을 3분간 예약할 수 있습니다. 예약은 선택사항입니다.';
+
+  const clearEmailVerification = () => {
+    emailRequestVersion.current += 1;
+    setEmailVerification(null);
+    setNicknameReservation(null);
+    setNicknameReservationError('');
+    nicknameRequestPending.current = false;
+    setIsReservingNickname(false);
+  };
   const [verificationMessage, setVerificationMessage] = useState('');
   const [agreements, setAgreements] = useState({
     terms: false,
@@ -74,7 +95,7 @@ const SignupClient = () => {
 
   useEffect(() => {
     if (emailVerification && emailVerification.expiresAt <= now) {
-      setEmailVerification(null);
+      clearEmailVerification();
       setStep(1);
       setMessage('이메일 인증이 만료되었습니다. 다시 인증해주세요.');
     } else if (sentVerification && Date.parse(sentVerification.expiresAt) <= now) {
@@ -130,10 +151,10 @@ const SignupClient = () => {
     }
     setValues(previous => ({ ...previous, [input]: value }));
 
+    if (input === 'nickname') setNicknameReservationError('');
     if (input === 'email') {
-      emailRequestVersion.current += 1;
+      clearEmailVerification();
       emailRequestPending.current = false;
-      setEmailVerification(null);
       setSentVerification(null);
       setIsSendingVerification(false);
       setIsVerifyingCode(false);
@@ -193,9 +214,9 @@ const SignupClient = () => {
       return;
     }
     if (emailRequestPending.current || signupPending.current || resendSeconds > 0) return;
+    clearEmailVerification();
     const requestVersion = ++emailRequestVersion.current;
     emailRequestPending.current = true;
-    setEmailVerification(null);
     setSentVerification(null);
     setValues(previous => ({ ...previous, verificationCode: '' }));
     setVerificationMessage('');
@@ -257,8 +278,46 @@ const SignupClient = () => {
     }
   };
 
+  const handleReserveNickname = async () => {
+    if (nicknameRequestPending.current || emailRequestPending.current || signupPending.current) return;
+    if (!emailVerification || emailVerification.expiresAt <= Date.now()) {
+      setNicknameReservationError('이메일 인증을 먼저 완료해주세요.');
+      return;
+    }
+    if (!values.nickname.trim()) {
+      setNicknameReservationError('닉네임을 입력해주세요.');
+      return;
+    }
+    const requestVersion = emailRequestVersion.current;
+    nicknameRequestPending.current = true;
+    setIsReservingNickname(true);
+    setNicknameReservationError('');
+    try {
+      const reservation = await reserveSignupNickname(emailVerification.token, values.nickname);
+      if (requestVersion !== emailRequestVersion.current) return;
+      setNicknameReservation(reservation);
+      setNow(Date.now());
+    } catch (error) {
+      if (requestVersion !== emailRequestVersion.current) return;
+      const errorMessage = getApiErrorMessage(error, '닉네임 예약에 실패했습니다.');
+      const code = getProblemDetail(error)?.code;
+      if (code && ['TOKEN_INVALID', 'TOKEN_EXPIRED', 'TOKEN_ALREADY_USED'].includes(code)) {
+        clearEmailVerification();
+        setStep(1);
+        setMessage(errorMessage);
+      } else {
+        setNicknameReservationError(errorMessage);
+      }
+    } finally {
+      if (requestVersion === emailRequestVersion.current) {
+        nicknameRequestPending.current = false;
+        setIsReservingNickname(false);
+      }
+    }
+  };
+
   const handleSubmit = async () => {
-    if (signupPending.current || emailRequestPending.current) return;
+    if (signupPending.current || emailRequestPending.current || nicknameRequestPending.current) return;
     if (!emailVerification || emailVerification.expiresAt <= Date.now()) {
       setMessage('이메일 인증을 완료해주세요.');
       return;
@@ -297,7 +356,7 @@ const SignupClient = () => {
       setMessage(errorMessage);
       const code = getProblemDetail(error)?.code;
       if (code && ['TOKEN_INVALID', 'TOKEN_EXPIRED', 'TOKEN_ALREADY_USED'].includes(code)) {
-        setEmailVerification(null);
+        clearEmailVerification();
         setStep(1);
       }
       signupPending.current = false;
@@ -341,6 +400,11 @@ const SignupClient = () => {
               isVerifyingCode={isVerifyingCode}
               resendSeconds={resendSeconds}
               codeSeconds={codeSeconds}
+              handleReserveNickname={handleReserveNickname}
+              isReservingNickname={isReservingNickname}
+              isNicknameReserved={isNicknameReserved}
+              nicknameReservationMessage={nicknameReservationMessage}
+              nicknameReservationError={nicknameReservationError}
             />
           ) : (
             <MobileView
@@ -364,6 +428,11 @@ const SignupClient = () => {
               isVerifyingCode={isVerifyingCode}
               resendSeconds={resendSeconds}
               codeSeconds={codeSeconds}
+              handleReserveNickname={handleReserveNickname}
+              isReservingNickname={isReservingNickname}
+              isNicknameReserved={isNicknameReserved}
+              nicknameReservationMessage={nicknameReservationMessage}
+              nicknameReservationError={nicknameReservationError}
             />
           )}
         </div>

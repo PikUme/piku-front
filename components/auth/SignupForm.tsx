@@ -25,6 +25,11 @@ const SignupForm = ({
   isVerifyingCode,
   resendSeconds = 0,
   codeSeconds = 0,
+  handleReserveNickname,
+  isReservingNickname,
+  isNicknameReserved,
+  nicknameReservationMessage,
+  nicknameReservationError,
 }: AuthFormProps) => {
   const [modalContent, setModalContent] = useState<{ title: string; content: string; type: 'terms' | 'privacy' } | null>(
     null,
@@ -159,9 +164,19 @@ const SignupForm = ({
             placeholder="닉네임을 입력해주세요"
             onChange={handleChange('nickname')}
             value={values.nickname}
-            className="w-full border-b-2 border-gray-300 dark:border-gray-600 focus:border-black dark:focus:border-white dark:bg-black dark:text-white outline-none p-2"
+            className="w-full min-w-0 border-b-2 border-gray-300 dark:border-gray-600 focus:border-black dark:focus:border-white dark:bg-black dark:text-white outline-none p-2"
           />
+          <button
+            type="button"
+            onClick={handleReserveNickname}
+            disabled={!isEmailVerified || !values.nickname.trim() || isLoading || isNicknameReserved}
+            className="whitespace-nowrap flex-shrink-0 text-sm bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {isReservingNickname ? '예약 중...' : isNicknameReserved ? '예약됨' : '예약'}
+          </button>
         </div>
+        <p className="text-gray-500 text-xs pl-10">{nicknameReservationMessage}</p>
+        {nicknameReservationError && <p className="text-red-500 text-xs pl-10" role="alert">{nicknameReservationError}</p>}
         
         <div className="pt-6 space-y-4">
           <div className="flex items-center">
