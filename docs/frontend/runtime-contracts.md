@@ -71,7 +71,7 @@ API 응답 형식, 상태 관리 경계, 인증/알림/URL 처리 규칙이 바�
 - 로그인/회원가입/비밀번호 재설정은 공통 응답 형식을 기준으로 메시지를 표시한다.
 
 ### 회원가입 이메일 인증
-- `POST /auth/send-verification/sign-up`은 `{email}`을 보내고 `message`, `expiresAt`, `resendAvailableAt`을 받는다. 시각은 UTC ISO 문자열이며 화면의 코드 유효시간과 재전송 대기는 서버 값을 따른다.
+- `POST /auth/send-verification/sign-up`은 `{email}`을 보내고 `message`, `expiresAt`, `resendAvailableAt`을 받는다. 이메일 인증 시각은 offset 없는 KST ISO local 문자열(예: `2026-09-29T09:05:00`)이며, 코드·토큰 만료와 재전송 대기는 `+09:00`을 적용해 계산한다. 소수초가 포함될 수 있고, `Z` 또는 offset이 이미 명시된 값은 그대로 해석한다.
 - `POST /auth/verify-code`의 `SIGN_UP` 성공 응답에서 `emailVerificationToken`, `expiresAt`을 받아 화면 메모리에만 보관한다. `PASSWORD_RESET`은 기존 메시지 응답을 유지한다.
 - `POST /auth/signup`에는 기존 이메일·비밀번호·닉네임·`fixedCharacterId`와 `emailVerificationToken`을 함께 보낸다. 가입 성공 후 로그인 페이지로 이동한다.
 - 이메일 변경·재전송·인증 만료 시 이전 인증 상태를 정리한다. 이메일 변경 전 요청의 늦은 응답은 현재 상태에 반영하지 않는다.

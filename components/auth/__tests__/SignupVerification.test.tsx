@@ -9,8 +9,8 @@ vi.mock('react-responsive', () => ({ useMediaQuery: () => media.desktop }));
 vi.mock('@/lib/api/api', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 const post = vi.mocked(api.post);
 const originTime = new Date('2026-09-28T00:00:00Z');
-const sent = { message: '인증코드가 발송되었습니다.', expiresAt: '2026-09-28T00:05:00Z', resendAvailableAt: '2026-09-28T00:01:00Z' };
-const verified = { message: '이메일 인증이 완료되었습니다.', emailVerificationToken: 'verification-token', expiresAt: '2026-09-28T00:10:00Z' };
+const sent = { message: '인증코드가 발송되었습니다.', expiresAt: '2026-09-28T09:05:00', resendAvailableAt: '2026-09-28T09:01:00' };
+const verified = { message: '이메일 인증이 완료되었습니다.', emailVerificationToken: 'verification-token', expiresAt: '2026-09-28T09:10:00' };
 const change = (placeholder: string, value: string) => fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value } });
 async function sendCode() {
   change('이메일을 입력해주세요', 'tester@gmail.com');
@@ -73,7 +73,9 @@ describe('기존 회원가입 이메일 인증', () => {
     await act(async () => render(<SignupClient />));
     await verifyEmail();
     expect(screen.getByPlaceholderText('이메일을 입력해주세요')).not.toBeDisabled();
-    await act(async () => vi.advanceTimersByTime(600000));
+    await act(async () => vi.advanceTimersByTime(599000));
+    expect(screen.getByRole('button', { name: '인증완료' })).toBeInTheDocument();
+    await act(async () => vi.advanceTimersByTime(1000));
     expect(screen.queryByRole('button', { name: '인증완료' })).not.toBeInTheDocument();
     expect(screen.getByText(/인증.*만료/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '회원 가입' })).toBeDisabled();
@@ -83,7 +85,10 @@ describe('기존 회원가입 이메일 인증', () => {
     await act(async () => render(<SignupClient />));
     await sendCode();
     expect(screen.getByRole('button', { name: /재전송.*60/ })).toBeDisabled();
-    await act(async () => vi.advanceTimersByTime(60000));
+    expect(screen.getByText('인증코드 유효시간 5:00')).toBeInTheDocument();
+    await act(async () => vi.advanceTimersByTime(59000));
+    expect(screen.getByRole('button', { name: /재전송.*1초/ })).toBeDisabled();
+    await act(async () => vi.advanceTimersByTime(1000));
     expect(screen.getByRole('button', { name: '재전송' })).toBeEnabled();
     await act(async () => vi.advanceTimersByTime(240000));
     expect(screen.queryByPlaceholderText('인증코드를 입력하세요')).not.toBeInTheDocument();
@@ -113,7 +118,7 @@ describe('기존 회원가입 이메일 인증', () => {
     await sendCode();
     change('인증코드를 입력하세요', '111111');
     await act(async () => vi.advanceTimersByTime(60000));
-    post.mockResolvedValueOnce({ data: { ...sent, expiresAt: '2026-09-28T00:06:00Z', resendAvailableAt: '2026-09-28T00:02:00Z' } });
+    post.mockResolvedValueOnce({ data: { ...sent, expiresAt: '2026-09-28T09:06:00', resendAvailableAt: '2026-09-28T09:02:00' } });
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '재전송' })));
     expect(screen.getByPlaceholderText('인증코드를 입력하세요')).toHaveValue('');
     expect(screen.getByText('인증코드 유효시간 5:00')).toBeInTheDocument();
@@ -134,6 +139,27 @@ describe('기존 회원가입 이메일 인증', () => {
       expect(screen.getByRole('button', { name: '인증완료' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: '회원 가입' })).toBeEnabled();
     }
+  });
+
+  it.each([
+    ['UTC', '2026-09-28T00:05:00Z', '2026-09-28T00:01:00Z', '2026-09-28T00:10:00Z'],
+    ['KST offset', '2026-09-28T09:05:00+09:00', '2026-09-28T09:01:00+09:00', '2026-09-28T09:10:00+09:00'],
+    ['KST local 소수초 6자리', '2026-09-28T09:05:00.123456', '2026-09-28T09:01:00.123456', '2026-09-28T09:10:00.123456'],
+  ])('%s 이메일 인증 시각을 같은 만료 시점으로 해석한다', async (_, expiresAt, resendAvailableAt, tokenExpiresAt) => {
+    vi.setSystemTime(new Date('2026-09-28T00:00:00.123Z'));
+    post.mockImplementation(async url => ({ data: url === '/auth/send-verification/sign-up'
+      ? { ...sent, expiresAt, resendAvailableAt }
+      : { ...verified, expiresAt: tokenExpiresAt } }));
+    await act(async () => render(<SignupClient />));
+    await sendCode();
+    expect(screen.getByRole('button', { name: /재전송.*60/ })).toBeDisabled();
+    expect(screen.getByText('인증코드 유효시간 5:00')).toBeInTheDocument();
+    change('인증코드를 입력하세요', '123456');
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '인증' })));
+    await act(async () => vi.advanceTimersByTime(599000));
+    expect(screen.getByRole('button', { name: '인증완료' })).toBeInTheDocument();
+    await act(async () => vi.advanceTimersByTime(1000));
+    expect(screen.queryByRole('button', { name: '인증완료' })).not.toBeInTheDocument();
   });
 
 });

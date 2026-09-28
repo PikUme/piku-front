@@ -15,6 +15,9 @@ import MobileView from './signup/MobileView';
 import DesktopView from './signup/DesktopView';
 import { AuthValues, SignupVerificationSentResponse } from '@/types/auth';
 
+const parseEmailVerificationTime = (value: string) =>
+  Date.parse(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}+09:00`);
+
 const SignupClient = () => {
   const [step, setStep] = useState(1);
   const [values, setValues] = useState<AuthValues>({
@@ -41,9 +44,9 @@ const SignupClient = () => {
   const signupPending = useRef(false);
   const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isEmailVerified = emailVerification !== null && emailVerification.expiresAt > now;
-  const isVerificationSent = sentVerification !== null && Date.parse(sentVerification.expiresAt) > now;
-  const resendSeconds = sentVerification ? Math.max(0, Math.ceil((Date.parse(sentVerification.resendAvailableAt) - now) / 1000)) : 0;
-  const codeSeconds = sentVerification ? Math.max(0, Math.ceil((Date.parse(sentVerification.expiresAt) - now) / 1000)) : 0;
+  const isVerificationSent = sentVerification !== null && parseEmailVerificationTime(sentVerification.expiresAt) > now;
+  const resendSeconds = sentVerification ? Math.max(0, Math.ceil((parseEmailVerificationTime(sentVerification.resendAvailableAt) - now) / 1000)) : 0;
+  const codeSeconds = sentVerification ? Math.max(0, Math.ceil((parseEmailVerificationTime(sentVerification.expiresAt) - now) / 1000)) : 0;
   const isLoading = isSubmitting || isSendingVerification || isVerifyingCode;
   const [verificationMessage, setVerificationMessage] = useState('');
   const [agreements, setAgreements] = useState({
@@ -77,7 +80,7 @@ const SignupClient = () => {
       setEmailVerification(null);
       setStep(1);
       setMessage('이메일 인증이 만료되었습니다. 다시 인증해주세요.');
-    } else if (sentVerification && Date.parse(sentVerification.expiresAt) <= now) {
+    } else if (sentVerification && parseEmailVerificationTime(sentVerification.expiresAt) <= now) {
       setSentVerification(null);
       setValues(previous => ({ ...previous, verificationCode: '' }));
       setMessage('인증코드가 만료되었습니다. 다시 전송해주세요.');
@@ -221,7 +224,7 @@ const SignupClient = () => {
 
   const handleVerifyCode = async () => {
     if (emailRequestPending.current || signupPending.current) return;
-    if (!sentVerification || Date.parse(sentVerification.expiresAt) <= Date.now()) {
+    if (!sentVerification || parseEmailVerificationTime(sentVerification.expiresAt) <= Date.now()) {
       setMessage('인증코드를 다시 전송해주세요.');
       return;
     }
@@ -236,7 +239,7 @@ const SignupClient = () => {
     try {
       const response = await verifyCode({ email: values.email, code: values.verificationCode, type: 'SIGN_UP' });
       if (requestVersion !== emailRequestVersion.current) return;
-      const expiresAt = Date.parse(response.expiresAt);
+      const expiresAt = parseEmailVerificationTime(response.expiresAt);
       if (!response.emailVerificationToken || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
         setVerificationMessage('인증 결과를 확인할 수 없습니다. 다시 전송해주세요.');
         return;
