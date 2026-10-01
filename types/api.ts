@@ -4,7 +4,9 @@ export interface ProblemDetail {
   status: number;
   detail: string;
   instance: string;
+  code?: string;
   fieldErrors?: Record<string, string>;
+  resendAvailableAt?: string;
 }
 
 export interface MessageResponse {
