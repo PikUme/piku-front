@@ -19,7 +19,7 @@ export const signup = async (data: SignupData): Promise<MessageResponse> => {
   const response = await api.post<MessageResponse>('/auth/signup', {
     ...rest,
     fixedCharacterId: Number(character),
-  });
+  }, { headers: { 'Cache-Control': 'no-store' } });
   return response.data;
 };
 
@@ -29,6 +29,7 @@ export const sendSignUpVerificationEmail = async (
   const response = await api.post<SignupVerificationSentResponse>(
     '/auth/send-verification/sign-up',
     { email },
+    { headers: { 'Cache-Control': 'no-store' } },
   );
   return response.data;
 };
@@ -42,7 +43,9 @@ export function verifyCode(data: EmailVerificationRequest & { type: 'SIGN_UP' })
 export function verifyCode(data: EmailVerificationRequest & { type: 'PASSWORD_RESET' }): Promise<MessageResponse>;
 export function verifyCode(data: EmailVerificationRequest): Promise<MessageResponse>;
 export async function verifyCode(data: EmailVerificationRequest): Promise<MessageResponse> {
-  const response = await api.post<MessageResponse>('/auth/verify-code', data);
+  const response = await api.post<MessageResponse>('/auth/verify-code', data, {
+    headers: { 'Cache-Control': 'no-store' },
+  });
   return response.data;
 }
 

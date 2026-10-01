@@ -65,6 +65,7 @@ const SignupForm = ({
               placeholder="이메일을 입력해주세요"
               onChange={handleChange('email')}
               value={values.email}
+              disabled={isLoading}
               className={`w-full border-b-2 ${errors?.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} focus:border-black dark:focus:border-white dark:bg-black dark:text-white outline-none p-2`}
             />
             <div className="relative">
@@ -111,6 +112,7 @@ const SignupForm = ({
                   placeholder="인증코드를 입력하세요"
                   onChange={handleChange('verificationCode')}
                   value={values.verificationCode}
+                  disabled={isLoading}
                   className={`w-full border-b-2 ${
                     verificationMessage ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                   } focus:border-black dark:focus:border-white dark:bg-black dark:text-white outline-none p-2`}

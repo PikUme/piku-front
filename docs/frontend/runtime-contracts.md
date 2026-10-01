@@ -74,8 +74,11 @@ API 응답 형식, 상태 관리 경계, 인증/알림/URL 처리 규칙이 바�
 - `POST /auth/send-verification/sign-up`은 `{email}`을 보내고 `message`, `expiresAt`, `resendAvailableAt`을 받는다. 이메일 인증 시각은 offset 없는 KST ISO local 문자열(예: `2026-09-29T09:05:00`)이며, 코드·토큰 만료와 재전송 대기는 `+09:00`을 적용해 계산한다. 소수초가 포함될 수 있고, `Z` 또는 offset이 이미 명시된 값은 그대로 해석한다.
 - `POST /auth/verify-code`의 `SIGN_UP` 성공 응답에서 `emailVerificationToken`, `expiresAt`을 받아 화면 메모리에만 보관한다. `PASSWORD_RESET`은 기존 메시지 응답을 유지한다.
 - `POST /auth/signup`에는 기존 이메일·비밀번호·닉네임·`fixedCharacterId`와 `emailVerificationToken`을 함께 보낸다. 가입 성공 후 로그인 페이지로 이동한다.
-- 이메일 변경·재전송·인증 만료 시 이전 인증 상태를 정리한다. 이메일 변경 전 요청의 늦은 응답은 현재 상태에 반영하지 않는다.
-- 가입 오류의 `code`가 `TOKEN_INVALID`, `TOKEN_EXPIRED`, `TOKEN_ALREADY_USED`이면 재인증을 안내한다. 다른 실패에서는 유효한 인증을 유지하고 입력을 수정해 재시도할 수 있다.
+- 이메일 변경·인증 만료 시 이전 인증 상태를 정리한다. 재발송은 응답 전까지 현재 인증을 보관하고, 성공하면 이전 인증을 교체한다. `RATE_LIMITED`에서는 기존의 유효한 코드·토큰을 유지한다. 허용된 발송의 실패·결과 불명은 로컬 인증을 정리하되 알고 있는 서버 대기 시각을 유지한다. 이메일 변경 전 요청의 늦은 응답은 현재 상태에 반영하지 않는다.
+- 가입 오류의 `code`가 `TOKEN_INVALID`, `TOKEN_EXPIRED`, `TOKEN_ALREADY_USED`이면 재인증을 안내한다. 일반 입력 오류와 Redis 일시 장애에서는 유효 토큰을 보존한다. 이메일 중복은 가입 성공으로 간주하지 않고 로그인 경로를 안내한다. 가입 응답 유실은 결과 확인 불가를 안내하고 자동 재제출하지 않는다.
+- 인증 코드·토큰을 보내거나 검증하거나 가입하는 요청은 `Cache-Control: no-store`를 사용하며 코드를 URL·저장소·공유 전역 상태·로그에 보관하지 않는다.
+- 재발송 제한 시각은 Problem Details의 `resendAvailableAt`을 우선 사용하고, 없으면 `Retry-After`를 해석한다. 서버가 준 유효한 시각만 표시하며 알 수 없는 제한을 고정 카운트다운으로 만들지 않는다. `CODE_MISMATCH`는 코드 입력을 허용하고 `ATTEMPTS_EXHAUSTED`·`VERIFICATION_INVALID`는 코드를 종료해 재발송을 안내한다. 검증 503은 오입력으로 취급하지 않는다.
+- 가입 화면 경로 이탈, 컴포넌트 해제, 브라우저 캐시 복원(`pageshow.persisted`)은 현재 요청 세대를 무효화하고 화면 코드·토큰과 지연된 로그인 이동을 폐기한다. 탭 가시성 변경과 모바일 가입 내부 단계 전환은 인증을 초기화하지 않는다. 가입 중 이메일 변경·중복 발송·검증은 막고, 늦은 응답의 상태 변경과 요청 종료 처리는 무시한다.
 
 ## 알림 및 상호작용 패턴
 - 읽음 처리와 unread count는 실패 시 상태가 어긋나지 않도록 함께 설계한다.
