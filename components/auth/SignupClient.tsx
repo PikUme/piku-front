@@ -396,9 +396,10 @@ const SignupClient = () => {
       if (requestVersion !== emailRequestVersion.current) return;
       const errorMessage = getApiErrorMessage(error, '회원가입에 실패했습니다.');
       const code = getProblemDetail(error)?.code;
-      if (code && ['TOKEN_INVALID', 'TOKEN_EXPIRED', 'TOKEN_ALREADY_USED'].includes(code)) {
+      if (code && ['TOKEN_INVALID', 'TOKEN_EXPIRED', 'TOKEN_ALREADY_USED', 'VERIFICATION_INVALID'].includes(code)) {
         setEmailVerification(null);
         setSentVerification(null);
+        setValues(previous => ({ ...previous, verificationCode: '' }));
         setStep(1);
         setMessage(errorMessage);
       } else if (getHttpStatus(error) === 400 && getProblemDetail(error)?.fieldErrors?.emailVerificationToken) {
