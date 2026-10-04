@@ -316,17 +316,28 @@ const SignupClient = () => {
       setMessage(response.message || '인증코드가 발송되었습니다.');
     } catch (error) {
       if (requestVersion === emailRequestVersion.current) {
-        const isRateLimited = getProblemDetail(error)?.code === 'RATE_LIMITED';
+        const problemCode = getProblemDetail(error)?.code;
+        const isRateLimited = problemCode === 'RATE_LIMITED';
+        const resendActivationInvalid = getHttpStatus(error) === 400
+          && (problemCode === 'VERIFICATION_INVALID' || problemCode === 'CODE_EXPIRED');
         const duplicateEmail = isEmailAlreadyExists(error);
         setRetryAvailableAt(getRetryAfterTime(error, retryAvailableAt));
-        if (!isRateLimited && !duplicateEmail && !isInvalidEmail(error) && getHttpStatus(error) !== 400) {
+        if (resendActivationInvalid) {
           setEmailVerification(null);
           setSentVerification(null);
           setValues(previous => ({ ...previous, verificationCode: '' }));
+          setMessage('잠시 후 다시 시도해 주세요.');
+          window.alert('잠시 후 다시 시도해 주세요.');
+        } else {
+          if (!isRateLimited && !duplicateEmail && !isInvalidEmail(error) && getHttpStatus(error) !== 400) {
+            setEmailVerification(null);
+            setSentVerification(null);
+            setValues(previous => ({ ...previous, verificationCode: '' }));
+          }
+          setMessage(duplicateEmail
+            ? '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해주세요.'
+            : getApiErrorMessage(error, '인증코드 발송 결과를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.'));
         }
-        setMessage(duplicateEmail
-          ? '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해주세요.'
-          : getApiErrorMessage(error, '인증코드 발송 결과를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.'));
       }
     } finally {
       if (requestVersion === emailRequestVersion.current) {
