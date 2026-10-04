@@ -323,11 +323,13 @@ const SignupClient = () => {
     try {
       const response = await verifyCode({ email: values.email, code: values.verificationCode, type: 'SIGN_UP' });
       if (requestVersion !== emailRequestVersion.current) return;
+      const tokenFieldAbsent = !Object.prototype.hasOwnProperty.call(response, 'emailVerificationToken');
+      const expiryFieldAbsent = !Object.prototype.hasOwnProperty.call(response, 'expiresAt');
       const hasToken = typeof response.emailVerificationToken === 'string' && response.emailVerificationToken.trim().length > 0;
       const hasExpiry = typeof response.expiresAt === 'string' && response.expiresAt.length > 0;
-      const legacy = !hasToken && !hasExpiry;
+      const legacy = tokenFieldAbsent && expiryFieldAbsent;
       const expiresAt = hasExpiry ? parseEmailVerificationTime(response.expiresAt!) : Number.NaN;
-      if (!response?.message || hasToken !== hasExpiry || (!legacy && (!Number.isFinite(expiresAt) || expiresAt <= Date.now()))) {
+      if (!response?.message || (!legacy && (!hasToken || !hasExpiry || !Number.isFinite(expiresAt) || expiresAt <= Date.now()))) {
         setVerificationMessage('인증 결과를 확인할 수 없습니다. 다시 전송해주세요.');
         return;
       }

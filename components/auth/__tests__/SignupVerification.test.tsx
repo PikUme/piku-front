@@ -80,6 +80,9 @@ describe('기존 회원가입 이메일 인증', () => {
     { message: 'ok', emailVerificationToken: 'token' },
     { message: 'ok', expiresAt: 'not-a-date' },
     { message: 'ok', emailVerificationToken: '', expiresAt: '2026-09-28T09:10:00' },
+    { message: 'ok', emailVerificationToken: '', expiresAt: '' },
+    { message: 'ok', emailVerificationToken: null, expiresAt: null },
+    { message: 'ok', emailVerificationToken: 7, expiresAt: 42 },
   ])('불완전하거나 잘못된 검증 증명은 레거시 성공으로 처리하지 않는다: %o', async response => {
     post.mockImplementation(async url => ({ data: url === '/auth/verify-code' ? response : sent }));
     await act(async () => render(<SignupClient />));
