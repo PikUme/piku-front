@@ -36,6 +36,7 @@ const sendAndVerify = async (page: Page) => {
   await page.getByPlaceholder('이메일을 입력해주세요').fill('signup@example.test');
   await page.getByRole('button', { name: '전송' }).click();
   await expect(page.getByPlaceholder('인증코드를 입력하세요')).toBeVisible();
+  await expect(page.getByRole('button', { name: '재전송' })).toBeEnabled();
   await page.getByPlaceholder('인증코드를 입력하세요').fill('123456');
   await page.getByRole('button', { name: '인증' }).click();
   await expect(page.getByRole('button', { name: '인증완료' })).toBeVisible();
@@ -94,4 +95,28 @@ test('가입 경로를 나갔다 브라우저 뒤로가기로 돌아오면 화�
   await expect(page).toHaveURL(/\/signup$/);
   await expect(page.getByPlaceholder('인증코드를 입력하세요')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '인증완료' })).toHaveCount(0);
+});
+
+test('mock RATE_LIMITED 응답의 resendAvailableAt만 재전송 카운트다운으로 표시한다', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.route('**/api/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    const body = path === '/api/auth/email-domains'
+      ? ['example.test']
+      : path === '/api/auth/send-verification/sign-up'
+        ? {
+            type: 'about:blank', title: '요청 제한', status: 429, detail: '잠시 후 다시 시도해주세요.',
+            instance: path, code: 'RATE_LIMITED', resendAvailableAt: '2099-10-01T09:11:00',
+          }
+        : [{ id: 1, type: 'CAT', displayImageUrl: '/cat.png' }];
+    await route.fulfill({
+      status: path === '/api/auth/send-verification/sign-up' ? 429 : 200,
+      contentType: 'application/json', body: JSON.stringify(body),
+    });
+  });
+  await page.goto('/signup');
+  await page.getByPlaceholder('이메일을 입력해주세요').fill('signup@example.test');
+  await page.getByRole('button', { name: '전송' }).click();
+  await expect(page.getByRole('button', { name: /재전송 \(\d+초\)/ })).toBeDisabled();
+  await expect(page.getByText('잠시 후 다시 시도해주세요.')).toBeVisible();
 });

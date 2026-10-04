@@ -21,6 +21,7 @@ const DesktopView = ({
   emailDomains,
   isSendingVerification,
   isVerifyingCode,
+  resendSeconds,
   codeSeconds,
 }: AuthFormProps) => {
   const isAgreed = agreements.terms && agreements.privacy;
@@ -44,6 +45,7 @@ const DesktopView = ({
           isSendingVerification={isSendingVerification}
           isLoading={isLoading}
           isVerifyingCode={isVerifyingCode}
+          resendSeconds={resendSeconds}
           codeSeconds={codeSeconds}
         />
       </div>
