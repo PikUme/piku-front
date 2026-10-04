@@ -21,6 +21,9 @@ const SignupForm = ({
   errors,
   emailDomains = [],
   isSendingVerification,
+  isLoading,
+  isVerifyingCode,
+  codeSeconds = 0,
 }: AuthFormProps) => {
   const [modalContent, setModalContent] = useState<{ title: string; content: string; type: 'terms' | 'privacy' } | null>(
     null,
@@ -52,7 +55,7 @@ const SignupForm = ({
 
   return (
     <>
-      <form className="space-y-6">
+      <form className="space-y-6" onSubmit={event => event.preventDefault()}>
         <div className="flex items-center space-x-4">
           <Mail className="text-gray-400" />
           <div className="flex-grow flex items-center gap-2">
@@ -61,8 +64,8 @@ const SignupForm = ({
               placeholder="이메일을 입력해주세요"
               onChange={handleChange('email')}
               value={values.email}
+              disabled={isLoading}
               className={`w-full border-b-2 ${errors?.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} focus:border-black dark:focus:border-white dark:bg-black dark:text-white outline-none p-2`}
-              disabled={isEmailVerified}
             />
             <div className="relative">
               <Info 
@@ -90,10 +93,10 @@ const SignupForm = ({
           <button
             type="button"
             onClick={handleSendVerification}
-            disabled={isEmailVerified || !values.email || !!errors?.email || isSendingVerification}
+            disabled={isEmailVerified || !values.email || !!errors?.email || isLoading}
             className="whitespace-nowrap flex-shrink-0 text-sm bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer"
           >
-            {isSendingVerification ? '전송 중...' : isEmailVerified ? '인증완료' : '전송'}
+            {isSendingVerification ? '전송 중...' : isEmailVerified ? '인증완료' : isVerificationSent ? '재전송' : '전송'}
           </button>
         </div>
         {errors?.email && <p className="text-red-500 text-xs mt-1 pl-10">{errors.email}</p>}
@@ -108,6 +111,7 @@ const SignupForm = ({
                   placeholder="인증코드를 입력하세요"
                   onChange={handleChange('verificationCode')}
                   value={values.verificationCode}
+                  disabled={isLoading}
                   className={`w-full border-b-2 ${
                     verificationMessage ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                   } focus:border-black dark:focus:border-white dark:bg-black dark:text-white outline-none p-2`}
@@ -116,11 +120,13 @@ const SignupForm = ({
               <button
                 type="button"
                 onClick={handleVerifyCode}
+                disabled={isLoading}
                 className="text-sm bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-md cursor-pointer"
               >
-                인증
+                {isVerifyingCode ? '인증 중...' : '인증'}
               </button>
             </div>
+            {typeof codeSeconds === 'number' && <p className="text-gray-500 text-xs mt-1 pl-10">인증코드 유효시간 {Math.floor(codeSeconds / 60)}:{String(codeSeconds % 60).padStart(2, '0')}</p>}
             {verificationMessage && <p className="whitespace-pre-line text-red-500 text-xs mt-1 pl-10">{verificationMessage}</p>}
           </div>
         )}
