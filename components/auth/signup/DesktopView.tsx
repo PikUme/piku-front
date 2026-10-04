@@ -20,6 +20,8 @@ const DesktopView = ({
   errors,
   emailDomains,
   isSendingVerification,
+  isVerifyingCode,
+  codeSeconds,
 }: AuthFormProps) => {
   const isAgreed = agreements.terms && agreements.privacy;
 
@@ -40,6 +42,9 @@ const DesktopView = ({
           errors={errors}
           emailDomains={emailDomains}
           isSendingVerification={isSendingVerification}
+          isLoading={isLoading}
+          isVerifyingCode={isVerifyingCode}
+          codeSeconds={codeSeconds}
         />
       </div>
       <div className="flex flex-col h-full">
@@ -60,4 +65,4 @@ const DesktopView = ({
   );
 };
 
-export default DesktopView; 
+export default DesktopView;

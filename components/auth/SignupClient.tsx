@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useMediaQuery } from 'react-responsive';
 import {
@@ -9,11 +9,28 @@ import {
   verifyCode,
   getAllowedEmailDomains,
 } from '@/lib/api/auth';
-import { getApiErrorMessage } from '@/lib/utils/apiError';
-import { useRouter } from 'next/navigation';
+import { getApiErrorMessage, getProblemDetail } from '@/lib/utils/apiError';
+import { usePathname, useRouter } from 'next/navigation';
 import MobileView from './signup/MobileView';
 import DesktopView from './signup/DesktopView';
-import { AuthValues } from '@/types/auth';
+import { AuthValues, SignupVerificationSentResponse } from '@/types/auth';
+
+const parseEmailVerificationTime = (value: string) =>
+  Date.parse(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}+09:00`);
+
+const AUTH_EMAIL_ALREADY_EXISTS_TYPE = 'https://api.pikume.com/problems/auth/email-already-exists';
+const AUTH_INVALID_EMAIL_TYPE = 'https://api.pikume.com/problems/auth/invalid-email';
+const isEmailAlreadyExists = (error: unknown) => {
+  const problem = getProblemDetail(error);
+  return problem?.code === 'EMAIL_ALREADY_EXISTS' || problem?.type === AUTH_EMAIL_ALREADY_EXISTS_TYPE;
+};
+const isInvalidEmail = (error: unknown) => {
+  const problem = getProblemDetail(error);
+  return problem?.code === 'INVALID_EMAIL' || problem?.type === AUTH_INVALID_EMAIL_TYPE;
+};
+
+const getHttpStatus = (error: unknown) =>
+  (error as { response?: { status?: number } } | null)?.response?.status ?? getProblemDetail(error)?.status;
 
 const SignupClient = () => {
   const [step, setStep] = useState(1);
@@ -28,12 +45,24 @@ const SignupClient = () => {
   const [errors, setErrors] = useState({ email: '', password: '', passwordConfirm: '' });
   const [emailDomains, setEmailDomains] = useState<string[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
   const [isSendingVerification, setIsSendingVerification] = useState(false);
   const [message, setMessage] = useState('');
   const router = useRouter();
-  const [isVerificationSent, setIsVerificationSent] = useState(false);
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const pathname = usePathname();
+  const [sentVerification, setSentVerification] = useState<SignupVerificationSentResponse | null>(null);
+  const [emailVerification, setEmailVerification] = useState<{ token?: string; expiresAt: number; email: string; legacy: boolean } | null>(null);
+  const [now, setNow] = useState(Date.now);
+  const emailRequestVersion = useRef(0);
+  const emailRequestPending = useRef(false);
+  const signupPending = useRef(false);
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isEmailVerified = emailVerification !== null && emailVerification.email === values.email && (emailVerification.legacy || emailVerification.expiresAt > now);
+  const sentExpiresAt = sentVerification?.expiresAt ? parseEmailVerificationTime(sentVerification.expiresAt) : Number.NaN;
+  const isVerificationSent = sentVerification !== null && (!sentVerification.expiresAt || (Number.isFinite(sentExpiresAt) && sentExpiresAt > now));
+  const codeSeconds = isVerificationSent && Number.isFinite(sentExpiresAt) ? Math.max(0, Math.ceil((sentExpiresAt - now) / 1000)) : undefined;
+  const isLoading = isSubmitting || isSendingVerification || isVerifyingCode;
   const [verificationMessage, setVerificationMessage] = useState('');
   const [agreements, setAgreements] = useState({
     terms: false,
@@ -55,17 +84,93 @@ const SignupClient = () => {
     fetchEmailDomains();
   }, []);
 
+  useEffect(() => {
+    if (!sentVerification && !emailVerification) return;
+    if (!sentVerification?.expiresAt && (!emailVerification || emailVerification.legacy)) return;
+    const timer = setInterval(() => {
+      const currentTime = Date.now();
+      setNow(currentTime);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [sentVerification, emailVerification]);
+
+  useEffect(() => {
+    if (emailVerification && emailVerification.expiresAt <= now) {
+      setEmailVerification(null);
+      setStep(1);
+      setMessage('이메일 인증이 만료되었습니다. 다시 인증해주세요.');
+    } else if (sentVerification?.expiresAt && parseEmailVerificationTime(sentVerification.expiresAt) <= now) {
+      setSentVerification(null);
+      setValues(previous => ({ ...previous, verificationCode: '' }));
+      setMessage('인증코드가 만료되었습니다. 다시 전송해주세요.');
+    }
+  }, [now, emailVerification, sentVerification]);
+
+  useEffect(() => {
+    const resetAuthFlow = () => {
+      emailRequestVersion.current += 1;
+      emailRequestPending.current = false;
+      signupPending.current = false;
+      if (redirectTimer.current) clearTimeout(redirectTimer.current);
+      redirectTimer.current = null;
+      setIsSubmitting(false);
+      setIsSendingVerification(false);
+      setIsVerifyingCode(false);
+      setSentVerification(null);
+      setEmailVerification(null);
+      setValues(previous => ({ ...previous, verificationCode: '' }));
+      setNow(Date.now());
+      setStep(1);
+      setMessage('');
+      setVerificationMessage('');
+    };
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) resetAuthFlow();
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
+
+  useEffect(() => {
+    if (pathname === '/signup') return;
+    emailRequestVersion.current += 1;
+    emailRequestPending.current = false;
+    signupPending.current = false;
+    if (redirectTimer.current) clearTimeout(redirectTimer.current);
+    redirectTimer.current = null;
+    setSentVerification(null);
+    setEmailVerification(null);
+    setValues(previous => ({ ...previous, verificationCode: '' }));
+    setIsSubmitting(false);
+    setIsSendingVerification(false);
+    setIsVerifyingCode(false);
+    setMessage('');
+    setVerificationMessage('');
+    setStep(1);
+  }, [pathname]);
+
+  useEffect(() => () => {
+    emailRequestVersion.current += 1;
+    emailRequestPending.current = false;
+    signupPending.current = false;
+    if (redirectTimer.current) clearTimeout(redirectTimer.current);
+  }, []);
+
   const isDesktop = useMediaQuery({ query: '(min-width: 768px)' });
 
   const nextStep = () => {
-    if (!isEmailVerified) {
+    if (isLoading) return;
+    if (!emailVerification || emailVerification.expiresAt <= Date.now()) {
       setMessage('이메일 인증을 완료해주세요.');
       return;
     }
     setMessage('');
     setStep(step + 1);
   };
-  const prevStep = () => setStep(step - 1);
+  const prevStep = () => {
+    if (isLoading) return;
+    setStep(step - 1);
+  };
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -89,14 +194,23 @@ const SignupClient = () => {
   }
 
   const handleChange = (input: string) => (e: { target: { value: string } }) => {
+    if (input === 'email' && signupPending.current) return;
     const { value } = e.target;
     setMessage('');
     if (input === 'verificationCode') {
       setVerificationMessage('');
     }
-    setValues({ ...values, [input]: value });
+    setValues(previous => ({ ...previous, [input]: value }));
 
     if (input === 'email') {
+      emailRequestVersion.current += 1;
+      emailRequestPending.current = false;
+      setEmailVerification(null);
+      setSentVerification(null);
+      setIsSendingVerification(false);
+      setIsVerifyingCode(false);
+      setVerificationMessage('');
+      setValues(previous => ({ ...previous, verificationCode: '' }));
       if (!validateEmail(value)) {
         setErrors(prev => ({ ...prev, email: '유효한 이메일 형식이 아닙니다.' }));
       } else {
@@ -150,48 +264,107 @@ const SignupClient = () => {
       setMessage('유효한 이메일 형식이 아닙니다.');
       return;
     }
-    setIsLoading(true);
+    if (emailRequestPending.current || signupPending.current) return;
+    const requestVersion = ++emailRequestVersion.current;
+    emailRequestPending.current = true;
+    setVerificationMessage('');
     setMessage('');
     setIsSendingVerification(true);
     try {
       const response = await sendSignUpVerificationEmail(values.email);
-      setIsVerificationSent(true);
+      if (requestVersion !== emailRequestVersion.current) return;
+      const expiresAt = response?.expiresAt ? parseEmailVerificationTime(response.expiresAt) : Number.NaN;
+      if (!response?.message || (response.expiresAt && (!Number.isFinite(expiresAt) || expiresAt <= Date.now()))) {
+        setEmailVerification(null);
+        setSentVerification(null);
+        setValues(previous => ({ ...previous, verificationCode: '' }));
+        setMessage('인증코드 발송 결과를 확인할 수 없습니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      setNow(Date.now());
+      setSentVerification(response);
+      setEmailVerification(null);
+      setValues(previous => ({ ...previous, verificationCode: '' }));
       setMessage(response.message || '인증코드가 발송되었습니다.');
     } catch (error) {
-      setMessage(getApiErrorMessage(error, '인증코드 발송에 실패했습니다.'));
+      if (requestVersion === emailRequestVersion.current) {
+        const problemCode = getProblemDetail(error)?.code;
+        const resendActivationInvalid = getHttpStatus(error) === 400
+          && (problemCode === 'VERIFICATION_INVALID' || problemCode === 'CODE_EXPIRED');
+        const isRateLimited = problemCode === 'RATE_LIMITED';
+        const duplicateEmail = isEmailAlreadyExists(error);
+        if (resendActivationInvalid) {
+          setEmailVerification(null);
+          setSentVerification(null);
+          setValues(previous => ({ ...previous, verificationCode: '' }));
+          setMessage('잠시 후 다시 시도해 주세요.');
+          window.alert('잠시 후 다시 시도해 주세요.');
+        } else {
+          if (!isRateLimited && !duplicateEmail && !isInvalidEmail(error) && getHttpStatus(error) !== 400) {
+            setEmailVerification(null);
+            setSentVerification(null);
+            setValues(previous => ({ ...previous, verificationCode: '' }));
+          }
+          setMessage(duplicateEmail
+            ? '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해주세요.'
+            : getApiErrorMessage(error, '인증코드 발송 결과를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.'));
+        }
+      }
     } finally {
-      setIsLoading(false);
-      setIsSendingVerification(false);
+      if (requestVersion === emailRequestVersion.current) {
+        emailRequestPending.current = false;
+        setIsSendingVerification(false);
+      }
     }
   };
 
   const handleVerifyCode = async () => {
+    if (emailRequestPending.current || signupPending.current) return;
+    if (!sentVerification || (sentVerification.expiresAt && parseEmailVerificationTime(sentVerification.expiresAt) <= Date.now())) {
+      setMessage('인증코드를 다시 전송해주세요.');
+      return;
+    }
     if (!values.verificationCode) {
       setVerificationMessage('인증코드를 입력해주세요.');
       return;
     }
-    setIsLoading(true);
+    const requestVersion = ++emailRequestVersion.current;
+    emailRequestPending.current = true;
+    setIsVerifyingCode(true);
     setVerificationMessage('');
     try {
-      const response = await verifyCode({
-        email: values.email,
-        code: values.verificationCode,
-        type: 'SIGN_UP',
-      });
-      setIsEmailVerified(true);
+      const response = await verifyCode({ email: values.email, code: values.verificationCode, type: 'SIGN_UP' });
+      if (requestVersion !== emailRequestVersion.current) return;
+      const tokenFieldAbsent = !Object.prototype.hasOwnProperty.call(response, 'emailVerificationToken');
+      const expiryFieldAbsent = !Object.prototype.hasOwnProperty.call(response, 'expiresAt');
+      const hasToken = typeof response.emailVerificationToken === 'string' && response.emailVerificationToken.trim().length > 0;
+      const hasExpiry = typeof response.expiresAt === 'string' && response.expiresAt.length > 0;
+      const legacy = tokenFieldAbsent && expiryFieldAbsent;
+      const expiresAt = hasExpiry ? parseEmailVerificationTime(response.expiresAt!) : Number.NaN;
+      if (!response?.message || (!legacy && (!hasToken || !hasExpiry || !Number.isFinite(expiresAt) || expiresAt <= Date.now()))) {
+        setVerificationMessage('인증 결과를 확인할 수 없습니다. 다시 전송해주세요.');
+        return;
+      }
+      setNow(Date.now());
+      setEmailVerification({ token: hasToken ? response.emailVerificationToken : undefined, expiresAt, email: values.email, legacy });
       setMessage(response.message || '이메일 인증이 완료되었습니다.');
-      setIsVerificationSent(false); // 인증 성공 시 입력창 숨김
+      setSentVerification(null);
+      setValues(previous => ({ ...previous, verificationCode: '' }));
     } catch (error) {
-      setVerificationMessage(
-        getApiErrorMessage(error, '인증코드가 올바르지 않습니다.'),
-      );
+      if (requestVersion === emailRequestVersion.current) {
+        setVerificationMessage(getApiErrorMessage(error, '인증코드가 올바르지 않습니다.'));
+      }
     } finally {
-      setIsLoading(false);
+      if (requestVersion === emailRequestVersion.current) {
+        emailRequestPending.current = false;
+        setIsVerifyingCode(false);
+      }
     }
   };
 
   const handleSubmit = async () => {
-    if (!isEmailVerified) {
+    if (signupPending.current || emailRequestPending.current) return;
+    if (!emailVerification || emailVerification.email !== values.email || (!emailVerification.legacy && emailVerification.expiresAt <= Date.now())) {
       setMessage('이메일 인증을 완료해주세요.');
       return;
     }
@@ -213,22 +386,54 @@ const SignupClient = () => {
       return;
     }
     setMessage('');
-    setIsLoading(true);
+    const requestVersion = ++emailRequestVersion.current;
+    signupPending.current = true;
+    emailRequestPending.current = true;
+    setIsSubmitting(true);
+    let redirecting = false;
     try {
       const { verificationCode, passwordConfirm, ...signupData } = values;
-      const response = await signup(signupData);
+      const response = await signup({ ...signupData, ...(emailVerification.token ? { emailVerificationToken: emailVerification.token } : {}) });
+      if (requestVersion !== emailRequestVersion.current) return;
+      setEmailVerification(null);
       setMessage(
         response.message || '회원가입이 완료되었습니다! 잠시 후 로그인 페이지로 이동합니다.',
       );
-      setTimeout(() => {
+      redirectTimer.current = setTimeout(() => {
+        if (requestVersion !== emailRequestVersion.current) return;
         router.push('/login');
       }, 2000);
+      redirecting = true;
     } catch (error) {
+      if (requestVersion !== emailRequestVersion.current) return;
       const errorMessage = getApiErrorMessage(error, '회원가입에 실패했습니다.');
-      setMessage(errorMessage);
-      console.error('Signup failed:', error);
+      const code = getProblemDetail(error)?.code;
+      if (code && ['TOKEN_INVALID', 'TOKEN_EXPIRED', 'TOKEN_ALREADY_USED', 'VERIFICATION_INVALID'].includes(code)) {
+        setEmailVerification(null);
+        setSentVerification(null);
+        setValues(previous => ({ ...previous, verificationCode: '' }));
+        setStep(1);
+        setMessage(errorMessage);
+      } else if (getHttpStatus(error) === 400 && getProblemDetail(error)?.fieldErrors?.emailVerificationToken) {
+        setEmailVerification(null);
+        setSentVerification(null);
+        setValues(previous => ({ ...previous, verificationCode: '' }));
+        setStep(1);
+        setMessage(getApiErrorMessage(error, '이메일 인증이 필요합니다. 다시 인증해주세요.'));
+      } else if (isEmailAlreadyExists(error)) {
+        setMessage('이미 가입된 이메일입니다. 로그인 페이지에서 로그인해주세요.');
+      } else if (getHttpStatus(error) === undefined) {
+        setMessage('가입 결과를 확인하지 못했습니다. 자동으로 다시 제출하지 않았습니다. 로그인 화면에서 가입 여부를 확인해주세요.');
+      } else {
+        setMessage(errorMessage);
+      }
+      signupPending.current = false;
+      emailRequestPending.current = false;
     } finally {
-      setIsLoading(false);
+      if (requestVersion === emailRequestVersion.current && !redirecting) {
+        setIsSubmitting(false);
+        if (!signupPending.current) emailRequestPending.current = false;
+      }
     }
   };
 
@@ -264,6 +469,8 @@ const SignupClient = () => {
               errors={errors}
               emailDomains={emailDomains}
               isSendingVerification={isSendingVerification}
+              isVerifyingCode={isVerifyingCode}
+              codeSeconds={codeSeconds}
             />
           ) : (
             <MobileView
@@ -284,6 +491,8 @@ const SignupClient = () => {
               errors={errors}
               emailDomains={emailDomains}
               isSendingVerification={isSendingVerification}
+              isVerifyingCode={isVerifyingCode}
+              codeSeconds={codeSeconds}
             />
           )}
         </div>
