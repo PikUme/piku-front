@@ -310,7 +310,7 @@ describe('기존 회원가입 이메일 인증', () => {
 
   });
 
-  it.each(['TOKEN_INVALID', 'TOKEN_EXPIRED', 'TOKEN_ALREADY_USED', 'NICKNAME_ALREADY_IN_USE'])('%s 오류에서 인증 복구 필요 여부를 구분한다', async code => {
+  it.each(['TOKEN_INVALID', 'TOKEN_EXPIRED', 'TOKEN_ALREADY_USED', 'VERIFICATION_INVALID', 'NICKNAME_ALREADY_IN_USE'])('%s 오류에서 인증 복구 필요 여부를 구분한다', async code => {
     await act(async () => render(<SignupClient />));
     await verifyEmail();
     completeFields();
@@ -318,13 +318,37 @@ describe('기존 회원가입 이메일 인증', () => {
     post.mockRejectedValueOnce({ response: { data: { type: 'https://api.pikume.com/problems/email-verification/token-invalid', title: '요청 실패', status: 400, detail: '요청을 확인해주세요.', instance: '/api/auth/signup', code } } });
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '회원 가입' })));
     expect(screen.getByText('요청을 확인해주세요.')).toBeInTheDocument();
-    if (code.startsWith('TOKEN_')) {
+    if (code.startsWith('TOKEN_') || code === 'VERIFICATION_INVALID') {
       expect(screen.queryByRole('button', { name: '인증완료' })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: '회원 가입' })).toBeDisabled();
     } else {
       expect(screen.getByRole('button', { name: '인증완료' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: '회원 가입' })).toBeEnabled();
     }
+  });
+
+  it('BE3 레거시 인증 증명이 만료된 VERIFICATION_INVALID에서 모바일 첫 단계로 복구한다', async () => {
+    media.desktop = false;
+    post.mockImplementation(async url => ({ data: url === '/auth/send-verification/sign-up' || url === '/auth/verify-code'
+      ? { message: 'ok' }
+      : { message: '가입 성공' } }));
+    await act(async () => render(<SignupClient />));
+    await verifyEmail();
+    completeFields();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '다음' })));
+    fireEvent.click(screen.getByAltText('캐릭터 CAT'));
+    post.mockRejectedValueOnce({ response: { status: 400, data: {
+      type: 'about:blank', title: '인증 만료', status: 400, detail: '이메일 인증을 다시 해주세요.',
+      instance: '/api/auth/signup', code: 'VERIFICATION_INVALID',
+    } } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '회원 가입' })));
+
+    expect(screen.getByRole('button', { name: '다음' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '전송' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: '인증완료' })).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('인증코드를 입력하세요')).not.toBeInTheDocument();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '전송' })));
+    expect(screen.getByPlaceholderText('인증코드를 입력하세요')).toBeInTheDocument();
   });
 
   it.each([
