@@ -32,6 +32,23 @@ const isInvalidEmail = (error: unknown) => {
 const getHttpStatus = (error: unknown) =>
   (error as { response?: { status?: number } } | null)?.response?.status ?? getProblemDetail(error)?.status;
 
+const getRetryAfterTime = (error: unknown, fallback: number | null): number | null => {
+  const problem = getProblemDetail(error);
+  if (problem?.resendAvailableAt) {
+    const parsed = parseEmailVerificationTime(problem.resendAvailableAt);
+    if (Number.isFinite(parsed) && parsed > Date.now()) return parsed;
+  }
+
+  const headers = (error as { response?: { headers?: Record<string, unknown> & { get?: (key: string) => unknown } } } | null)?.response?.headers;
+  const raw = headers?.get?.('retry-after') ?? headers?.['retry-after'] ?? headers?.['Retry-After'];
+  if (typeof raw === 'string' && raw.trim()) {
+    const seconds = Number(raw);
+    const parsed = Number.isFinite(seconds) ? Date.now() + Math.max(0, seconds) * 1000 : Date.parse(raw);
+    if (Number.isFinite(parsed) && parsed > Date.now()) return parsed;
+  }
+  return fallback !== null && fallback > Date.now() ? fallback : null;
+};
+
 const SignupClient = () => {
   const [step, setStep] = useState(1);
   const [values, setValues] = useState<AuthValues>({
@@ -53,6 +70,7 @@ const SignupClient = () => {
   const pathname = usePathname();
   const [sentVerification, setSentVerification] = useState<SignupVerificationSentResponse | null>(null);
   const [emailVerification, setEmailVerification] = useState<{ token?: string; expiresAt: number; email: string; legacy: boolean } | null>(null);
+  const [retryAvailableAt, setRetryAvailableAt] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now);
   const emailRequestVersion = useRef(0);
   const emailRequestPending = useRef(false);
@@ -62,6 +80,7 @@ const SignupClient = () => {
   const sentExpiresAt = sentVerification?.expiresAt ? parseEmailVerificationTime(sentVerification.expiresAt) : Number.NaN;
   const isVerificationSent = sentVerification !== null && (!sentVerification.expiresAt || (Number.isFinite(sentExpiresAt) && sentExpiresAt > now));
   const codeSeconds = isVerificationSent && Number.isFinite(sentExpiresAt) ? Math.max(0, Math.ceil((sentExpiresAt - now) / 1000)) : undefined;
+  const resendSeconds = retryAvailableAt !== null ? Math.max(0, Math.ceil((retryAvailableAt - now) / 1000)) : 0;
   const isLoading = isSubmitting || isSendingVerification || isVerifyingCode;
   const [verificationMessage, setVerificationMessage] = useState('');
   const [agreements, setAgreements] = useState({
@@ -85,14 +104,18 @@ const SignupClient = () => {
   }, []);
 
   useEffect(() => {
-    if (!sentVerification && !emailVerification) return;
-    if (!sentVerification?.expiresAt && (!emailVerification || emailVerification.legacy)) return;
+    if (!sentVerification && !emailVerification && (retryAvailableAt === null || retryAvailableAt <= Date.now())) return;
+    if (!sentVerification?.expiresAt && (!emailVerification || emailVerification.legacy) && (retryAvailableAt === null || retryAvailableAt <= Date.now())) return;
     const timer = setInterval(() => {
       const currentTime = Date.now();
       setNow(currentTime);
+      const codeActive = sentVerification?.expiresAt && parseEmailVerificationTime(sentVerification.expiresAt) > currentTime;
+      const tokenActive = emailVerification && !emailVerification.legacy && emailVerification.expiresAt > currentTime;
+      const cooldownActive = retryAvailableAt !== null && retryAvailableAt > currentTime;
+      if (!codeActive && !tokenActive && !cooldownActive) clearInterval(timer);
     }, 1000);
     return () => clearInterval(timer);
-  }, [sentVerification, emailVerification]);
+  }, [sentVerification, emailVerification, retryAvailableAt]);
 
   useEffect(() => {
     if (emailVerification && emailVerification.expiresAt <= now) {
@@ -118,6 +141,7 @@ const SignupClient = () => {
       setIsVerifyingCode(false);
       setSentVerification(null);
       setEmailVerification(null);
+      setRetryAvailableAt(null);
       setValues(previous => ({ ...previous, verificationCode: '' }));
       setNow(Date.now());
       setStep(1);
@@ -140,6 +164,7 @@ const SignupClient = () => {
     redirectTimer.current = null;
     setSentVerification(null);
     setEmailVerification(null);
+    setRetryAvailableAt(null);
     setValues(previous => ({ ...previous, verificationCode: '' }));
     setIsSubmitting(false);
     setIsSendingVerification(false);
@@ -207,6 +232,7 @@ const SignupClient = () => {
       emailRequestPending.current = false;
       setEmailVerification(null);
       setSentVerification(null);
+      setRetryAvailableAt(null);
       setIsSendingVerification(false);
       setIsVerifyingCode(false);
       setVerificationMessage('');
@@ -284,12 +310,16 @@ const SignupClient = () => {
       setNow(Date.now());
       setSentVerification(response);
       setEmailVerification(null);
+      const retryAt = response.resendAvailableAt ? parseEmailVerificationTime(response.resendAvailableAt) : Number.NaN;
+      setRetryAvailableAt(Number.isFinite(retryAt) && retryAt > Date.now() ? retryAt : null);
       setValues(previous => ({ ...previous, verificationCode: '' }));
       setMessage(response.message || '인증코드가 발송되었습니다.');
     } catch (error) {
       if (requestVersion === emailRequestVersion.current) {
+        const isRateLimited = getProblemDetail(error)?.code === 'RATE_LIMITED';
         const duplicateEmail = isEmailAlreadyExists(error);
-        if (!duplicateEmail && !isInvalidEmail(error) && getHttpStatus(error) !== 400) {
+        setRetryAvailableAt(getRetryAfterTime(error, retryAvailableAt));
+        if (!isRateLimited && !duplicateEmail && !isInvalidEmail(error) && getHttpStatus(error) !== 400) {
           setEmailVerification(null);
           setSentVerification(null);
           setValues(previous => ({ ...previous, verificationCode: '' }));
@@ -340,7 +370,16 @@ const SignupClient = () => {
       setValues(previous => ({ ...previous, verificationCode: '' }));
     } catch (error) {
       if (requestVersion === emailRequestVersion.current) {
-        setVerificationMessage(getApiErrorMessage(error, '인증코드가 올바르지 않습니다.'));
+        const problem = getProblemDetail(error);
+        setRetryAvailableAt(getRetryAfterTime(error, retryAvailableAt));
+        if (problem?.code === 'ATTEMPTS_EXHAUSTED') {
+          setSentVerification(null);
+          setEmailVerification(null);
+          setValues(previous => ({ ...previous, verificationCode: '' }));
+          setMessage(getApiErrorMessage(error, '인증 시도 횟수가 끝났습니다. 다시 인증해주세요.'));
+        } else {
+          setVerificationMessage(getApiErrorMessage(error, '인증코드가 올바르지 않습니다.'));
+        }
       }
     } finally {
       if (requestVersion === emailRequestVersion.current) {
@@ -458,6 +497,7 @@ const SignupClient = () => {
               emailDomains={emailDomains}
               isSendingVerification={isSendingVerification}
               isVerifyingCode={isVerifyingCode}
+              resendSeconds={resendSeconds}
               codeSeconds={codeSeconds}
             />
           ) : (
@@ -480,6 +520,7 @@ const SignupClient = () => {
               emailDomains={emailDomains}
               isSendingVerification={isSendingVerification}
               isVerifyingCode={isVerifyingCode}
+              resendSeconds={resendSeconds}
               codeSeconds={codeSeconds}
             />
           )}

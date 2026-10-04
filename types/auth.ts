@@ -34,6 +34,7 @@ export interface AuthFormProps {
   emailDomains?: string[];
   isSendingVerification?: boolean;
   isVerifyingCode?: boolean;
+  resendSeconds?: number;
   codeSeconds?: number;
 }
 
@@ -60,6 +61,7 @@ export interface EmailVerificationRequest {
 
 export interface SignupVerificationSentResponse extends MessageResponse {
   expiresAt?: string;
+  resendAvailableAt?: string;
 }
 
 export interface SignupEmailVerifiedResponse extends MessageResponse {

@@ -6,6 +6,7 @@ export interface ProblemDetail {
   instance: string;
   code?: string;
   fieldErrors?: Record<string, string>;
+  resendAvailableAt?: string;
 }
 
 export interface MessageResponse {

@@ -248,6 +248,87 @@ describe('기존 회원가입 이메일 인증', () => {
     expect(screen.getByText('인증코드 유효시간 5:00')).toBeInTheDocument();
   });
 
+  it('BE4 응답에 재전송 시각이 없으면 임의 대기 UI를 표시하지 않는다', async () => {
+    await act(async () => render(<SignupClient />));
+    await sendCode();
+    expect(screen.getByRole('button', { name: '재전송' })).toBeEnabled();
+    expect(screen.queryByText(/재전송 \(/)).not.toBeInTheDocument();
+  });
+
+  it('성공 응답의 resendAvailableAt만큼 재전송을 제한한다', async () => {
+    post.mockImplementation(async url => ({ data: url === '/auth/send-verification/sign-up'
+      ? { ...sent, resendAvailableAt: '2026-09-28T09:01:00' }
+      : url === '/auth/verify-code' ? verified : { message: 'ok' } }));
+    await act(async () => render(<SignupClient />));
+    await sendCode();
+    expect(screen.getByRole('button', { name: '재전송 (60초)' })).toBeDisabled();
+    await act(async () => vi.advanceTimersByTime(60000));
+    expect(screen.getByRole('button', { name: '재전송' })).toBeEnabled();
+  });
+
+  it('RATE_LIMITED는 현재 코드를 유지하고 서버 대기 시각만 표시한다', async () => {
+    await act(async () => render(<SignupClient />));
+    await sendCode();
+    change('인증코드를 입력하세요', '123456');
+    post.mockRejectedValueOnce({ response: { status: 429, data: {
+      type: 'about:blank', title: '요청 제한', status: 429, detail: '잠시 후 다시 시도해주세요.',
+      instance: '/api/auth/send-verification/sign-up', code: 'RATE_LIMITED',
+      resendAvailableAt: '2026-09-28T09:11:00',
+    } } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '재전송' })));
+
+    expect(screen.getByPlaceholderText('인증코드를 입력하세요')).toHaveValue('123456');
+    expect(screen.getByText('인증코드 유효시간 5:00')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '재전송 (660초)' })).toBeDisabled();
+  });
+
+  it('가입 요청의 RATE_LIMITED는 현재 검증 토큰을 유지한다', async () => {
+    await act(async () => render(<SignupClient />));
+    await verifyEmail();
+    completeFields();
+    fireEvent.click(screen.getByAltText('캐릭터 CAT'));
+    post.mockRejectedValueOnce({ response: { status: 429, data: {
+      type: 'about:blank', title: '요청 제한', status: 429, detail: '잠시 후 다시 시도해주세요.',
+      instance: '/api/auth/signup', code: 'RATE_LIMITED',
+    } } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '회원 가입' })));
+
+    expect(screen.getByRole('button', { name: '인증완료' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '회원 가입' })).toBeEnabled();
+    expect(screen.getByText('잠시 후 다시 시도해주세요.')).toBeInTheDocument();
+  });
+
+  it('허용된 재전송의 503은 현재 코드를 지우고 Retry-After를 표시한다', async () => {
+    await act(async () => render(<SignupClient />));
+    await sendCode();
+    change('인증코드를 입력하세요', '123456');
+    post.mockRejectedValueOnce({ response: { status: 503, headers: { 'retry-after': '420' }, data: {
+      type: 'about:blank', title: '서비스 이용 불가', status: 503, detail: '잠시 후 다시 시도해주세요.',
+      instance: '/api/auth/send-verification/sign-up', code: 'EMAIL_SEND_FAILED',
+    } } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '재전송' })));
+
+    expect(screen.queryByPlaceholderText('인증코드를 입력하세요')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '재전송 (420초)' })).toBeDisabled();
+    expect(screen.getByText('잠시 후 다시 시도해주세요.')).toBeInTheDocument();
+  });
+
+  it('ATTEMPTS_EXHAUSTED 429는 코드를 폐기하고 서버 재전송 시각으로 복구를 안내한다', async () => {
+    await act(async () => render(<SignupClient />));
+    await sendCode();
+    change('인증코드를 입력하세요', '123456');
+    post.mockRejectedValueOnce({ response: { status: 429, data: {
+      type: 'about:blank', title: '시도 횟수 초과', status: 429, detail: '인증 시도 횟수가 끝났습니다.',
+      instance: '/api/auth/verify-code', code: 'ATTEMPTS_EXHAUSTED',
+      resendAvailableAt: '2026-09-28T09:05:00',
+    } } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '인증' })));
+
+    expect(screen.queryByPlaceholderText('인증코드를 입력하세요')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '재전송 (300초)' })).toBeDisabled();
+    expect(screen.getByText('인증 시도 횟수가 끝났습니다.')).toBeInTheDocument();
+  });
+
   it.each([
     ['AuthProblemType URI', 'https://api.pikume.com/problems/auth/invalid-email', undefined],
     ['email verification code', 'https://api.pikume.com/problems/email-verification/invalid-email', 'INVALID_EMAIL'],

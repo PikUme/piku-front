@@ -28,6 +28,7 @@ const MobileView = ({
   emailDomains,
   isSendingVerification,
   isVerifyingCode,
+  resendSeconds,
   codeSeconds,
 }: MobileViewProps) => {
   const isAgreed = agreements.terms && agreements.privacy;
@@ -51,6 +52,7 @@ const MobileView = ({
             isSendingVerification={isSendingVerification}
           isLoading={isLoading}
           isVerifyingCode={isVerifyingCode}
+          resendSeconds={resendSeconds}
           codeSeconds={codeSeconds}
           />
         )}
