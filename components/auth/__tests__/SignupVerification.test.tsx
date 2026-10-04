@@ -248,6 +248,54 @@ describe('기존 회원가입 이메일 인증', () => {
     expect(screen.getByText('인증코드 유효시간 5:00')).toBeInTheDocument();
   });
 
+  it.each(['VERIFICATION_INVALID', 'CODE_EXPIRED'])('%s 재전송 실패는 코드와 만료 타이머를 지우고 한 번 알린다', async code => {
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    await act(async () => render(<SignupClient />));
+    await sendCode();
+    change('인증코드를 입력하세요', '123456');
+    post.mockRejectedValueOnce({ response: { status: 400, data: {
+      type: 'about:blank', title: '인증 오류', status: 400, detail: '인증을 다시 진행해주세요.',
+      instance: '/api/auth/send-verification/sign-up', code,
+    } } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '재전송' })));
+
+    expect(screen.queryByPlaceholderText('인증코드를 입력하세요')).not.toBeInTheDocument();
+    expect(screen.queryByText(/인증코드 유효시간/)).not.toBeInTheDocument();
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert).toHaveBeenCalledWith('잠시 후 다시 시도해 주세요.');
+  });
+
+  it('가입 경로 이탈 뒤 도착한 무효 재전송 오류는 알리지 않는다', async () => {
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    let rejectSend!: (error: unknown) => void;
+    const view = render(<SignupClient />);
+    await sendCode();
+    post.mockImplementationOnce(() => new Promise((_, reject) => { rejectSend = reject; }));
+    fireEvent.click(screen.getByRole('button', { name: '재전송' }));
+    route.pathname = '/';
+    await act(async () => view.rerender(<SignupClient />));
+    await act(async () => rejectSend({ response: { status: 400, data: {
+      type: 'about:blank', title: '인증 만료', status: 400, detail: '인증을 다시 진행해주세요.',
+      instance: '/api/auth/send-verification/sign-up', code: 'CODE_EXPIRED',
+    } } }));
+
+    expect(alert).not.toHaveBeenCalled();
+  });
+
+  it('RATE_LIMITED 재전송 실패는 현재 코드와 인증 타이머를 유지한다', async () => {
+    await act(async () => render(<SignupClient />));
+    await sendCode();
+    change('인증코드를 입력하세요', '123456');
+    post.mockRejectedValueOnce({ response: { status: 429, data: {
+      type: 'about:blank', title: '요청 제한', status: 429, detail: '잠시 후 다시 시도해주세요.',
+      instance: '/api/auth/send-verification/sign-up', code: 'RATE_LIMITED',
+    } } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '재전송' })));
+
+    expect(screen.getByPlaceholderText('인증코드를 입력하세요')).toHaveValue('123456');
+    expect(screen.getByText('인증코드 유효시간 5:00')).toBeInTheDocument();
+  });
+
   it.each([
     ['AuthProblemType URI', 'https://api.pikume.com/problems/auth/invalid-email', undefined],
     ['email verification code', 'https://api.pikume.com/problems/email-verification/invalid-email', 'INVALID_EMAIL'],
