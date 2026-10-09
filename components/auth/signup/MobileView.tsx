@@ -30,11 +30,13 @@ const MobileView = ({
   isVerifyingCode,
   resendSeconds,
   codeSeconds,
+  canReserveNickname,
   handleReserveNickname,
   isReservingNickname,
   isNicknameReserved,
   nicknameReservationMessage,
   nicknameReservationError,
+  isReservationUncertain,
 }: MobileViewProps) => {
   const isAgreed = agreements.terms && agreements.privacy;
   return (
@@ -55,15 +57,17 @@ const MobileView = ({
             errors={errors}
             emailDomains={emailDomains}
             isSendingVerification={isSendingVerification}
-              isLoading={isLoading}
-              isVerifyingCode={isVerifyingCode}
-              resendSeconds={resendSeconds}
-              codeSeconds={codeSeconds}
-              handleReserveNickname={handleReserveNickname}
-              isReservingNickname={isReservingNickname}
-              isNicknameReserved={isNicknameReserved}
-              nicknameReservationMessage={nicknameReservationMessage}
-              nicknameReservationError={nicknameReservationError}
+          isLoading={isLoading}
+          isVerifyingCode={isVerifyingCode}
+          resendSeconds={resendSeconds}
+          codeSeconds={codeSeconds}
+            canReserveNickname={canReserveNickname}
+            handleReserveNickname={handleReserveNickname}
+            isReservingNickname={isReservingNickname}
+            isNicknameReserved={isNicknameReserved}
+            nicknameReservationMessage={nicknameReservationMessage}
+            nicknameReservationError={nicknameReservationError}
+            isReservationUncertain={isReservationUncertain}
           />
         )}
         {step === 2 && <CharacterSelection handleChange={handleChange} values={values} />}
@@ -73,7 +77,7 @@ const MobileView = ({
           <button
             onClick={nextStep}
             className="w-full bg-black dark:bg-gray-200 text-white dark:text-black py-3 rounded-full text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-900 dark:hover:bg-gray-400 cursor-pointer"
-            disabled={isLoading || !isEmailVerified || !isAgreed || !!errors?.email || !!errors?.password || !!errors?.passwordConfirm}
+            disabled={!isEmailVerified || !isAgreed || !!errors?.email || !!errors?.password || !!errors?.passwordConfirm}
           >
             다음
           </button>
@@ -82,7 +86,7 @@ const MobileView = ({
           <button
             onClick={handleSubmit}
             className="w-full bg-black dark:bg-gray-200 text-white dark:text-black py-3 rounded-full text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-900 dark:hover:bg-gray-400 cursor-pointer"
-            disabled={isLoading || !values.character || !isEmailVerified || !isAgreed}
+            disabled={isLoading || isReservationUncertain || !values.character || !isEmailVerified || !isAgreed}
           >
             {isLoading ? '가입 중...' : '회원 가입'}
           </button>
@@ -92,4 +96,4 @@ const MobileView = ({
   );
 };
 
-export default MobileView; 
+export default MobileView;

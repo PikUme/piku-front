@@ -3,7 +3,12 @@ import { AUTH_TOKEN_KEY } from '@/lib/constants';
 import generateUUID from '@/lib/utils/uuidGenerator';
 import { PwdResetRequest } from '@/types/auth';
 import { EmailVerificationRequest } from '@/types/auth';
-import type { User, SignupVerificationSentResponse, SignupEmailVerifiedResponse, SignupNicknameReservation } from '@/types/auth';
+import type {
+  User,
+  SignupVerificationSentResponse,
+  SignupEmailVerifiedResponse,
+  SignupNicknameReservation,
+} from '@/types/auth';
 import type { MessageResponse } from '@/types/api';
 
 interface SignupData {
@@ -11,15 +16,16 @@ interface SignupData {
   password: string;
   nickname: string;
   character: string;
-  emailVerificationToken: string;
+  emailVerificationToken?: string;
 }
 
 export const signup = async (data: SignupData): Promise<MessageResponse> => {
-  const { character, ...rest } = data;
+  const { character, emailVerificationToken, ...rest } = data;
   const response = await api.post<MessageResponse>('/auth/signup', {
     ...rest,
+    ...(emailVerificationToken ? { emailVerificationToken } : {}),
     fixedCharacterId: Number(character),
-  });
+  }, { headers: { 'Cache-Control': 'no-store' } });
   return response.data;
 };
 
@@ -29,18 +35,21 @@ export const sendSignUpVerificationEmail = async (
   const response = await api.post<SignupVerificationSentResponse>(
     '/auth/send-verification/sign-up',
     { email },
+    { headers: { 'Cache-Control': 'no-store' } },
   );
   return response.data;
 };
 
 export const reserveSignupNickname = async (
+  email: string,
   emailVerificationToken: string,
   nickname: string,
 ): Promise<SignupNicknameReservation> => {
-  const response = await api.post<SignupNicknameReservation>('/auth/signup/nickname-reservations', {
-    emailVerificationToken,
-    nickname,
-  });
+  const response = await api.post<SignupNicknameReservation>(
+    '/auth/signup/nickname-reservations',
+    { email, emailVerificationToken, nickname },
+    { headers: { 'Cache-Control': 'no-store' } },
+  );
   return response.data;
 };
 
@@ -53,7 +62,9 @@ export function verifyCode(data: EmailVerificationRequest & { type: 'SIGN_UP' })
 export function verifyCode(data: EmailVerificationRequest & { type: 'PASSWORD_RESET' }): Promise<MessageResponse>;
 export function verifyCode(data: EmailVerificationRequest): Promise<MessageResponse>;
 export async function verifyCode(data: EmailVerificationRequest): Promise<MessageResponse> {
-  const response = await api.post<MessageResponse>('/auth/verify-code', data);
+  const response = await api.post<MessageResponse>('/auth/verify-code', data, {
+    headers: { 'Cache-Control': 'no-store' },
+  });
   return response.data;
 }
 

@@ -71,17 +71,23 @@ API 응답 형식, 상태 관리 경계, 인증/알림/URL 처리 규칙이 바�
 - 로그인/회원가입/비밀번호 재설정은 공통 응답 형식을 기준으로 메시지를 표시한다.
 
 ### 회원가입 이메일 인증
-- `POST /auth/send-verification/sign-up`은 `{email}`을 보내고 `message`, `expiresAt`, `resendAvailableAt`을 받는다. 시각은 UTC ISO 문자열이며 화면의 코드 유효시간과 재전송 대기는 서버 값을 따른다.
-- `POST /auth/verify-code`의 `SIGN_UP` 성공 응답에서 `emailVerificationToken`, `expiresAt`을 받아 화면 메모리에만 보관한다. `PASSWORD_RESET`은 기존 메시지 응답을 유지한다.
-- `POST /auth/signup`에는 기존 이메일·비밀번호·닉네임·`fixedCharacterId`와 `emailVerificationToken`을 함께 보낸다. 가입 성공 후 로그인 페이지로 이동한다.
-- 이메일 변경·재전송·인증 만료 시 이전 인증 상태를 정리한다. 이메일 변경 전 요청의 늦은 응답은 현재 상태에 반영하지 않는다.
-- 가입 오류의 `code`가 `TOKEN_INVALID`, `TOKEN_EXPIRED`, `TOKEN_ALREADY_USED`이면 재인증을 안내한다. 다른 실패에서는 유효한 인증을 유지하고 입력을 수정해 재시도할 수 있다.
+- `POST /auth/send-verification/sign-up`은 `{email}`을 보낸다. 메시지만 있는 기존 응답과, `expiresAt`, `resendAvailableAt`이 선택적으로 포함된 새 응답을 함께 지원한다. 만료·재전송 시각이 있으면 offset 없는 KST ISO local 문자열(예: `2026-09-29T09:05:00`)에 `+09:00`을 적용하고, `Z` 또는 offset이 명시된 값은 그대로 해석한다. BE4처럼 `resendAvailableAt`이 없으면 카운트다운을 만들지 않는다.
+- `POST /auth/verify-code`의 `SIGN_UP` 성공 응답에서 `emailVerificationToken`과 `expiresAt`이 모두 없으면 메시지 기반 기존 백엔드 계약의 인증 증명으로만 취급한다. 두 값이 모두 있으면 만료 전 토큰을 화면 메모리에 보관한다. 하나만 없거나 비었거나 만료 시각이 유효하지 않으면 인증 성공으로 취급하지 않는다. `PASSWORD_RESET`은 기존 메시지 응답을 유지한다.
+- `POST /auth/signup`에는 이메일·비밀번호·닉네임·`fixedCharacterId`를 보내고, 인증 토큰이 있으면 함께 보낸다. 기존 백엔드의 메시지 기반 인증 증명은 tokenless 요청과 함께 동작한다. 새 백엔드가 `fieldErrors.emailVerificationToken`을 반환하면 증명을 폐기하고 모바일 가입 1단계로 돌아가 재인증을 요구한다. 이 오류 뒤 tokenless 자동 재시도는 하지 않는다.
+- 이메일 변경·인증 만료 시 이전 인증 상태를 정리한다. 재전송 성공 시 기존 코드를 새 만료 시각으로 교체하고, `RATE_LIMITED` 실패에서는 기존 코드를 유지하고, `VERIFICATION_INVALID` 또는 `CODE_EXPIRED` 실패에서는 코드를 폐기하고 `잠시 후 다시 시도해 주세요.` alert을 표시하며, 이메일 변경 전 요청의 늦은 응답은 현재 상태에 반영하지 않는다. 가입 오류의 `TOKEN_INVALID`, `TOKEN_EXPIRED`, `TOKEN_ALREADY_USED`는 재인증을 요구한다. BE3의 이메일 기반 증명이 가입 전에 만료된 `VERIFICATION_INVALID`도 인증을 폐기하고 모바일 가입 1단계로 돌아가 다시 전송할 수 있게 한다. 일반 입력 오류는 유효한 토큰을 보존한다. 이메일 중복은 가입 성공으로 간주하지 않고 로그인 경로를 안내한다. 가입 응답 유실은 결과 확인 불가를 안내하고 자동 재제출하지 않는다.
+- 재전송 제한 UI는 서버의 `resendAvailableAt` 또는 `Retry-After`가 있을 때만 그 시각까지 표시한다. `RATE_LIMITED`는 현재 코드·토큰을 유지한다. 허용된 재전송의 실패는 기존 인증 증명을 폐기하고 알려진 서버 대기 시각을 유지한다. `ATTEMPTS_EXHAUSTED`는 검증 코드를 폐기하고 서버가 알려준 재전송 가능 시각을 안내한다. 요청 횟수를 프런트에서 세거나 고정 대기 시간을 가정하지 않는다.
+- 인증 코드·토큰을 보내거나 검증하거나 가입하는 요청은 `Cache-Control: no-store`를 사용하며 코드를 URL·저장소·공유 전역 상태·로그에 보관하지 않는다.
+- 가입 화면 경로 이탈, 컴포넌트 해제, 브라우저 캐시 복원(`pageshow.persisted`)은 현재 요청 세대를 무효화하고 화면 코드·토큰과 지연된 로그인 이동을 폐기한다. 탭 가시성 변경과 모바일 가입 내부 단계 전환은 인증을 초기화하지 않는다. 가입 중 이메일 변경·중복 발송·검증은 막고, 늦은 응답의 상태 변경과 요청 종료 처리는 무시한다.
+- 새 회원가입 인증 계약을 배포한 뒤 기존 프런트 번들이 열린 탭은 새로고침 후 이메일을 다시 인증해야 한다.
 
-### 회원가입 닉네임 예약
-- 기존 회원가입 화면의 예약 버튼은 인증 완료 후 `POST /auth/signup/nickname-reservations`에 `{emailVerificationToken, nickname}`을 보낸다. 응답의 `nickname`, UTC ISO `expiresAt`으로 실제 예약된 이름과 남은 시간을 표시한다.
-- 예약은 선택사항이며 최초 예약부터 3분간 유지된다. 같은 이름의 재요청으로 시간이 연장되지 않는다. 새 이름 예약이 성공하면 기존 예약을 교체하고, 실패하면 기존 예약과 유효한 이메일 인증을 유지한다.
-- 이메일 변경·인증 만료 시 예약 표시도 정리하고 이전 요청의 응답을 무시한다. 예약의 `TOKEN_INVALID`, `TOKEN_EXPIRED`, `TOKEN_ALREADY_USED` 오류는 다시 이메일 인증을 요구한다.
-- 예약 만료나 예약 실패만으로 가입을 막지 않는다. 가입 요청 시 해당 닉네임의 실제 사용 가능 여부와 예약 소유권은 서버가 판단한다.
+### Redis 닉네임 예약
+- 선택적 가입 예약은 `POST /auth/signup/nickname-reservations`에 현재 인증 상태의 `{email, emailVerificationToken, nickname}`을 보내며, 성공 응답 `{nickname, expiresAt}`의 서버 시각을 사용한다. 요청은 `Cache-Control: no-store`이며 예약·인증 데이터는 화면 메모리에만 둔다.
+- 예약은 서버 생성 시점부터 고정 10분이다. 인증 토큰의 만료시각과 예약 만료시각은 별개로 표시하며, 재인증이나 같은 이메일·닉네임의 예약 재요청으로 클라이언트가 만료시각을 연장하지 않는다. 예약 요청/가입 진행 중 이메일과 닉네임 입력을 잠그고, 예약은 하지 않아도 가입할 수 있다.
+- 새 예약 성공만 서버 반환 닉네임·만료시각으로 표시를 교체한다. 확정 입력 오류·409 충돌에서는 이전 유효 예약과 인증을 유지한다. `TOKEN_INVALID`, `TOKEN_EXPIRED`, `TOKEN_ALREADY_USED`는 인증·예약 표시를 지우고 재인증을 요구한다.
+- `VERIFICATION_UNAVAILABLE`은 예약 API의 인증 확인 장애다. 아직 유효한 로컬 인증 증명과 이전 예약 표시를 보존하고 수동 재시도만 안내한다. `503 NICKNAME_RESERVATION_UNAVAILABLE`, 네트워크 오류, 응답 해석 실패는 예약 소유 여부를 확인할 수 없는 상태다. 이전 표시를 보존하되 확보를 단정하지 않고, 성공한 수동 재확인 전에는 가입을 막는다. 자동 예약 재요청은 하지 않는다.
+- 예약 요청은 requestId와 현재 인증 세대에 속한다. 닉네임·이메일·인증 변경, 가입 시작, 화면 이탈·캐시 복원으로 문맥이 무효화되면 해당 요청 pending을 즉시 해제한다. 지연된 응답과 오래된 `finally`는 새 요청 상태를 바꾸지 않는다. 이메일 변경·인증 만료·가입 경로 이탈은 예약 표시도 초기화하지만 서버 예약 삭제를 뜻하지 않는다.
+- 로그인 사용자의 기존 `GET /users/nickname/availability?nickname=...`는 예약 부수효과를 갖지만 `{success,message}` 응답과 호출 경로는 유지한다. `PATCH /users/profile`도 요청·응답 계약을 유지하며 별도 클라이언트 예약 API나 프로필 만료 타이머를 추가하지 않는다. 두 경로의 `NICKNAME_RESERVATION_UNAVAILABLE`은 닉네임 충돌로 처리하지 않고 `닉네임을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.`로 안내한다.
+- 전환 순서는 백엔드 Redis 닉네임 보호 배포 확인 후 Frontend PR #61, #62, 갱신된 #60이다. 이 간격에는 구 프런트 신규 가입이 실패할 수 있다. 병합과 배포는 각각 확인한다.
 
 ## 알림 및 상호작용 패턴
 - 읽음 처리와 unread count는 실패 시 상태가 어긋나지 않도록 함께 설계한다.

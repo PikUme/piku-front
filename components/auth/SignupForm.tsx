@@ -25,11 +25,13 @@ const SignupForm = ({
   isVerifyingCode,
   resendSeconds = 0,
   codeSeconds = 0,
+  canReserveNickname = false,
   handleReserveNickname,
   isReservingNickname,
   isNicknameReserved,
   nicknameReservationMessage,
   nicknameReservationError,
+  isReservationUncertain,
 }: AuthFormProps) => {
   const [modalContent, setModalContent] = useState<{ title: string; content: string; type: 'terms' | 'privacy' } | null>(
     null,
@@ -70,6 +72,7 @@ const SignupForm = ({
               placeholder="이메일을 입력해주세요"
               onChange={handleChange('email')}
               value={values.email}
+              disabled={isLoading}
               className={`w-full border-b-2 ${errors?.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} focus:border-black dark:focus:border-white dark:bg-black dark:text-white outline-none p-2`}
             />
             <div className="relative">
@@ -116,6 +119,7 @@ const SignupForm = ({
                   placeholder="인증코드를 입력하세요"
                   onChange={handleChange('verificationCode')}
                   value={values.verificationCode}
+                  disabled={isLoading}
                   className={`w-full border-b-2 ${
                     verificationMessage ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                   } focus:border-black dark:focus:border-white dark:bg-black dark:text-white outline-none p-2`}
@@ -130,7 +134,7 @@ const SignupForm = ({
                 {isVerifyingCode ? '인증 중...' : '인증'}
               </button>
             </div>
-            <p className="text-gray-500 text-xs mt-1 pl-10">인증코드 유효시간 {Math.floor(codeSeconds / 60)}:{String(codeSeconds % 60).padStart(2, '0')}</p>
+            {typeof codeSeconds === 'number' && <p className="text-gray-500 text-xs mt-1 pl-10">인증코드 유효시간 {Math.floor(codeSeconds / 60)}:{String(codeSeconds % 60).padStart(2, '0')}</p>}
             {verificationMessage && <p className="whitespace-pre-line text-red-500 text-xs mt-1 pl-10">{verificationMessage}</p>}
           </div>
         )}
@@ -157,26 +161,29 @@ const SignupForm = ({
           />
         </div>
         {errors?.passwordConfirm && <p className="text-red-500 text-xs mt-1 pl-10">{errors.passwordConfirm}</p>}
-        <div className="flex items-center space-x-4">
-          <User className="text-gray-400" />
-          <input
-            type="text"
-            placeholder="닉네임을 입력해주세요"
-            onChange={handleChange('nickname')}
-            value={values.nickname}
-            className="w-full min-w-0 border-b-2 border-gray-300 dark:border-gray-600 focus:border-black dark:focus:border-white dark:bg-black dark:text-white outline-none p-2"
-          />
-          <button
-            type="button"
-            onClick={handleReserveNickname}
-            disabled={!isEmailVerified || !values.nickname.trim() || isLoading || isNicknameReserved}
-            className="whitespace-nowrap flex-shrink-0 text-sm bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            {isReservingNickname ? '예약 중...' : isNicknameReserved ? '예약됨' : '예약'}
-          </button>
+        <div>
+          <div className="flex items-center space-x-4">
+            <User className="text-gray-400" />
+            <input
+              type="text"
+              placeholder="닉네임을 입력해주세요"
+              onChange={handleChange('nickname')}
+              value={values.nickname}
+              disabled={isLoading}
+              className="w-full min-w-0 border-b-2 border-gray-300 dark:border-gray-600 focus:border-black dark:focus:border-white dark:bg-black dark:text-white outline-none p-2 disabled:opacity-60"
+            />
+            <button
+              type="button"
+              onClick={handleReserveNickname}
+              disabled={!canReserveNickname || !values.nickname.trim() || isLoading || isNicknameReserved}
+              className="whitespace-nowrap flex-shrink-0 text-sm bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isReservingNickname ? '예약 중...' : isNicknameReserved ? '예약됨' : isReservationUncertain ? '다시 확인' : '예약'}
+            </button>
+          </div>
+          {nicknameReservationMessage && <p className="mt-1 pl-10 text-xs text-gray-500 dark:text-gray-400" role="status">{nicknameReservationMessage}</p>}
+          {nicknameReservationError && <p className="mt-1 pl-10 text-xs text-red-500 whitespace-pre-line" role="alert">{nicknameReservationError}</p>}
         </div>
-        <p className="text-gray-500 text-xs pl-10">{nicknameReservationMessage}</p>
-        {nicknameReservationError && <p className="text-red-500 text-xs pl-10" role="alert">{nicknameReservationError}</p>}
         
         <div className="pt-6 space-y-4">
           <div className="flex items-center">
