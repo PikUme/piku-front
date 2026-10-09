@@ -3,7 +3,12 @@ import { AUTH_TOKEN_KEY } from '@/lib/constants';
 import generateUUID from '@/lib/utils/uuidGenerator';
 import { PwdResetRequest } from '@/types/auth';
 import { EmailVerificationRequest } from '@/types/auth';
-import type { User, SignupVerificationSentResponse, SignupEmailVerifiedResponse } from '@/types/auth';
+import type {
+  User,
+  SignupVerificationSentResponse,
+  SignupEmailVerifiedResponse,
+  SignupNicknameReservation,
+} from '@/types/auth';
 import type { MessageResponse } from '@/types/api';
 
 interface SignupData {
@@ -30,6 +35,19 @@ export const sendSignUpVerificationEmail = async (
   const response = await api.post<SignupVerificationSentResponse>(
     '/auth/send-verification/sign-up',
     { email },
+    { headers: { 'Cache-Control': 'no-store' } },
+  );
+  return response.data;
+};
+
+export const reserveSignupNickname = async (
+  email: string,
+  emailVerificationToken: string,
+  nickname: string,
+): Promise<SignupNicknameReservation> => {
+  const response = await api.post<SignupNicknameReservation>(
+    '/auth/signup/nickname-reservations',
+    { email, emailVerificationToken, nickname },
     { headers: { 'Cache-Control': 'no-store' } },
   );
   return response.data;
