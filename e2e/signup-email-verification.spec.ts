@@ -10,7 +10,7 @@ const verified = {
   expiresAt: '2099-10-01T09:10:00',
 };
 
-const mockAuthApi = async (page: Page) => {
+const mockAuthApi = async (page: Page, reservationUnavailable = false) => {
   const calls: { path: string; body: string | null; headers: Record<string, string> }[] = [];
   await page.route('**/api/**', async route => {
     const request = route.request();
@@ -18,7 +18,15 @@ const mockAuthApi = async (page: Page) => {
     if (request.method() === 'POST') {
       calls.push({ path, body: request.postData(), headers: await request.allHeaders() });
     }
-    const body = path === '/api/auth/email-domains'
+    const body = path === '/api/auth/signup/nickname-reservations' && reservationUnavailable
+      ? {
+          type: 'about:blank', title: 'Service Unavailable', status: 503,
+          detail: '예약 상태를 확인하지 못했습니다. 다시 확인해 주세요.',
+          instance: path, code: 'NICKNAME_RESERVATION_UNAVAILABLE',
+        }
+      : path === '/api/auth/signup/nickname-reservations'
+        ? { nickname: '브라우저테스터', expiresAt: '2099-10-01T09:20:00' }
+        : path === '/api/auth/email-domains'
       ? ['example.test']
       : path === '/api/characters/fixed'
         ? [{ id: 1, type: 'CAT', displayImageUrl: '/cat.png' }]
@@ -27,7 +35,10 @@ const mockAuthApi = async (page: Page) => {
           : path === '/api/auth/verify-code'
             ? verified
             : { message: '회원가입이 완료되었습니다.' };
-    await route.fulfill({ status: path === '/api/auth/signup' ? 201 : 200, contentType: 'application/json', body: JSON.stringify(body) });
+    await route.fulfill({
+      status: path === '/api/auth/signup' ? 201 : path === '/api/auth/signup/nickname-reservations' && reservationUnavailable ? 503 : 200,
+      contentType: 'application/json', body: JSON.stringify(body),
+    });
   });
   return calls;
 };
@@ -52,6 +63,8 @@ test('mock API로 이메일 인증 후 가입하고 토큰을 가입 요청에�
   await page.getByPlaceholder('닉네임을 입력해주세요').fill('브라우저테스터');
   await page.getByLabel('모두 동의').check();
   await page.getByAltText('캐릭터 CAT').click();
+  await page.getByRole('button', { name: '예약' }).click();
+  await expect(page.getByText(/브라우저테스터 예약 중/)).toBeVisible();
   await page.getByRole('button', { name: '회원 가입' }).click();
   await expect(page.getByText('회원가입이 완료되었습니다.')).toBeVisible();
   await expect(page).toHaveURL(/\/login$/);
@@ -59,16 +72,47 @@ test('mock API로 이메일 인증 후 가입하고 토큰을 가입 요청에�
   const sendCall = calls.find(call => call.path === '/api/auth/send-verification/sign-up');
   const verifyCall = calls.find(call => call.path === '/api/auth/verify-code');
   const signupCall = calls.find(call => call.path === '/api/auth/signup');
+  const reservationCall = calls.find(call => call.path === '/api/auth/signup/nickname-reservations');
   expect(JSON.parse(sendCall!.body!)).toEqual({ email: 'signup@example.test' });
   expect(JSON.parse(verifyCall!.body!)).toEqual({ email: 'signup@example.test', code: '123456', type: 'SIGN_UP' });
   expect(JSON.parse(signupCall!.body!)).toEqual({
     email: 'signup@example.test', password: 'password1!', nickname: '브라우저테스터',
     fixedCharacterId: 1, emailVerificationToken: verified.emailVerificationToken,
   });
+  expect(JSON.parse(reservationCall!.body!)).toEqual({
+    email: 'signup@example.test',
+    emailVerificationToken: verified.emailVerificationToken,
+    nickname: '브라우저테스터',
+  });
+  expect(reservationCall!.headers['cache-control']).toBe('no-store');
   expect(sendCall!.headers['cache-control']).toBe('no-store');
   expect(verifyCall!.headers['cache-control']).toBe('no-store');
   expect(signupCall!.headers['cache-control']).toBe('no-store');
   expect(await page.evaluate(() => Object.values(localStorage).join('\n'))).not.toContain(verified.emailVerificationToken);
+});
+
+test('모바일 예약 503은 이전 예약 확보를 단정하지 않고 성공 재확인 전 가입을 막는다', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  const calls = await mockAuthApi(page, true);
+  await page.goto('/signup');
+  await sendAndVerify(page);
+  await page.getByPlaceholder('비밀번호를 입력해주세요').fill('password1!');
+  await page.getByPlaceholder('비밀번호를 다시 입력해주세요').fill('password1!');
+  await page.getByPlaceholder('닉네임을 입력해주세요').fill('브라우저테스터');
+  await page.getByLabel('모두 동의').check();
+  await page.getByRole('button', { name: '예약' }).click();
+
+  await expect(page.getByText(/예약 상태를 확인하지 못했습니다/)).toBeVisible();
+  await page.getByRole('button', { name: '다음' }).click();
+  await expect(page.getByRole('heading', { name: '캐릭터 선택' })).toBeVisible();
+  await page.getByAltText('캐릭터 CAT').click();
+  await expect(page.getByRole('button', { name: '회원 가입' })).toBeDisabled();
+  await page.getByRole('button', { name: '<' }).click();
+  await expect(page.getByRole('button', { name: '다시 확인' })).toBeEnabled();
+  await page.getByRole('button', { name: '다시 확인' }).click();
+  await expect(page.getByRole('button', { name: '다시 확인' })).toBeEnabled();
+  expect(calls.filter(call => call.path === '/api/auth/signup/nickname-reservations')).toHaveLength(2);
+  expect(calls.filter(call => call.path === '/api/auth/signup')).toHaveLength(0);
 });
 
 test('모바일 내부 단계 이동은 인증 상태를 유지한다', async ({ page }) => {

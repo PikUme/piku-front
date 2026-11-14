@@ -10,6 +10,7 @@ import {
 import {
   getApiErrorMessage,
   getFieldError,
+  getProblemDetail,
   hasProblemType,
 } from '@/lib/utils/apiError';
 import useAuthStore from '../store/authStore';
@@ -22,6 +23,10 @@ interface ProfileEditClientProps {
 
 const NICKNAME_CONFLICT =
   'https://api.pikume.com/problems/user/nickname-conflict';
+const PROFILE_CONFLICT = 'https://api.pikume.com/problems/user/profile-conflict';
+const NICKNAME_RESERVATION_UNAVAILABLE = 'NICKNAME_RESERVATION_UNAVAILABLE';
+const NICKNAME_RESERVATION_UNAVAILABLE_MESSAGE =
+  '닉네임을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.';
 
 const ProfileEditClient = ({
   profileData,
@@ -91,6 +96,11 @@ const ProfileEditClient = ({
       setIsNicknameAvailable(success);
       setNicknameCheckMessage(message);
     } catch (error) {
+      if (getProblemDetail(error)?.code === NICKNAME_RESERVATION_UNAVAILABLE) {
+        setIsNicknameAvailable(null);
+        setNicknameCheckMessage(NICKNAME_RESERVATION_UNAVAILABLE_MESSAGE);
+        return;
+      }
       setIsNicknameAvailable(false);
       setNicknameCheckMessage(
         getApiErrorMessage(error, '닉네임 확인 중 오류가 발생했습니다.'),
@@ -137,12 +147,19 @@ const ProfileEditClient = ({
       const nicknameFieldError =
         getFieldError(error, 'newNickname') ?? getFieldError(error, 'nickname');
 
-      if (nicknameFieldError || hasProblemType(error, NICKNAME_CONFLICT)) {
+      if (nicknameFieldError || hasProblemType(error, NICKNAME_CONFLICT) || hasProblemType(error, PROFILE_CONFLICT)) {
         setIsNicknameAvailable(false);
         setNicknameCheckMessage(
           nicknameFieldError ??
-            getApiErrorMessage(error, '닉네임 중복 확인이 필요합니다.'),
+            (hasProblemType(error, PROFILE_CONFLICT)
+              ? '닉네임 예약이 만료되었거나 확인할 수 없습니다. 다시 중복 확인해 주세요.'
+              : getApiErrorMessage(error, '닉네임 중복 확인이 필요합니다.')),
         );
+        return;
+      }
+
+      if (getProblemDetail(error)?.code === NICKNAME_RESERVATION_UNAVAILABLE) {
+        alert(`프로필 업데이트 중 오류 발생: ${NICKNAME_RESERVATION_UNAVAILABLE_MESSAGE}`);
         return;
       }
 
