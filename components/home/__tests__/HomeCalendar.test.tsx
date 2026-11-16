@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import HomeCalendar from '../HomeCalendar';
 import type { DiaryDetail } from '@/types/diary';
@@ -7,6 +7,8 @@ const loadDiaryDetailMock = vi.fn();
 const closeDiaryDetailMock = vi.fn();
 const refetchMonthlyDiariesMock = vi.fn();
 let selectedDiaryMock: DiaryDetail | null = null;
+let isLoadingMock = false;
+let isDesktopMock = true;
 let currentDateMock = new Date('2026-05-15T00:00:00');
 
 vi.mock('next/navigation', () => ({
@@ -49,7 +51,7 @@ vi.mock('framer-motion', async () => {
 });
 
 vi.mock('react-responsive', () => ({
-  useMediaQuery: () => true,
+  useMediaQuery: () => isDesktopMock,
 }));
 
 vi.mock('@/components/store/authStore', () => ({
@@ -88,7 +90,7 @@ vi.mock('@/hooks/useDiaryData', () => ({
   useDiaryData: () => ({
     pikus: {},
     selectedDiary: selectedDiaryMock,
-    isLoading: false,
+    isLoading: isLoadingMock,
     refetchMonthlyDiaries: refetchMonthlyDiariesMock,
     loadDiaryDetail: loadDiaryDetailMock,
     closeDiaryDetail: closeDiaryDetailMock,
@@ -148,6 +150,8 @@ describe('HomeCalendar view switch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     selectedDiaryMock = null;
+    isLoadingMock = false;
+    isDesktopMock = true;
     currentDateMock = new Date('2026-05-15T00:00:00');
     refetchMonthlyDiariesMock.mockResolvedValue(undefined);
   });
@@ -159,6 +163,10 @@ describe('HomeCalendar view switch', () => {
     expect(screen.getByRole('button', { name: '26년 5월' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '달력' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '모아보기' })).not.toBeInTheDocument();
+
+    const slide = screen.getByTestId('home-calendar-slide');
+    expect(slide).toHaveClass('col-start-1', 'row-start-1', 'h-full', 'min-h-0');
+    expect(slide.parentElement).toHaveClass('grid', 'grid-cols-1', 'grid-rows-1');
   });
 
   it('다른 사용자 프로필을 보는 중에도 홈 캘린더에는 보기 전환을 표시하지 않는다', () => {
@@ -183,6 +191,91 @@ describe('HomeCalendar view switch', () => {
     render(<HomeCalendar />);
 
     expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
+  });
+
+  it('데스크톱에서 일기 상세 로딩이 지연 시간(200ms) 이상 지속될 때만 상세 모달 스켈레톤을 보여준다', () => {
+    vi.useFakeTimers();
+    try {
+      isLoadingMock = true;
+      isDesktopMock = true;
+
+      render(<HomeCalendar />);
+
+      expect(
+        screen.queryByTestId('diary-detail-modal-skeleton'),
+      ).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(199);
+      });
+      expect(
+        screen.queryByTestId('diary-detail-modal-skeleton'),
+      ).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(
+        screen.getByTestId('diary-detail-modal-skeleton'),
+      ).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('모바일에서 일기 상세 로딩이 지연 시간(200ms) 이상 지속될 때만 스토리 모달 스켈레톤을 보여준다', () => {
+    vi.useFakeTimers();
+    try {
+      isLoadingMock = true;
+      isDesktopMock = false;
+
+      render(<HomeCalendar />);
+
+      expect(
+        screen.queryByTestId('diary-story-modal-skeleton'),
+      ).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
+      expect(
+        screen.getByTestId('diary-story-modal-skeleton'),
+      ).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('지연 시간(200ms) 이전에 일기 상세 로딩이 끝나면 스켈레톤 없이 바로 모달을 보여준다', () => {
+    vi.useFakeTimers();
+    try {
+      isLoadingMock = true;
+      isDesktopMock = true;
+
+      const { rerender } = render(<HomeCalendar />);
+
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      expect(
+        screen.queryByTestId('diary-detail-modal-skeleton'),
+      ).not.toBeInTheDocument();
+
+      isLoadingMock = false;
+      selectedDiaryMock = diary;
+      rerender(<HomeCalendar />);
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(
+        screen.queryByTestId('diary-detail-modal-skeleton'),
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('공유 계층에서 상세 history로 복귀하면 상세를 유지하고 그 아래로 이동할 때만 닫는다', () => {
