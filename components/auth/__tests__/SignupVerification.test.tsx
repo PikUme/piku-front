@@ -54,8 +54,9 @@ describe('기존 회원가입 이메일 인증', () => {
     expect(post).toHaveBeenCalledWith('/auth/signup', {
       email: 'tester@gmail.com', password: 'password1!', nickname: '테스터', fixedCharacterId: 1, emailVerificationToken: 'verification-token',
     }, { headers: { 'Cache-Control': 'no-store' } });
-    await act(async () => vi.advanceTimersByTime(2000));
+    expect(push).toHaveBeenCalledOnce();
     expect(push).toHaveBeenCalledWith('/login');
+    expect(screen.queryByText('회원가입 성공')).not.toBeInTheDocument();
   });
 
   it('레거시 메시지 응답만으로 인증하고 토큰 없이 가입 요청을 한 번 보낸다', async () => {
@@ -64,7 +65,7 @@ describe('기존 회원가입 이메일 인증', () => {
       : { message: '회원가입 성공' } }));
     await act(async () => render(<SignupClient />));
     await verifyEmail();
-    expect(screen.getByRole('button', { name: '인증완료' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^(전송|재전송.*|인증)$/ })).not.toBeInTheDocument();
     completeFields();
     fireEvent.click(screen.getByAltText('캐릭터 CAT'));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '회원 가입' })));
@@ -89,7 +90,6 @@ describe('기존 회원가입 이메일 인증', () => {
     await sendCode();
     change('인증코드를 입력하세요', '123456');
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '인증' })));
-    expect(screen.queryByRole('button', { name: '인증완료' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '회원 가입' })).toBeDisabled();
   });
 
@@ -110,7 +110,6 @@ describe('기존 회원가입 이메일 인증', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '회원 가입' })));
     expect(post.mock.calls.filter(([url]) => url === '/auth/signup')).toHaveLength(1);
     expect(screen.getByRole('button', { name: '다음' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '인증완료' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '다음' })).toBeDisabled();
     expect(screen.getByText('이메일 인증이 필요합니다.')).toBeInTheDocument();
   });
@@ -124,7 +123,6 @@ describe('기존 회원가입 이메일 인증', () => {
     fireEvent.click(screen.getByRole('button', { name: '인증' }));
     change('이메일을 입력해주세요', 'other@gmail.com');
     await act(async () => resolve({ data: verified }));
-    expect(screen.queryByRole('button', { name: '인증완료' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '회원 가입' })).toBeDisabled();
     expect(screen.queryByPlaceholderText('인증코드를 입력하세요')).not.toBeInTheDocument();
   });
@@ -134,9 +132,9 @@ describe('기존 회원가입 이메일 인증', () => {
     await verifyEmail();
     expect(screen.getByPlaceholderText('이메일을 입력해주세요')).not.toBeDisabled();
     await act(async () => vi.advanceTimersByTime(599000));
-    expect(screen.getByRole('button', { name: '인증완료' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^(전송|재전송.*|인증)$/ })).not.toBeInTheDocument();
     await act(async () => vi.advanceTimersByTime(1000));
-    expect(screen.queryByRole('button', { name: '인증완료' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '전송' })).toBeEnabled();
     expect(screen.getByText(/인증.*만료/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '회원 가입' })).toBeDisabled();
   });
@@ -152,8 +150,10 @@ describe('기존 회원가입 이메일 인증', () => {
   it('인증 완료 후 이메일을 바꾸면 인증 상태와 코드를 비운다', async () => {
     await act(async () => render(<SignupClient />));
     await verifyEmail();
+    expect(screen.queryByText('이메일 인증 완료')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^(전송|재전송.*|인증완료|인증)$/ })).not.toBeInTheDocument();
     change('이메일을 입력해주세요', 'other@gmail.com');
-    expect(screen.queryByRole('button', { name: '인증완료' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '전송' })).toBeEnabled();
     expect(screen.getByRole('button', { name: '회원 가입' })).toBeDisabled();
   });
 
@@ -168,7 +168,6 @@ describe('기존 회원가입 이메일 인증', () => {
     route.pathname = '/';
     await act(async () => view.rerender(<SignupClient />));
     await act(async () => resolveSignup({ data: { message: '회원가입 성공' } }));
-    await act(async () => vi.advanceTimersByTime(2000));
 
     expect(push).not.toHaveBeenCalled();
     expect(screen.queryByText('회원가입 성공')).not.toBeInTheDocument();
@@ -199,7 +198,6 @@ describe('기존 회원가입 이메일 인증', () => {
     await act(async () => view.rerender(<SignupClient />));
     await act(async () => resolveVerify({ data: verified }));
 
-    expect(screen.queryByRole('button', { name: '인증완료' })).not.toBeInTheDocument();
     expect(screen.queryByText('이메일 인증이 완료되었습니다.')).not.toBeInTheDocument();
   });
 
@@ -222,7 +220,7 @@ describe('기존 회원가입 이메일 인증', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '다음' })));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '<' })));
 
-    expect(screen.getByRole('button', { name: '인증완료' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^(전송|재전송.*|인증)$/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '다음' })).toBeEnabled();
   });
 
@@ -293,7 +291,7 @@ describe('기존 회원가입 이메일 인증', () => {
     } } });
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '회원 가입' })));
 
-    expect(screen.getByRole('button', { name: '인증완료' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^(전송|재전송.*|인증)$/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '회원 가입' })).toBeEnabled();
     expect(screen.getByText('잠시 후 다시 시도해주세요.')).toBeInTheDocument();
   });
@@ -378,7 +376,24 @@ describe('기존 회원가입 이메일 인증', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '재전송' })));
 
     expect(screen.getByPlaceholderText('인증코드를 입력하세요')).toHaveValue('123456');
-    expect(screen.getByText('지원하지 않는 이메일 형식입니다.')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('이메일을 입력해주세요')).toHaveAccessibleDescription('지원하지 않는 이메일 형식입니다.');
+  });
+
+  it('가입에 사용할 수 없는 이메일 안내를 형식 오류와 같은 입력란 아래에 표시한다', async () => {
+    await act(async () => render(<SignupClient />));
+    change('이메일을 입력해주세요', '형식오류');
+    expect(screen.getByPlaceholderText('이메일을 입력해주세요')).toHaveAccessibleDescription('유효한 이메일 형식이 아닙니다.');
+
+    post.mockRejectedValueOnce({ response: { status: 400, data: {
+      type: 'https://api.pikume.com/problems/email-verification/invalid-email',
+      title: 'Bad Request', status: 400, detail: '가입에 사용할 수 없는 이메일입니다.',
+      instance: '/api/auth/send-verification/sign-up', code: 'INVALID_EMAIL',
+    } } });
+    await sendCode();
+    expect(screen.getAllByText('가입에 사용할 수 없는 이메일입니다.')).toHaveLength(1);
+    expect(screen.getByPlaceholderText('이메일을 입력해주세요')).toHaveAccessibleDescription('가입에 사용할 수 없는 이메일입니다.');
+    change('이메일을 입력해주세요', 'other@gmail.com');
+    expect(screen.queryByText('가입에 사용할 수 없는 이메일입니다.')).not.toBeInTheDocument();
   });
 
   it('409 닉네임 충돌은 이메일 중복으로 오인하지 않고 인증 토큰을 유지한다', async () => {
@@ -392,8 +407,9 @@ describe('기존 회원가입 이메일 인증', () => {
     } } });
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '회원 가입' })));
 
-    expect(screen.getByText('이미 사용 중인 닉네임입니다.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '인증완료' })).toBeInTheDocument();
+    expect(screen.getAllByText('이미 사용 중인 닉네임입니다.')).toHaveLength(1);
+    expect(screen.getByPlaceholderText('닉네임을 입력해주세요')).toHaveAccessibleDescription('이미 사용 중인 닉네임입니다.');
+    expect(screen.queryByRole('button', { name: /^(전송|재전송.*|인증)$/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '회원 가입' })).toBeEnabled();
   });
 
@@ -408,8 +424,8 @@ describe('기존 회원가입 이메일 인증', () => {
     } } });
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '회원 가입' })));
 
-    expect(screen.getByText('이미 가입된 이메일입니다. 로그인 페이지에서 로그인해주세요.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '인증완료' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('이메일을 입력해주세요')).toHaveAccessibleDescription('이미 가입된 이메일입니다. 로그인 페이지에서 로그인해주세요.');
+    expect(screen.queryByRole('button', { name: '전송' })).not.toBeInTheDocument();
   });
 
   it('코드 불일치는 입력을 유지한다', async () => {
@@ -434,10 +450,10 @@ describe('기존 회원가입 이메일 인증', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '회원 가입' })));
     expect(screen.getByText('요청을 확인해주세요.')).toBeInTheDocument();
     if (code.startsWith('TOKEN_') || code === 'VERIFICATION_INVALID') {
-      expect(screen.queryByRole('button', { name: '인증완료' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '전송' })).toBeEnabled();
       expect(screen.getByRole('button', { name: '회원 가입' })).toBeDisabled();
     } else {
-      expect(screen.getByRole('button', { name: '인증완료' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^(전송|재전송.*|인증)$/ })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: '회원 가입' })).toBeEnabled();
     }
   });
@@ -460,7 +476,6 @@ describe('기존 회원가입 이메일 인증', () => {
 
     expect(screen.getByRole('button', { name: '다음' })).toBeDisabled();
     expect(screen.getByRole('button', { name: '전송' })).toBeEnabled();
-    expect(screen.queryByRole('button', { name: '인증완료' })).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText('인증코드를 입력하세요')).not.toBeInTheDocument();
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '전송' })));
     expect(screen.getByPlaceholderText('인증코드를 입력하세요')).toBeInTheDocument();
@@ -483,9 +498,9 @@ describe('기존 회원가입 이메일 인증', () => {
     change('인증코드를 입력하세요', '123456');
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '인증' })));
     await act(async () => vi.advanceTimersByTime(599000));
-    expect(screen.getByRole('button', { name: '인증완료' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^(전송|재전송.*|인증)$/ })).not.toBeInTheDocument();
     await act(async () => vi.advanceTimersByTime(1000));
-    expect(screen.queryByRole('button', { name: '인증완료' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '전송' })).toBeEnabled();
   });
 
 });

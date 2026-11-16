@@ -18,7 +18,9 @@ const mockAuthApi = async (page: Page, reservationUnavailable = false) => {
     if (request.method() === 'POST') {
       calls.push({ path, body: request.postData(), headers: await request.allHeaders() });
     }
-    const body = path === '/api/auth/signup/nickname-reservations' && reservationUnavailable
+    const body = path === '/api/diary'
+      ? { items: [], nextCursor: null, hasNext: false }
+      : path === '/api/auth/signup/nickname-reservations' && reservationUnavailable
       ? {
           type: 'about:blank', title: 'Service Unavailable', status: 503,
           detail: '예약 상태를 확인하지 못했습니다. 다시 확인해 주세요.',
@@ -50,7 +52,8 @@ const sendAndVerify = async (page: Page) => {
   await expect(page.getByRole('button', { name: '재전송' })).toBeEnabled();
   await page.getByPlaceholder('인증코드를 입력하세요').fill('123456');
   await page.getByRole('button', { name: '인증' }).click();
-  await expect(page.getByRole('button', { name: '인증완료' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^(전송|재전송.*|인증완료|인증)$/ })).toHaveCount(0);
+  await expect(page.getByText('이메일 인증 완료', { exact: true })).toHaveCount(0);
 };
 
 test('mock API로 이메일 인증 후 가입하고 토큰을 가입 요청에만 전달한다', async ({ page }) => {
@@ -63,11 +66,12 @@ test('mock API로 이메일 인증 후 가입하고 토큰을 가입 요청에�
   await page.getByPlaceholder('닉네임을 입력해주세요').fill('브라우저테스터');
   await page.getByLabel('모두 동의').check();
   await page.getByAltText('캐릭터 CAT').click();
-  await page.getByRole('button', { name: '예약' }).click();
-  await expect(page.getByText(/브라우저테스터 예약 중/)).toBeVisible();
+  await page.getByRole('button', { name: '중복확인' }).click();
+  await expect(page.getByText(/브라우저테스터 예약 중|예약은 선택사항입니다/)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '중복확인' })).toHaveCount(0);
   await page.getByRole('button', { name: '회원 가입' }).click();
-  await expect(page.getByText('회원가입이 완료되었습니다.')).toBeVisible();
   await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByText('회원가입이 완료되었습니다.')).toHaveCount(0);
 
   const sendCall = calls.find(call => call.path === '/api/auth/send-verification/sign-up');
   const verifyCall = calls.find(call => call.path === '/api/auth/verify-code');
@@ -100,7 +104,7 @@ test('모바일 예약 503은 이전 예약 확보를 단정하지 않고 성공
   await page.getByPlaceholder('비밀번호를 다시 입력해주세요').fill('password1!');
   await page.getByPlaceholder('닉네임을 입력해주세요').fill('브라우저테스터');
   await page.getByLabel('모두 동의').check();
-  await page.getByRole('button', { name: '예약' }).click();
+  await page.getByRole('button', { name: '중복확인' }).click();
 
   await expect(page.getByText(/예약 상태를 확인하지 못했습니다/)).toBeVisible();
   await page.getByRole('button', { name: '다음' }).click();
@@ -108,9 +112,9 @@ test('모바일 예약 503은 이전 예약 확보를 단정하지 않고 성공
   await page.getByAltText('캐릭터 CAT').click();
   await expect(page.getByRole('button', { name: '회원 가입' })).toBeDisabled();
   await page.getByRole('button', { name: '<' }).click();
-  await expect(page.getByRole('button', { name: '다시 확인' })).toBeEnabled();
-  await page.getByRole('button', { name: '다시 확인' }).click();
-  await expect(page.getByRole('button', { name: '다시 확인' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '중복확인' })).toBeEnabled();
+  await page.getByRole('button', { name: '중복확인' }).click();
+  await expect(page.getByRole('button', { name: '중복확인' })).toBeEnabled();
   expect(calls.filter(call => call.path === '/api/auth/signup/nickname-reservations')).toHaveLength(2);
   expect(calls.filter(call => call.path === '/api/auth/signup')).toHaveLength(0);
 });
@@ -124,7 +128,7 @@ test('모바일 내부 단계 이동은 인증 상태를 유지한다', async ({
   await page.getByRole('button', { name: '다음' }).click();
   await expect(page.getByRole('heading', { name: '캐릭터 선택' })).toBeVisible();
   await page.getByRole('button', { name: '<' }).click();
-  await expect(page.getByRole('button', { name: '인증완료' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^(전송|재전송.*|인증완료|인증)$/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '다음' })).toBeEnabled();
 });
 
@@ -138,7 +142,7 @@ test('가입 경로를 나갔다 브라우저 뒤로가기로 돌아오면 화�
   await page.goBack();
   await expect(page).toHaveURL(/\/signup$/);
   await expect(page.getByPlaceholder('인증코드를 입력하세요')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '인증완료' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '전송', exact: true })).toBeVisible();
 });
 
 test('mock RATE_LIMITED 응답의 resendAvailableAt만 재전송 카운트다운으로 표시한다', async ({ page }) => {

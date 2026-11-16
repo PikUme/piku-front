@@ -34,7 +34,6 @@ const MobileView = ({
   handleReserveNickname,
   isReservingNickname,
   isNicknameReserved,
-  nicknameReservationMessage,
   nicknameReservationError,
   isReservationUncertain,
 }: MobileViewProps) => {
@@ -65,7 +64,6 @@ const MobileView = ({
             handleReserveNickname={handleReserveNickname}
             isReservingNickname={isReservingNickname}
             isNicknameReserved={isNicknameReserved}
-            nicknameReservationMessage={nicknameReservationMessage}
             nicknameReservationError={nicknameReservationError}
             isReservationUncertain={isReservationUncertain}
           />

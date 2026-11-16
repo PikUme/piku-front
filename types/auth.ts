@@ -40,7 +40,6 @@ export interface AuthFormProps {
   handleReserveNickname?: () => void;
   isReservingNickname?: boolean;
   isNicknameReserved?: boolean;
-  nicknameReservationMessage?: string;
   nicknameReservationError?: string;
   isReservationUncertain?: boolean;
 }

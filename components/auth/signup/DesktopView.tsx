@@ -27,7 +27,6 @@ const DesktopView = ({
   handleReserveNickname,
   isReservingNickname,
   isNicknameReserved,
-  nicknameReservationMessage,
   nicknameReservationError,
   isReservationUncertain,
 }: AuthFormProps) => {
@@ -58,7 +57,6 @@ const DesktopView = ({
           handleReserveNickname={handleReserveNickname}
           isReservingNickname={isReservingNickname}
           isNicknameReserved={isNicknameReserved}
-          nicknameReservationMessage={nicknameReservationMessage}
           nicknameReservationError={nicknameReservationError}
           isReservationUncertain={isReservationUncertain}
         />

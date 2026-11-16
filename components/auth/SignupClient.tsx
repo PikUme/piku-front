@@ -25,6 +25,12 @@ const parseEmailVerificationTime = (value: string) =>
 
 const AUTH_EMAIL_ALREADY_EXISTS_TYPE = 'https://api.pikume.com/problems/auth/email-already-exists';
 const AUTH_INVALID_EMAIL_TYPE = 'https://api.pikume.com/problems/auth/invalid-email';
+const NICKNAME_CONFLICT_TYPE = 'https://api.pikume.com/problems/user/nickname-conflict';
+const NICKNAME_CONFLICT_MESSAGE = '이미 사용 중인 닉네임입니다.';
+const isNicknameConflict = (error: unknown) => {
+  const problem = getProblemDetail(error);
+  return problem?.code === 'NICKNAME_CONFLICT' || problem?.type === NICKNAME_CONFLICT_TYPE;
+};
 const isEmailAlreadyExists = (error: unknown) => {
   const problem = getProblemDetail(error);
   return problem?.code === 'EMAIL_ALREADY_EXISTS' || problem?.type === AUTH_EMAIL_ALREADY_EXISTS_TYPE;
@@ -32,6 +38,13 @@ const isEmailAlreadyExists = (error: unknown) => {
 const isInvalidEmail = (error: unknown) => {
   const problem = getProblemDetail(error);
   return problem?.code === 'INVALID_EMAIL' || problem?.type === AUTH_INVALID_EMAIL_TYPE;
+};
+
+const getSignupEmailError = (error: unknown): string | null => {
+  if (isEmailAlreadyExists(error)) return '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해주세요.';
+  const fieldError = getProblemDetail(error)?.fieldErrors?.email;
+  if (fieldError) return fieldError;
+  return isInvalidEmail(error) ? getApiErrorMessage(error, '가입에 사용할 수 없는 이메일입니다.') : null;
 };
 
 const getHttpStatus = (error: unknown) =>
@@ -88,27 +101,19 @@ const SignupClient = () => {
   const activeReservationRequestId = useRef<number | null>(null);
   const reservationContextVersion = useRef(0);
   const nicknameReservationPending = useRef(false);
-  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isEmailVerified = emailVerification !== null && emailVerification.email === values.email && (emailVerification.legacy || emailVerification.expiresAt > now);
   const sentExpiresAt = sentVerification?.expiresAt ? parseEmailVerificationTime(sentVerification.expiresAt) : Number.NaN;
   const isVerificationSent = sentVerification !== null && (!sentVerification.expiresAt || (Number.isFinite(sentExpiresAt) && sentExpiresAt > now));
   const codeSeconds = isVerificationSent && Number.isFinite(sentExpiresAt) ? Math.max(0, Math.ceil((sentExpiresAt - now) / 1000)) : undefined;
   const resendSeconds = retryAvailableAt !== null ? Math.max(0, Math.ceil((retryAvailableAt - now) / 1000)) : 0;
-  const reservationSeconds = nicknameReservation
-    ? Math.max(0, Math.ceil((nicknameReservation.expiresAt - now) / 1000))
-    : 0;
   const isNicknameReserved = !isReservationUncertain
     && nicknameReservation !== null
     && nicknameReservation.expiresAt > now
     && nicknameReservation.nickname === values.nickname;
   const canReserveNickname = isEmailVerified && Boolean(emailVerification?.token);
-  const nicknameReservationMessage = isReservationUncertain
-    ? `${nicknameReservation ? `이전 예약 표시: ${nicknameReservation.nickname} · ${Math.floor(reservationSeconds / 60)}:${String(reservationSeconds % 60).padStart(2, '0')} 남음 (보유 여부 미확인). ` : ''}예약 상태를 확인하지 못했습니다. 다시 확인해 주세요.`
-    : nicknameReservation
-      ? reservationSeconds > 0
-        ? `${nicknameReservation.nickname} 예약 중 · ${Math.floor(reservationSeconds / 60)}:${String(reservationSeconds % 60).padStart(2, '0')} 남음. 예약 시간은 연장되지 않습니다.`
-        : `${nicknameReservation.nickname} 예약이 만료되었습니다. 다시 예약할 수 있습니다.`
-      : '이메일 인증 후 닉네임을 10분간 예약할 수 있습니다. 예약은 선택사항입니다.';
+  const nicknameError = nicknameReservationError || (isReservationUncertain
+    ? '예약 상태를 확인하지 못했습니다. 다시 확인해 주세요.'
+    : '');
   const isLoading = isSubmitting || isSendingVerification || isVerifyingCode || isReservingNickname;
   const [verificationMessage, setVerificationMessage] = useState('');
   const [agreements, setAgreements] = useState({
@@ -180,8 +185,6 @@ const SignupClient = () => {
       clearNicknameReservation();
       emailRequestPending.current = false;
       signupPending.current = false;
-      if (redirectTimer.current) clearTimeout(redirectTimer.current);
-      redirectTimer.current = null;
       setIsSubmitting(false);
       setIsSendingVerification(false);
       setIsVerifyingCode(false);
@@ -208,8 +211,6 @@ const SignupClient = () => {
     clearNicknameReservation();
     emailRequestPending.current = false;
     signupPending.current = false;
-    if (redirectTimer.current) clearTimeout(redirectTimer.current);
-    redirectTimer.current = null;
     setSentVerification(null);
     setEmailVerification(null);
     setRetryAvailableAt(null);
@@ -226,7 +227,6 @@ const SignupClient = () => {
     emailRequestVersion.current += 1;
     emailRequestPending.current = false;
     signupPending.current = false;
-    if (redirectTimer.current) clearTimeout(redirectTimer.current);
   }, []);
 
   const isDesktop = useMediaQuery({ query: '(min-width: 768px)' });
@@ -338,11 +338,11 @@ const SignupClient = () => {
 
   const handleSendVerification = async () => {
     if (!values.email) {
-      setMessage('이메일을 입력해주세요.');
+      setErrors(previous => ({ ...previous, email: '이메일을 입력해주세요.' }));
       return;
     }
     if (!validateEmail(values.email)) {
-      setMessage('유효한 이메일 형식이 아닙니다.');
+      setErrors(previous => ({ ...previous, email: '유효한 이메일 형식이 아닙니다.' }));
       return;
     }
     if (emailRequestPending.current || signupPending.current || nicknameReservationPending.current) return;
@@ -375,7 +375,7 @@ const SignupClient = () => {
         const isRateLimited = problemCode === 'RATE_LIMITED';
         const resendActivationInvalid = getHttpStatus(error) === 400
           && (problemCode === 'VERIFICATION_INVALID' || problemCode === 'CODE_EXPIRED');
-        const duplicateEmail = isEmailAlreadyExists(error);
+        const emailError = getSignupEmailError(error);
         setRetryAvailableAt(getRetryAfterTime(error, retryAvailableAt));
         if (resendActivationInvalid) {
           setEmailVerification(null);
@@ -384,14 +384,16 @@ const SignupClient = () => {
           setMessage('잠시 후 다시 시도해 주세요.');
           window.alert('잠시 후 다시 시도해 주세요.');
         } else {
-          if (!isRateLimited && !duplicateEmail && !isInvalidEmail(error) && getHttpStatus(error) !== 400) {
+          if (!isRateLimited && !emailError && getHttpStatus(error) !== 400) {
             setEmailVerification(null);
             setSentVerification(null);
             setValues(previous => ({ ...previous, verificationCode: '' }));
           }
-          setMessage(duplicateEmail
-            ? '이미 가입된 이메일입니다. 로그인 페이지에서 로그인해주세요.'
-            : getApiErrorMessage(error, '인증코드 발송 결과를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.'));
+          if (emailError) {
+            setErrors(previous => ({ ...previous, email: emailError }));
+          } else {
+            setMessage(getApiErrorMessage(error, '인증코드 발송 결과를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.'));
+          }
         }
       }
     } finally {
@@ -432,7 +434,8 @@ const SignupClient = () => {
       setNow(Date.now());
       setEmailVerification({ token: hasToken ? response.emailVerificationToken : undefined, expiresAt, email: values.email, legacy });
       invalidateNicknameReservationRequest();
-      setMessage(response.message || '이메일 인증이 완료되었습니다.');
+      setMessage('');
+      setErrors(previous => ({ ...previous, email: '' }));
       setSentVerification(null);
       setValues(previous => ({ ...previous, verificationCode: '' }));
     } catch (error) {
@@ -445,7 +448,13 @@ const SignupClient = () => {
           setValues(previous => ({ ...previous, verificationCode: '' }));
           setMessage(getApiErrorMessage(error, '인증 시도 횟수가 끝났습니다. 다시 인증해주세요.'));
         } else {
-          setVerificationMessage(getApiErrorMessage(error, '인증코드가 올바르지 않습니다.'));
+          const emailError = getSignupEmailError(error);
+          if (emailError) {
+            setMessage('');
+            setErrors(previous => ({ ...previous, email: emailError }));
+          } else {
+            setVerificationMessage(getApiErrorMessage(error, '인증코드가 올바르지 않습니다.'));
+          }
         }
       }
     } finally {
@@ -475,6 +484,7 @@ const SignupClient = () => {
     activeReservationRequestId.current = requestId;
     nicknameReservationPending.current = true;
     setIsReservingNickname(true);
+    setMessage('');
     setNicknameReservationError('');
 
     const isCurrentRequest = () =>
@@ -504,6 +514,7 @@ const SignupClient = () => {
       const problem = getProblemDetail(error);
       const code = problem?.code;
       const status = getHttpStatus(error);
+      const emailError = getSignupEmailError(error);
       if (code && ['TOKEN_INVALID', 'TOKEN_EXPIRED', 'TOKEN_ALREADY_USED'].includes(code)) {
         clearNicknameReservation();
         setEmailVerification(null);
@@ -511,8 +522,10 @@ const SignupClient = () => {
         setMessage(getApiErrorMessage(error, '이메일 인증을 다시 완료해주세요.'));
       } else if (code === 'VERIFICATION_UNAVAILABLE') {
         setNicknameReservationError(getApiErrorMessage(error, '인증 상태를 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.'));
-      } else if (status === 409 || code === 'NICKNAME_CONFLICT') {
-        setNicknameReservationError(getApiErrorMessage(error, '이미 사용 중인 닉네임입니다.'));
+      } else if (emailError) {
+        setErrors(previous => ({ ...previous, email: emailError }));
+      } else if (status === 409 || isNicknameConflict(error)) {
+        setNicknameReservationError(NICKNAME_CONFLICT_MESSAGE);
       } else if (status === 503 || status === undefined || (status !== undefined && status >= 500)) {
         setIsReservationUncertain(true);
         setNicknameReservationError('');
@@ -556,6 +569,7 @@ const SignupClient = () => {
       return;
     }
     setMessage('');
+    setNicknameReservationError('');
     const requestVersion = ++emailRequestVersion.current;
     signupPending.current = true;
     emailRequestPending.current = true;
@@ -563,22 +577,17 @@ const SignupClient = () => {
     let redirecting = false;
     try {
       const { verificationCode, passwordConfirm, ...signupData } = values;
-      const response = await signup({ ...signupData, ...(emailVerification.token ? { emailVerificationToken: emailVerification.token } : {}) });
+      await signup({ ...signupData, ...(emailVerification.token ? { emailVerificationToken: emailVerification.token } : {}) });
       if (requestVersion !== emailRequestVersion.current) return;
       clearNicknameReservation();
       setEmailVerification(null);
-      setMessage(
-        response.message || '회원가입이 완료되었습니다! 잠시 후 로그인 페이지로 이동합니다.',
-      );
-      redirectTimer.current = setTimeout(() => {
-        if (requestVersion !== emailRequestVersion.current) return;
-        router.push('/login');
-      }, 2000);
+      router.push('/login');
       redirecting = true;
     } catch (error) {
       if (requestVersion !== emailRequestVersion.current) return;
       const errorMessage = getApiErrorMessage(error, '회원가입에 실패했습니다.');
       const code = getProblemDetail(error)?.code;
+      const emailError = getSignupEmailError(error);
       if (code && ['TOKEN_INVALID', 'TOKEN_EXPIRED', 'TOKEN_ALREADY_USED', 'VERIFICATION_INVALID'].includes(code)) {
         clearNicknameReservation();
         setEmailVerification(null);
@@ -592,8 +601,12 @@ const SignupClient = () => {
         setValues(previous => ({ ...previous, verificationCode: '' }));
         setStep(1);
         setMessage(getApiErrorMessage(error, '이메일 인증이 필요합니다. 다시 인증해주세요.'));
-      } else if (isEmailAlreadyExists(error)) {
-        setMessage('이미 가입된 이메일입니다. 로그인 페이지에서 로그인해주세요.');
+      } else if (emailError) {
+        setErrors(previous => ({ ...previous, email: emailError }));
+        setStep(1);
+      } else if (isNicknameConflict(error)) {
+        setNicknameReservationError(NICKNAME_CONFLICT_MESSAGE);
+        setStep(1);
       } else if (getHttpStatus(error) === undefined) {
         setMessage('가입 결과를 확인하지 못했습니다. 자동으로 다시 제출하지 않았습니다. 로그인 화면에서 가입 여부를 확인해주세요.');
       } else {
@@ -648,8 +661,7 @@ const SignupClient = () => {
               handleReserveNickname={handleReserveNickname}
               isReservingNickname={isReservingNickname}
               isNicknameReserved={isNicknameReserved}
-              nicknameReservationMessage={nicknameReservationMessage}
-              nicknameReservationError={nicknameReservationError}
+              nicknameReservationError={nicknameError}
               isReservationUncertain={isReservationUncertain}
             />
           ) : (
@@ -678,8 +690,7 @@ const SignupClient = () => {
               handleReserveNickname={handleReserveNickname}
               isReservingNickname={isReservingNickname}
               isNicknameReserved={isNicknameReserved}
-              nicknameReservationMessage={nicknameReservationMessage}
-              nicknameReservationError={nicknameReservationError}
+              nicknameReservationError={nicknameError}
               isReservationUncertain={isReservationUncertain}
             />
           )}
