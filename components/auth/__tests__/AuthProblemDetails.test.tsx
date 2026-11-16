@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NETWORK_ERROR_MESSAGE } from '@/lib/utils/apiError';
 import LoginClient from '../LoginClient';
@@ -59,6 +59,44 @@ describe('Auth Problem Details migration', () => {
     );
 
     expect(message).toHaveClass('whitespace-pre-line');
+  });
+
+  it('로그인 요청 중에는 로딩 스피너를 표시하고 성공 시 안내 문구 없이 즉시 홈으로 이동한다', async () => {
+    let resolveLogin: ((value: unknown) => void) | undefined;
+    login.mockReturnValue(
+      new Promise(resolve => {
+        resolveLogin = resolve;
+      }),
+    );
+
+    render(<LoginClient />);
+
+    fireEvent.change(screen.getByLabelText('이메일'), {
+      target: { value: 'tester@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('비밀번호'), {
+      target: { value: 'password' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '로그인' }));
+
+    expect(screen.getByTestId('login-loading-spinner')).toBeInTheDocument();
+
+    resolveLogin?.({
+      headers: { authorization: 'Bearer test-token' },
+      data: {
+        user: {
+          id: 'user-1',
+          email: 'tester@example.com',
+          nickname: '테스터',
+          avatar: '',
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/');
+    });
+    expect(screen.getByTestId('login-loading-spinner')).toBeInTheDocument();
   });
 
   it('회원가입 인증 메일 발송 실패 시 ProblemDetail.detail을 보여준다', async () => {

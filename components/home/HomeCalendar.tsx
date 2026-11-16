@@ -11,7 +11,9 @@ import PikuCalendar, {
 } from '@/components/calendar/PikuCalendar';
 import HomeCalendarHeader from '@/components/home/HomeCalendarHeader';
 import DiaryDetailModal from '@/components/diary/DiaryDetailModal';
+import DiaryDetailModalSkeleton from '@/components/diary/DiaryDetailModalSkeleton';
 import DiaryStoryModal from '@/components/diary/DiaryStoryModal';
+import DiaryStoryModalSkeleton from '@/components/diary/DiaryStoryModalSkeleton';
 import { useFriendManagement } from '@/hooks/useFriendManagement';
 import { useDiaryData } from '@/hooks/useDiaryData';
 import { useCalendarNavigation } from '@/hooks/useCalendarNavigation';
@@ -23,6 +25,8 @@ interface HomeCalendarProps {
   initialDate?: Date;
   diaryId?: string | null;
 }
+
+const SKELETON_DELAY_MS = 200;
 
 const HomeCalendar = ({
   viewedUser: initialViewedUser,
@@ -80,7 +84,24 @@ const HomeCalendar = ({
     closeDiaryDetail,
     removeDiary,
   } = useDiaryData(currentDate, user, viewedUser);
-  useBodyScrollLock(isLoading);
+  const [isSkeletonVisible, setIsSkeletonVisible] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setIsSkeletonVisible(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setIsSkeletonVisible(true);
+    }, SKELETON_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [isLoading]);
+
+  useBodyScrollLock(isLoading && isSkeletonVisible);
 
   const recoveryScopeKey = `${
     viewedUser?.userId ?? user?.id ?? 'none'
@@ -218,41 +239,45 @@ const HomeCalendar = ({
       className="flex flex-col h-full overflow-hidden"
       ref={containerRef}
     >
-      <AnimatePresence initial={false} custom={direction}>
-        <motion.div
-          key={viewedUser ? viewedUser.userId : user.id}
-          className="h-full flex flex-col overflow-hidden"
-          variants={slideVariants}
-          custom={direction}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-        >
-          <HomeCalendarHeader
-            user={user}
-            viewedUser={viewedUser}
-            currentDate={currentDate}
-            isPickerOpen={isPickerOpen}
-            onPickerToggle={() => setIsPickerOpen(!isPickerOpen)}
-            onDateChange={setCurrentDate}
-          />
+      <div className="grid grid-cols-1 grid-rows-1 flex-1 min-h-0 overflow-hidden">
+        <AnimatePresence initial={false} custom={direction}>
+          <motion.div
+            key={viewedUser ? viewedUser.userId : user.id}
+            data-testid="home-calendar-slide"
+            className="col-start-1 row-start-1 h-full w-full min-h-0 flex flex-col overflow-hidden bg-white dark:bg-gray-900"
+            variants={slideVariants}
+            custom={direction}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <HomeCalendarHeader
+              user={user}
+              viewedUser={viewedUser}
+              currentDate={currentDate}
+              isPickerOpen={isPickerOpen}
+              onPickerToggle={() => setIsPickerOpen(!isPickerOpen)}
+              onDateChange={setCurrentDate}
+            />
 
-          <PikuCalendar
-            targetUser={viewedUser || undefined}
-            currentDate={currentDate}
-            pikus={pikus}
-            handlers={swipeHandlers}
-            today={today}
-            onDayClick={handleDayClick}
-            onMonthChange={setCurrentDate}
-            isMyCalendar={isOwner}
-            imageRecoveryStatus={imageRecoveryStatus}
-            onImageError={handleImageError}
-          />
-        </motion.div>
-      </AnimatePresence>
+            <PikuCalendar
+              targetUser={viewedUser || undefined}
+              currentDate={currentDate}
+              pikus={pikus}
+              handlers={swipeHandlers}
+              today={today}
+              onDayClick={handleDayClick}
+              onMonthChange={setCurrentDate}
+              isMyCalendar={isOwner}
+              imageRecoveryStatus={imageRecoveryStatus}
+              onImageError={handleImageError}
+            />
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
-      {selectedDiary &&
+      {!isLoading &&
+        selectedDiary &&
         (isDesktopOrLaptop ? (
           <DiaryDetailModal
             diary={selectedDiary}
@@ -268,11 +293,13 @@ const HomeCalendar = ({
           />
         ))}
 
-      {isLoading && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center">
-          <p className="text-white">로딩 중...</p>
-        </div>
-      )}
+      {isLoading &&
+        isSkeletonVisible &&
+        (isDesktopOrLaptop ? (
+          <DiaryDetailModalSkeleton />
+        ) : (
+          <DiaryStoryModalSkeleton />
+        ))}
     </div>
   );
 };
