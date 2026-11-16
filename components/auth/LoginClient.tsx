@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import { login } from '@/lib/api/auth';
 import Link from 'next/link';
 import useAuthStore from '@/components/store/authStore';
@@ -38,16 +39,13 @@ const LoginClient = () => {
 
       if (token && user) {
         useAuthStore.getState().login(user);
-        
-        setMessage('로그인 성공! 메인 페이지로 이동합니다.');
-        setTimeout(() => router.push('/'), 1000);
+        router.push('/');
       } else {
         // 성공 응답을 받았으나 토큰이나 유저 정보가 없는 경우
         throw new Error('인증 정보가 올바르지 않습니다.');
       }
     } catch (error: unknown) {
-      setMessage(getApiErrorMessage(error, '로그인 중 오류가 발생했습니다.'));
-    } finally {
+      setMessage(getApiErrorMessage(error, '잠시 후 다시 시도해주세요.'));
       setIsLoading(false);
     }
   };
@@ -92,11 +90,22 @@ const LoginClient = () => {
           </div>
           <div className="flex items-center justify-between">
             <button
-              className="w-full bg-black dark:bg-gray-200 text-white dark:text-black py-3 rounded-full text-lg font-semibold disabled:opacity-50 cursor-pointer"
+              className="flex w-full items-center justify-center bg-black dark:bg-gray-200 text-white dark:text-black py-3 rounded-full text-lg font-semibold disabled:opacity-50 cursor-pointer"
               type="submit"
               disabled={isLoading}
             >
-              {isLoading ? '로그인 중...' : '로그인'}
+              {isLoading ? (
+                <>
+                  <Loader2
+                    data-testid="login-loading-spinner"
+                    aria-hidden="true"
+                    className="h-7 w-7 animate-spin"
+                  />
+                  <span className="sr-only">로그인 중</span>
+                </>
+              ) : (
+                '로그인'
+              )}
             </button>
           </div>
           <div className="text-center mt-6">
@@ -113,7 +122,7 @@ const LoginClient = () => {
             </p>
           </div>
           {message && (
-            <p className={`mt-4 whitespace-pre-line text-center ${message.includes('성공') ? 'text-green-600' : 'text-red-600'}`}>
+            <p className="mt-4 whitespace-pre-line text-center text-red-600">
               {message}
             </p>
           )}
