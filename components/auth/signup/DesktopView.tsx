@@ -20,6 +20,15 @@ const DesktopView = ({
   errors,
   emailDomains,
   isSendingVerification,
+  isVerifyingCode,
+  resendSeconds,
+  codeSeconds,
+  canReserveNickname,
+  handleReserveNickname,
+  isReservingNickname,
+  isNicknameReserved,
+  nicknameReservationError,
+  isReservationUncertain,
 }: AuthFormProps) => {
   const isAgreed = agreements.terms && agreements.privacy;
 
@@ -40,6 +49,16 @@ const DesktopView = ({
           errors={errors}
           emailDomains={emailDomains}
           isSendingVerification={isSendingVerification}
+          isLoading={isLoading}
+          isVerifyingCode={isVerifyingCode}
+          resendSeconds={resendSeconds}
+          codeSeconds={codeSeconds}
+          canReserveNickname={canReserveNickname}
+          handleReserveNickname={handleReserveNickname}
+          isReservingNickname={isReservingNickname}
+          isNicknameReserved={isNicknameReserved}
+          nicknameReservationError={nicknameReservationError}
+          isReservationUncertain={isReservationUncertain}
         />
       </div>
       <div className="flex flex-col h-full">
@@ -50,7 +69,7 @@ const DesktopView = ({
           <button
             onClick={handleSubmit}
             className="w-full bg-black dark:bg-gray-200 text-white dark:text-black py-3 rounded-full text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-900 dark:hover:bg-gray-400 cursor-pointer"
-            disabled={isLoading || !values.character || !isEmailVerified || !isAgreed || !!errors?.email || !!errors?.password || !!errors?.passwordConfirm}
+            disabled={isLoading || isReservationUncertain || !values.character || !isEmailVerified || !isAgreed || !!errors?.email || !!errors?.password || !!errors?.passwordConfirm}
           >
             {isLoading ? '가입 중...' : '회원 가입'}
           </button>
@@ -60,4 +79,4 @@ const DesktopView = ({
   );
 };
 
-export default DesktopView; 
+export default DesktopView;

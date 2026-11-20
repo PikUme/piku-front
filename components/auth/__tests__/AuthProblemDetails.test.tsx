@@ -15,6 +15,7 @@ const { mockPush, mockBack, login, sendSignUpVerificationEmail, sendVerification
   }));
 
 vi.mock('next/navigation', () => ({
+  usePathname: () => '/signup',
   useRouter: () => ({
     push: mockPush,
     back: mockBack,
