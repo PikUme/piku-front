@@ -173,4 +173,17 @@ describe('Auth Problem Details migration', () => {
 
     expect(error).toHaveClass('whitespace-pre-line');
   });
+
+  it('인증 페이지들의 뒤로가기(<) 버튼은 데스크톱(xl) 이상에서 숨긴다', () => {
+    const { unmount: unmountLogin } = render(<LoginClient />);
+    expect(screen.getByRole('button', { name: '<' })).toHaveClass('xl:hidden');
+    unmountLogin();
+
+    const { unmount: unmountSignup } = render(<SignupClient />);
+    expect(screen.getByRole('button', { name: '<' })).toHaveClass('xl:hidden');
+    unmountSignup();
+
+    render(<PasswordResetClient />);
+    expect(screen.getByRole('button', { name: '<' })).toHaveClass('xl:hidden');
+  });
 });

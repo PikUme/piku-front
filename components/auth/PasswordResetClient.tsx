@@ -87,7 +87,7 @@ const PasswordResetClient = () => {
       <div className="w-full max-w-md px-8">
         <div className="w-full mb-10">
           <div className="relative text-center">
-            <button onClick={() => router.back()} className="text-2xl font-bold absolute left-0 dark:text-white cursor-pointer">&lt;</button>
+            <button onClick={() => router.back()} className="text-2xl font-bold absolute left-0 dark:text-white cursor-pointer xl:hidden">&lt;</button>
             <h2 className="text-2xl font-bold inline-block dark:text-white">비밀번호 재설정</h2>
           </div>
         </div>

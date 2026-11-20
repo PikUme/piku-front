@@ -237,8 +237,8 @@ const SignupClient = () => {
       <div className="w-full max-w-md md:max-w-4xl px-8 flex flex-col justify-center" style={{ minHeight: '80vh' }}>
         <div className="w-full mb-10">
           <div className="relative text-center">
-            <Link href={isDesktop && isHydrated ? '/' : '#'} passHref>
-              <button onClick={!isDesktop && step === 2 ? prevStep : undefined} className="text-2xl font-bold absolute left-0 dark:text-white cursor-pointer">
+            <Link href={isDesktop && isHydrated ? '/' : '#'} passHref className="xl:hidden">
+              <button onClick={!isDesktop && step === 2 ? prevStep : undefined} className="text-2xl font-bold absolute left-0 dark:text-white cursor-pointer xl:hidden">
                 &lt;
               </button>
             </Link>
