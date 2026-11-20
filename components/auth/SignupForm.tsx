@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Mail, Lock, User, KeyRound, Info } from 'lucide-react';
 import { AuthFormProps } from '@/types/auth';
 import PolicyModal from '@/components/common/PolicyModal';
@@ -21,11 +21,22 @@ const SignupForm = ({
   errors,
   emailDomains = [],
   isSendingVerification,
+  isLoading,
+  isVerifyingCode,
+  resendSeconds = 0,
+  codeSeconds = 0,
+  canReserveNickname = false,
+  handleReserveNickname,
+  isReservingNickname,
+  isNicknameReserved,
+  nicknameReservationError,
 }: AuthFormProps) => {
   const [modalContent, setModalContent] = useState<{ title: string; content: string; type: 'terms' | 'privacy' } | null>(
     null,
   );
   const [showDomainTooltip, setShowDomainTooltip] = useState(false);
+  const emailFeedbackId = useId();
+  const nicknameFeedbackId = useId();
 
   const handleLabelClick = (type: 'terms' | 'privacy') => {
     if (type === 'terms') {
@@ -52,17 +63,19 @@ const SignupForm = ({
 
   return (
     <>
-      <form className="space-y-6">
+      <form className="space-y-6" onSubmit={event => event.preventDefault()}>
         <div className="flex items-center space-x-4">
           <Mail className="text-gray-400" />
           <div className="flex-grow flex items-center gap-2">
             <input
               type="email"
               placeholder="이메일을 입력해주세요"
+              aria-invalid={Boolean(errors?.email)}
+              aria-describedby={errors?.email ? emailFeedbackId : undefined}
               onChange={handleChange('email')}
               value={values.email}
+              disabled={isLoading}
               className={`w-full border-b-2 ${errors?.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} focus:border-black dark:focus:border-white dark:bg-black dark:text-white outline-none p-2`}
-              disabled={isEmailVerified}
             />
             <div className="relative">
               <Info 
@@ -87,18 +100,22 @@ const SignupForm = ({
               )}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleSendVerification}
-            disabled={isEmailVerified || !values.email || !!errors?.email || isSendingVerification}
-            className="whitespace-nowrap flex-shrink-0 text-sm bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer"
-          >
-            {isSendingVerification ? '전송 중...' : isEmailVerified ? '인증완료' : '전송'}
-          </button>
+          {!isEmailVerified && (
+            <button
+              type="button"
+              onClick={handleSendVerification}
+              disabled={!values.email || !!errors?.email || isLoading || resendSeconds > 0}
+              className="whitespace-nowrap flex-shrink-0 text-sm bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer"
+            >
+              {isSendingVerification ? '전송 중...' : resendSeconds > 0 ? `재전송 (${resendSeconds}초)` : isVerificationSent ? '재전송' : '전송'}
+            </button>
+          )}
         </div>
-        {errors?.email && <p className="text-red-500 text-xs mt-1 pl-10">{errors.email}</p>}
+        {errors?.email && (
+          <p id={emailFeedbackId} className="whitespace-pre-line text-red-500 text-xs mt-1 pl-10" role="alert">{errors.email}</p>
+        )}
 
-        {isVerificationSent && (
+        {isVerificationSent && !isEmailVerified && (
           <div>
             <div className="flex items-center space-x-4">
               <KeyRound className="text-gray-400" />
@@ -108,6 +125,7 @@ const SignupForm = ({
                   placeholder="인증코드를 입력하세요"
                   onChange={handleChange('verificationCode')}
                   value={values.verificationCode}
+                  disabled={isLoading}
                   className={`w-full border-b-2 ${
                     verificationMessage ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                   } focus:border-black dark:focus:border-white dark:bg-black dark:text-white outline-none p-2`}
@@ -116,11 +134,13 @@ const SignupForm = ({
               <button
                 type="button"
                 onClick={handleVerifyCode}
+                disabled={isLoading}
                 className="text-sm bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-md cursor-pointer"
               >
-                인증
+                {isVerifyingCode ? '인증 중...' : '인증'}
               </button>
             </div>
+            {typeof codeSeconds === 'number' && <p className="text-gray-500 text-xs mt-1 pl-10">인증코드 유효시간 {Math.floor(codeSeconds / 60)}:{String(codeSeconds % 60).padStart(2, '0')}</p>}
             {verificationMessage && <p className="whitespace-pre-line text-red-500 text-xs mt-1 pl-10">{verificationMessage}</p>}
           </div>
         )}
@@ -147,15 +167,30 @@ const SignupForm = ({
           />
         </div>
         {errors?.passwordConfirm && <p className="text-red-500 text-xs mt-1 pl-10">{errors.passwordConfirm}</p>}
-        <div className="flex items-center space-x-4">
-          <User className="text-gray-400" />
-          <input
-            type="text"
-            placeholder="닉네임을 입력해주세요"
-            onChange={handleChange('nickname')}
-            value={values.nickname}
-            className="w-full border-b-2 border-gray-300 dark:border-gray-600 focus:border-black dark:focus:border-white dark:bg-black dark:text-white outline-none p-2"
-          />
+        <div>
+          <div className="flex items-center space-x-4">
+            <User className="text-gray-400" />
+            <input
+              type="text"
+              placeholder="닉네임을 입력해주세요"
+              aria-describedby={nicknameReservationError ? nicknameFeedbackId : undefined}
+              onChange={handleChange('nickname')}
+              value={values.nickname}
+              disabled={isLoading}
+              className="w-full min-w-0 border-b-2 border-gray-300 dark:border-gray-600 focus:border-black dark:focus:border-white dark:bg-black dark:text-white outline-none p-2 disabled:opacity-60"
+            />
+            {!isNicknameReserved && (
+              <button
+                type="button"
+                onClick={handleReserveNickname}
+                disabled={!canReserveNickname || !values.nickname.trim() || isLoading}
+                className="whitespace-nowrap flex-shrink-0 text-sm bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {isReservingNickname ? '확인 중...' : '중복확인'}
+              </button>
+            )}
+          </div>
+          {nicknameReservationError && <p id={nicknameFeedbackId} className="mt-1 pl-10 text-xs text-red-500 whitespace-pre-line" role="alert">{nicknameReservationError}</p>}
         </div>
         
         <div className="pt-6 space-y-4">
