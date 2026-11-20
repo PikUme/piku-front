@@ -10,10 +10,13 @@ import { getDiaryById } from '@/lib/api/diary';
 import { Notification } from '@/types/notification';
 import type { DiaryDetail } from '@/types/diary';
 import DiaryDetailModal from '../diary/DiaryDetailModal';
+import DiaryDetailModalSkeleton from '../diary/DiaryDetailModalSkeleton';
 import DiaryStoryModal from '../diary/DiaryStoryModal';
+import DiaryStoryModalSkeleton from '../diary/DiaryStoryModalSkeleton';
 import { getNotificationNavigationPath } from '@/lib/utils/notification';
 import { getApiErrorMessage, hasProblemType } from '@/lib/utils/apiError';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useDelayedLoading } from '@/hooks/useDelayedLoading';
 import { Trash2, Loader2, Check } from 'lucide-react';
 import useNotificationStore from '../store/notificationStore';
 import useAuthStore from '../store/authStore';
@@ -45,8 +48,10 @@ const NotificationsClient = () => {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [selectedDiary, setSelectedDiary] = useState<DiaryDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const isLoadingDetailRef = useRef(false);
+  const isDetailSkeletonVisible = useDelayedLoading(isLoadingDetail);
   const isDesktop = useMediaQuery({ query: '(min-width: 768px)' });
-  useBodyScrollLock(Boolean(selectedDiary || isLoadingDetail));
+  useBodyScrollLock(Boolean(selectedDiary || isDetailSkeletonVisible));
 
   const {
     data,
@@ -125,6 +130,8 @@ const NotificationsClient = () => {
       DIARY_MODAL_NOTIFICATION_TYPES.has(notification.type) &&
       notification.relatedDiaryId !== null
     ) {
+      if (isLoadingDetailRef.current) return;
+      isLoadingDetailRef.current = true;
       setIsLoadingDetail(true);
       try {
         const diary = await getDiaryById(notification.relatedDiaryId);
@@ -133,6 +140,7 @@ const NotificationsClient = () => {
         console.error('일기 정보를 불러오는데 실패했습니다:', error);
         alert(getApiErrorMessage(error, '일기 정보를 불러오는데 실패했습니다.'));
       } finally {
+        isLoadingDetailRef.current = false;
         setIsLoadingDetail(false);
       }
       return;
@@ -312,12 +320,14 @@ const NotificationsClient = () => {
           )}
         </>
       )}
-      {isLoadingDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <p className="text-white">일기 정보를 불러오는 중...</p>
-        </div>
-      )}
-      {selectedDiary &&
+      {isDetailSkeletonVisible &&
+        (isDesktop ? (
+          <DiaryDetailModalSkeleton />
+        ) : (
+          <DiaryStoryModalSkeleton />
+        ))}
+      {!isLoadingDetail &&
+        selectedDiary &&
         (isDesktop ? (
           <DiaryDetailModal
             diary={selectedDiary}

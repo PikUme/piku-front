@@ -600,4 +600,76 @@ describe('NotificationsClient', () => {
     expect(screen.queryByTestId('diary-detail-modal')).not.toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
   });
+
+  it('알림에서 일기 상세 조회가 200ms 이상 지연될 때만 모달 스켈레톤을 보여준다', async () => {
+    mockGetNotifications.mockResolvedValue(
+      makePage([
+        makeNotification({
+          type: 'LIKE',
+          message: 'liked your diary',
+          relatedDiaryId: 42,
+          isRead: true,
+        }),
+      ]),
+    );
+
+    let resolveDiary:
+      | ((value: Awaited<ReturnType<typeof getDiaryById>>) => void)
+      | undefined;
+    mockGetDiaryById.mockReturnValueOnce(
+      new Promise<Awaited<ReturnType<typeof getDiaryById>>>(resolve => {
+        resolveDiary = resolve;
+      }),
+    );
+
+    renderClient();
+
+    const item = await screen.findByText('liked your diary');
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(item);
+      fireEvent.click(item);
+
+      expect(mockGetDiaryById).toHaveBeenCalledTimes(1);
+      expect(
+        screen.queryByTestId('diary-detail-modal-skeleton'),
+      ).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
+      expect(
+        screen.getByTestId('diary-detail-modal-skeleton'),
+      ).toBeInTheDocument();
+
+      await act(async () => {
+        resolveDiary?.({
+          diaryId: 42,
+          content: 'test',
+          date: '2026-03-31',
+          status: 'PUBLIC',
+          createdAt: '2026-03-31T00:00:00Z',
+          updatedAt: '2026-03-31T00:00:00Z',
+          isLiked: false,
+          likeCount: 0,
+          commentCount: 0,
+          imgUrls: ['/diary.png'],
+          nickname: 'writer',
+          avatar: '/avatar.png',
+          userId: 'writer-1',
+          isOwner: false,
+          comments: [],
+        });
+      });
+
+      expect(
+        screen.queryByTestId('diary-detail-modal-skeleton'),
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

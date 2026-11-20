@@ -822,4 +822,50 @@ describe('FeedClient', () => {
 
     expect(screen.getByTestId('diary-story-modal')).toBeInTheDocument();
   });
+
+  it('피드에서 일기 상세 조회가 200ms 이상 지연될 때만 모달 스켈레톤을 보여주고 중복 클릭을 막는다', async () => {
+    mockGetFeedCursor.mockResolvedValue(makeResponse([1], 'c1', false));
+    let resolveDiary: ((value: ReturnType<typeof makeDiaryDetail>) => void) | undefined;
+    mockGetDiaryById.mockReturnValueOnce(
+      new Promise<ReturnType<typeof makeDiaryDetail>>(resolve => {
+        resolveDiary = resolve;
+      }),
+    );
+
+    render(<FeedClient />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('content-btn-1')).toBeInTheDocument();
+    });
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(screen.getByTestId('content-btn-1'));
+      fireEvent.click(screen.getByTestId('content-btn-1'));
+
+      expect(mockGetDiaryById).toHaveBeenCalledTimes(1);
+      expect(
+        screen.queryByTestId('diary-detail-modal-skeleton'),
+      ).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
+      expect(
+        screen.getByTestId('diary-detail-modal-skeleton'),
+      ).toBeInTheDocument();
+
+      await act(async () => {
+        resolveDiary?.(makeDiaryDetail(1));
+      });
+
+      expect(
+        screen.queryByTestId('diary-detail-modal-skeleton'),
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId('diary-detail-modal')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

@@ -5,7 +5,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Images } from 'lucide-react';
 import { useMediaQuery } from 'react-responsive';
 import DiaryDetailModal from '@/components/diary/DiaryDetailModal';
+import DiaryDetailModalSkeleton from '@/components/diary/DiaryDetailModalSkeleton';
 import DiaryStoryModal from '@/components/diary/DiaryStoryModal';
+import DiaryStoryModalSkeleton from '@/components/diary/DiaryStoryModalSkeleton';
 import ProfileDiaryPhotoGridSkeleton from '@/components/profile/ProfileDiaryPhotoGridSkeleton';
 import {
   CalendarDiaryResponseDTO,
@@ -13,6 +15,7 @@ import {
   getUserGallery,
 } from '@/lib/api/diary';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useDelayedLoading } from '@/hooks/useDelayedLoading';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
 import type { DiaryDetail } from '@/types/diary';
 
@@ -29,9 +32,11 @@ const ProfileDiaryPhotoGrid = ({ userId }: ProfileDiaryPhotoGridProps) => {
   const [isError, setIsError] = useState(false);
   const [selectedDiary, setSelectedDiary] = useState<DiaryDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const isLoadingDetailRef = useRef(false);
+  const isDetailSkeletonVisible = useDelayedLoading(isLoadingDetail);
   const hasDetailHistoryEntryRef = useRef(false);
   const isDesktop = useMediaQuery({ query: '(min-width: 768px)' });
-  useBodyScrollLock(Boolean(selectedDiary || isLoadingDetail));
+  useBodyScrollLock(Boolean(selectedDiary || isDetailSkeletonVisible));
 
   useEffect(() => {
     let isMounted = true;
@@ -129,6 +134,8 @@ const ProfileDiaryPhotoGrid = ({ userId }: ProfileDiaryPhotoGridProps) => {
   }, [selectedDiary, handleCloseModal]);
 
   const handleDiaryClick = async (diary: CalendarDiaryResponseDTO) => {
+    if (isLoadingDetailRef.current) return;
+    isLoadingDetailRef.current = true;
     setIsLoadingDetail(true);
     try {
       const diaryDetail = await getDiaryById(diary.diaryId);
@@ -137,6 +144,7 @@ const ProfileDiaryPhotoGrid = ({ userId }: ProfileDiaryPhotoGridProps) => {
       console.error('Failed to fetch profile diary detail:', error);
       alert(getApiErrorMessage(error, '일기 정보를 불러오는데 실패했습니다.'));
     } finally {
+      isLoadingDetailRef.current = false;
       setIsLoadingDetail(false);
     }
   };
@@ -201,12 +209,14 @@ const ProfileDiaryPhotoGrid = ({ userId }: ProfileDiaryPhotoGridProps) => {
           </button>
         </div>
       )}
-      {isLoadingDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <p className="text-white">일기 정보를 불러오는 중...</p>
-        </div>
-      )}
-      {selectedDiary &&
+      {isDetailSkeletonVisible &&
+        (isDesktop ? (
+          <DiaryDetailModalSkeleton />
+        ) : (
+          <DiaryStoryModalSkeleton />
+        ))}
+      {!isLoadingDetail &&
+        selectedDiary &&
         (isDesktop ? (
           <DiaryDetailModal diary={selectedDiary} onClose={handleCloseModal} />
         ) : (

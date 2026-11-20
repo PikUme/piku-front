@@ -34,6 +34,7 @@ export const useDiaryData = (
   const pikus = pikusState.scopeKey === scopeKey ? pikusState.data : {};
   const activeScopeRef = useRef<string | null>(scopeKey);
   const latestMonthlyRequestRef = useRef(0);
+  const isLoadingDetailRef = useRef(false);
 
   const fetchMonthlyDiaries = useCallback(async (clearOnError = false) => {
     if (!targetUserId) return;
@@ -126,6 +127,8 @@ export const useDiaryData = (
   }, [fetchMonthlyDiaries, scopeKey]);
 
   const loadDiaryDetail = useCallback(async (diaryId: number) => {
+    if (isLoadingDetailRef.current) return;
+    isLoadingDetailRef.current = true;
     setIsLoading(true);
     try {
       const diaryDetail = await getDiaryById(diaryId);
@@ -133,6 +136,7 @@ export const useDiaryData = (
     } catch (error) {
       console.error('Failed to fetch diary details:', error);
     } finally {
+      isLoadingDetailRef.current = false;
       setIsLoading(false);
     }
   }, []);

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileClient from '../ProfileClient';
 import { FriendshipStatus } from '@/types/friend';
@@ -344,6 +344,82 @@ describe('ProfileClient', () => {
     expect(mockPush).not.toHaveBeenCalledWith(
       '/profile/user-1/calendar?date=2026-05-02&diaryId=101',
     );
+  });
+
+  it('사진 그리드에서 일기 상세 조회가 200ms 이상 지연될 때만 모달 스켈레톤을 보여주고 중복 클릭을 막는다', async () => {
+    getUserGallery.mockResolvedValueOnce({
+      items: [
+        {
+          diaryId: 101,
+          date: '2026-05-02',
+          coverPhotoUrl: '/diary-cover.png',
+          imageCount: 1,
+          status: 'PUBLIC',
+        },
+      ],
+      nextCursor: null,
+      hasNext: false,
+    });
+
+    let resolveDiary: ((value: unknown) => void) | undefined;
+    getDiaryById.mockReturnValueOnce(
+      new Promise(resolve => {
+        resolveDiary = resolve;
+      }),
+    );
+
+    render(<ProfileClient profileData={profileData} />);
+    fireEvent.click(screen.getByRole('button', { name: '사진' }));
+
+    const photoTile = await screen.findByTestId('profile-diary-photo-tile');
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(photoTile);
+      fireEvent.click(photoTile);
+
+      expect(getDiaryById).toHaveBeenCalledTimes(1);
+      expect(
+        screen.queryByTestId('diary-detail-modal-skeleton'),
+      ).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
+      expect(
+        screen.getByTestId('diary-detail-modal-skeleton'),
+      ).toBeInTheDocument();
+
+      await act(async () => {
+        resolveDiary?.({
+          diaryId: 101,
+          content: '사진 일기',
+          date: '2026-05-02',
+          status: 'PUBLIC',
+          createdAt: '2026-05-02T10:00:00',
+          updatedAt: '2026-05-02T10:00:00',
+          isLiked: false,
+          likeCount: 0,
+          commentCount: 0,
+          imgUrls: ['/diary-cover.png'],
+          nickname: '픽쿠',
+          avatar: null,
+          userId: 'user-1',
+          isOwner: true,
+          comments: [],
+        });
+      });
+
+      expect(
+        screen.queryByTestId('diary-detail-modal-skeleton'),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByTestId('profile-diary-detail-modal'),
+      ).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('월별 일기 기록을 연도별로 나누어 표시한다', () => {

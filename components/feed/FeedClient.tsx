@@ -8,12 +8,15 @@ import { getDiaryById } from '@/lib/api/diary';
 import type { DiaryDetail, FeedDiary } from '@/types/diary';
 import { FriendshipStatus } from '@/types/friend';
 import DiaryDetailModal from '../diary/DiaryDetailModal';
+import DiaryDetailModalSkeleton from '../diary/DiaryDetailModalSkeleton';
 import DiaryStoryModal from '../diary/DiaryStoryModal';
+import DiaryStoryModalSkeleton from '../diary/DiaryStoryModalSkeleton';
 import StoryCommentModal from '../diary/StoryCommentModal';
 import { addLike, removeLike, type LikeResponse } from '@/lib/api/like';
 import { trackEvent, FEED_CLICK, FEED_LIKE } from '@/lib/analytics/events';
 import { getApiErrorMessage } from '@/lib/utils/apiError';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useDelayedLoading } from '@/hooks/useDelayedLoading';
 import FeedSortSubHeader from './FeedSortSubHeader';
 import FeedSkeleton from './FeedSkeleton';
 import { isAnonymousDiaryIdentity } from '@/lib/utils/privacy';
@@ -37,13 +40,15 @@ const FeedClient = () => {
   const [isClient, setIsClient] = useState(false);
   const [selectedDiary, setSelectedDiary] = useState<DiaryDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const isLoadingDetailRef = useRef(false);
+  const isDetailSkeletonVisible = useDelayedLoading(isLoadingDetail);
   const [commentModalOpen, setCommentModalOpen] = useState<{
     diaryId: number;
     commentCount: number;
     post: FeedDiary;
   } | null>(null);
   const isDesktop = useMediaQuery({ query: '(min-width: 768px)' });
-  useBodyScrollLock(Boolean(selectedDiary || commentModalOpen || isLoadingDetail));
+  useBodyScrollLock(Boolean(selectedDiary || commentModalOpen || isDetailSkeletonVisible));
 
   const applyDiaryCommentCount = useCallback((diaryId: number, count: number) => {
     setFeed(prevFeed =>
@@ -193,6 +198,8 @@ const FeedClient = () => {
 
   const handleContentClick = async (diaryId: number) => {
     if (isClient) {
+      if (isLoadingDetailRef.current) return;
+      isLoadingDetailRef.current = true;
       setIsLoadingDetail(true);
       try {
         const diaryDetail = await getDiaryById(diaryId);
@@ -202,6 +209,7 @@ const FeedClient = () => {
         console.error('Failed to fetch diary details', error);
         alert(getApiErrorMessage(error, '일기 정보를 불러오는데 실패했습니다.'));
       } finally {
+        isLoadingDetailRef.current = false;
         setIsLoadingDetail(false);
       }
     }
@@ -417,11 +425,12 @@ const FeedClient = () => {
           </>
         )}
       </div>
-      {isLoadingDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <p className="text-white">일기 정보를 불러오는 중...</p>
-        </div>
-      )}
+      {isDetailSkeletonVisible &&
+        (isDesktop ? (
+          <DiaryDetailModalSkeleton />
+        ) : (
+          <DiaryStoryModalSkeleton />
+        ))}
       {error === 'next' && (
         <div className="flex h-20 items-center justify-center gap-3">
           <p className="text-gray-500">불러오기 실패</p>
@@ -438,7 +447,8 @@ const FeedClient = () => {
           <p>모든 피드를 다 봤어요!</p>
         </div>
       )}
-      {selectedDiary &&
+      {!isLoadingDetail &&
+        selectedDiary &&
         (isDesktop ? (
           <DiaryDetailModal
             diary={selectedDiary}

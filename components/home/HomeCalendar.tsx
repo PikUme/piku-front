@@ -18,6 +18,7 @@ import { useFriendManagement } from '@/hooks/useFriendManagement';
 import { useDiaryData } from '@/hooks/useDiaryData';
 import { useCalendarNavigation } from '@/hooks/useCalendarNavigation';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useDelayedLoading } from '@/hooks/useDelayedLoading';
 import type { Friend } from '@/types/friend';
 
 interface HomeCalendarProps {
@@ -25,8 +26,6 @@ interface HomeCalendarProps {
   initialDate?: Date;
   diaryId?: string | null;
 }
-
-const SKELETON_DELAY_MS = 200;
 
 const HomeCalendar = ({
   viewedUser: initialViewedUser,
@@ -84,24 +83,8 @@ const HomeCalendar = ({
     closeDiaryDetail,
     removeDiary,
   } = useDiaryData(currentDate, user, viewedUser);
-  const [isSkeletonVisible, setIsSkeletonVisible] = useState(false);
-
-  useEffect(() => {
-    if (!isLoading) {
-      setIsSkeletonVisible(false);
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setIsSkeletonVisible(true);
-    }, SKELETON_DELAY_MS);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [isLoading]);
-
-  useBodyScrollLock(isLoading && isSkeletonVisible);
+  const isSkeletonVisible = useDelayedLoading(isLoading);
+  useBodyScrollLock(isSkeletonVisible);
 
   const recoveryScopeKey = `${
     viewedUser?.userId ?? user?.id ?? 'none'
@@ -293,8 +276,7 @@ const HomeCalendar = ({
           />
         ))}
 
-      {isLoading &&
-        isSkeletonVisible &&
+      {isSkeletonVisible &&
         (isDesktopOrLaptop ? (
           <DiaryDetailModalSkeleton />
         ) : (
