@@ -19,9 +19,12 @@ import {
   SignupNicknameReservation,
   SignupVerificationSentResponse,
 } from '@/types/auth';
-
-const parseEmailVerificationTime = (value: string) =>
-  Date.parse(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}+09:00`);
+import {
+  clearSignupVerificationSnapshot,
+  parseSignupVerificationTime as parseEmailVerificationTime,
+  restoreSignupVerificationSnapshot,
+  saveSignupVerificationSnapshot,
+} from '@/lib/auth/signupVerificationSnapshot';
 
 const AUTH_EMAIL_ALREADY_EXISTS_TYPE = 'https://api.pikume.com/problems/auth/email-already-exists';
 const AUTH_INVALID_EMAIL_TYPE = 'https://api.pikume.com/problems/auth/invalid-email';
@@ -152,6 +155,21 @@ const SignupClient = () => {
   }, []);
 
   useEffect(() => {
+    const snapshot = restoreSignupVerificationSnapshot();
+    if (!snapshot) return;
+
+    const expiresAt = parseEmailVerificationTime(snapshot.expiresAt);
+    setValues(previous => ({ ...previous, email: snapshot.email }));
+    setEmailVerification({
+      email: snapshot.email,
+      token: snapshot.emailVerificationToken,
+      expiresAt,
+      legacy: false,
+    });
+    setNow(Date.now());
+  }, []);
+
+  useEffect(() => {
     if (!sentVerification && !emailVerification && !nicknameReservation && (retryAvailableAt === null || retryAvailableAt <= Date.now())) return;
     if (!sentVerification?.expiresAt && (!emailVerification || emailVerification.legacy) && !nicknameReservation && (retryAvailableAt === null || retryAvailableAt <= Date.now())) return;
     const timer = setInterval(() => {
@@ -168,6 +186,7 @@ const SignupClient = () => {
 
   useEffect(() => {
     if (emailVerification && emailVerification.expiresAt <= now) {
+      clearSignupVerificationSnapshot();
       clearNicknameReservation();
       setEmailVerification(null);
       setStep(1);
@@ -181,6 +200,7 @@ const SignupClient = () => {
 
   useEffect(() => {
     const resetAuthFlow = () => {
+      clearSignupVerificationSnapshot();
       emailRequestVersion.current += 1;
       clearNicknameReservation();
       emailRequestPending.current = false;
@@ -207,6 +227,7 @@ const SignupClient = () => {
 
   useEffect(() => {
     if (pathname === '/signup') return;
+    clearSignupVerificationSnapshot();
     emailRequestVersion.current += 1;
     clearNicknameReservation();
     emailRequestPending.current = false;
@@ -282,6 +303,7 @@ const SignupClient = () => {
     setValues(previous => ({ ...previous, [input]: value }));
 
     if (input === 'email') {
+      clearSignupVerificationSnapshot();
       emailRequestVersion.current += 1;
       clearNicknameReservation();
       emailRequestPending.current = false;
@@ -356,6 +378,7 @@ const SignupClient = () => {
       if (requestVersion !== emailRequestVersion.current) return;
       const expiresAt = response?.expiresAt ? parseEmailVerificationTime(response.expiresAt) : Number.NaN;
       if (!response?.message || (response.expiresAt && (!Number.isFinite(expiresAt) || expiresAt <= Date.now()))) {
+        clearSignupVerificationSnapshot();
         setEmailVerification(null);
         setSentVerification(null);
         setValues(previous => ({ ...previous, verificationCode: '' }));
@@ -364,6 +387,7 @@ const SignupClient = () => {
       }
       setNow(Date.now());
       setSentVerification(response);
+      clearSignupVerificationSnapshot();
       setEmailVerification(null);
       const retryAt = response.resendAvailableAt ? parseEmailVerificationTime(response.resendAvailableAt) : Number.NaN;
       setRetryAvailableAt(Number.isFinite(retryAt) && retryAt > Date.now() ? retryAt : null);
@@ -378,6 +402,7 @@ const SignupClient = () => {
         const emailError = getSignupEmailError(error);
         setRetryAvailableAt(getRetryAfterTime(error, retryAvailableAt));
         if (resendActivationInvalid) {
+          clearSignupVerificationSnapshot();
           setEmailVerification(null);
           setSentVerification(null);
           setValues(previous => ({ ...previous, verificationCode: '' }));
@@ -385,6 +410,7 @@ const SignupClient = () => {
           window.alert('잠시 후 다시 시도해 주세요.');
         } else {
           if (!isRateLimited && !emailError && getHttpStatus(error) !== 400) {
+            clearSignupVerificationSnapshot();
             setEmailVerification(null);
             setSentVerification(null);
             setValues(previous => ({ ...previous, verificationCode: '' }));
@@ -433,6 +459,15 @@ const SignupClient = () => {
       }
       setNow(Date.now());
       setEmailVerification({ token: hasToken ? response.emailVerificationToken : undefined, expiresAt, email: values.email, legacy });
+      if (legacy) {
+        clearSignupVerificationSnapshot();
+      } else {
+        saveSignupVerificationSnapshot({
+          email: values.email,
+          emailVerificationToken: response.emailVerificationToken!,
+          expiresAt: response.expiresAt!,
+        });
+      }
       invalidateNicknameReservationRequest();
       setMessage('');
       setErrors(previous => ({ ...previous, email: '' }));
@@ -444,6 +479,7 @@ const SignupClient = () => {
         setRetryAvailableAt(getRetryAfterTime(error, retryAvailableAt));
         if (problem?.code === 'ATTEMPTS_EXHAUSTED') {
           setSentVerification(null);
+          clearSignupVerificationSnapshot();
           setEmailVerification(null);
           setValues(previous => ({ ...previous, verificationCode: '' }));
           setMessage(getApiErrorMessage(error, '인증 시도 횟수가 끝났습니다. 다시 인증해주세요.'));
@@ -515,8 +551,10 @@ const SignupClient = () => {
       const code = problem?.code;
       const status = getHttpStatus(error);
       const emailError = getSignupEmailError(error);
-      if (code && ['TOKEN_INVALID', 'TOKEN_EXPIRED', 'TOKEN_ALREADY_USED'].includes(code)) {
+      if ((code && ['TOKEN_INVALID', 'TOKEN_EXPIRED', 'TOKEN_ALREADY_USED'].includes(code))
+        || (status === 400 && problem?.fieldErrors?.emailVerificationToken)) {
         clearNicknameReservation();
+        clearSignupVerificationSnapshot();
         setEmailVerification(null);
         setStep(1);
         setMessage(getApiErrorMessage(error, '이메일 인증을 다시 완료해주세요.'));
@@ -579,6 +617,7 @@ const SignupClient = () => {
       const { verificationCode, passwordConfirm, ...signupData } = values;
       await signup({ ...signupData, ...(emailVerification.token ? { emailVerificationToken: emailVerification.token } : {}) });
       if (requestVersion !== emailRequestVersion.current) return;
+      clearSignupVerificationSnapshot();
       clearNicknameReservation();
       setEmailVerification(null);
       router.push('/login');
@@ -589,6 +628,7 @@ const SignupClient = () => {
       const code = getProblemDetail(error)?.code;
       const emailError = getSignupEmailError(error);
       if (code && ['TOKEN_INVALID', 'TOKEN_EXPIRED', 'TOKEN_ALREADY_USED', 'VERIFICATION_INVALID'].includes(code)) {
+        clearSignupVerificationSnapshot();
         clearNicknameReservation();
         setEmailVerification(null);
         setSentVerification(null);
@@ -596,6 +636,8 @@ const SignupClient = () => {
         setStep(1);
         setMessage(errorMessage);
       } else if (getHttpStatus(error) === 400 && getProblemDetail(error)?.fieldErrors?.emailVerificationToken) {
+        clearNicknameReservation();
+        clearSignupVerificationSnapshot();
         setEmailVerification(null);
         setSentVerification(null);
         setValues(previous => ({ ...previous, verificationCode: '' }));
