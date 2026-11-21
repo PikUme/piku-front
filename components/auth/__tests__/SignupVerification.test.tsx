@@ -136,22 +136,17 @@ describe('기존 회원가입 이메일 인증', () => {
     expect(window.sessionStorage.getItem(verificationSnapshotKey)).toBeNull();
   });
 
-  it('레거시 메시지 응답만으로 인증하고 토큰 없이 가입 요청을 한 번 보낸다', async () => {
-    post.mockImplementation(async url => ({ data: url === '/auth/send-verification/sign-up' || url === '/auth/verify-code'
-      ? { message: 'ok' }
-      : { message: '회원가입 성공' } }));
+  it('메시지만 있는 인증 응답에서는 회원가입을 막는다', async () => {
+    post.mockImplementation(async url => ({ data: url === '/auth/verify-code' ? { message: 'ok' } : sent }));
     await act(async () => render(<SignupClient />));
     await verifyEmail();
-    expect(screen.queryByRole('button', { name: /^(전송|재전송.*|인증)$/ })).not.toBeInTheDocument();
     completeFields();
     fireEvent.click(screen.getByAltText('캐릭터 CAT'));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '회원 가입' })));
 
-    const signupCalls = post.mock.calls.filter(([url]) => url === '/auth/signup');
-    expect(signupCalls).toHaveLength(1);
-    expect(signupCalls[0][1]).toEqual({
-      email: 'tester@gmail.com', password: 'password1!', nickname: '테스터', fixedCharacterId: 1,
-    });
+    expect(post.mock.calls.filter(([url]) => url === '/auth/signup')).toHaveLength(0);
+    expect(screen.getByRole('button', { name: '회원 가입' })).toBeDisabled();
+    expect(screen.getByText('인증 결과를 확인할 수 없습니다. 다시 전송해주세요.')).toBeInTheDocument();
     expect(window.sessionStorage.getItem(verificationSnapshotKey)).toBeNull();
   });
 
@@ -162,7 +157,7 @@ describe('기존 회원가입 이메일 인증', () => {
     { message: 'ok', emailVerificationToken: '', expiresAt: '' },
     { message: 'ok', emailVerificationToken: null, expiresAt: null },
     { message: 'ok', emailVerificationToken: 7, expiresAt: 42 },
-  ])('불완전하거나 잘못된 검증 증명은 레거시 성공으로 처리하지 않는다: %o', async response => {
+  ])('불완전하거나 잘못된 검증 증명은 인증 성공으로 처리하지 않는다: %o', async response => {
     post.mockImplementation(async url => ({ data: url === '/auth/verify-code' ? response : sent }));
     await act(async () => render(<SignupClient />));
     await sendCode();
@@ -171,11 +166,8 @@ describe('기존 회원가입 이메일 인증', () => {
     expect(screen.getByRole('button', { name: '회원 가입' })).toBeDisabled();
   });
 
-  it('레거시 인증 뒤 신규 백엔드 토큰 필수 필드 오류가 오면 인증을 폐기하고 재인증을 요구한다', async () => {
+  it('가입에서 인증 토큰 필드 오류가 오면 저장값을 지우고 모바일 화면에서 재인증을 요구한다', async () => {
     media.desktop = false;
-    post.mockImplementation(async url => ({ data: url === '/auth/send-verification/sign-up' || url === '/auth/verify-code'
-      ? { message: 'ok' }
-      : { message: '회원가입 성공' } }));
     await act(async () => render(<SignupClient />));
     await verifyEmail();
     completeFields();
@@ -190,6 +182,7 @@ describe('기존 회원가입 이메일 인증', () => {
     expect(screen.getByRole('button', { name: '다음' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '다음' })).toBeDisabled();
     expect(screen.getByText('이메일 인증이 필요합니다.')).toBeInTheDocument();
+    expect(window.sessionStorage.getItem(verificationSnapshotKey)).toBeNull();
   });
 
   it('이메일 변경 뒤 도착한 코드 검증 응답은 새 이메일을 인증하지 않는다', async () => {
@@ -539,11 +532,8 @@ describe('기존 회원가입 이메일 인증', () => {
     }
   });
 
-  it('BE3 레거시 인증 증명이 만료된 VERIFICATION_INVALID에서 모바일 첫 단계로 복구한다', async () => {
+  it('서버가 인증 토큰을 거절하는 VERIFICATION_INVALID에서 모바일 첫 단계로 복구한다', async () => {
     media.desktop = false;
-    post.mockImplementation(async url => ({ data: url === '/auth/send-verification/sign-up' || url === '/auth/verify-code'
-      ? { message: 'ok' }
-      : { message: '가입 성공' } }));
     await act(async () => render(<SignupClient />));
     await verifyEmail();
     completeFields();

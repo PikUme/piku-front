@@ -71,8 +71,8 @@ export interface SignupVerificationSentResponse extends MessageResponse {
 }
 
 export interface SignupEmailVerifiedResponse extends MessageResponse {
-  emailVerificationToken?: string;
-  expiresAt?: string;
+  emailVerificationToken: string;
+  expiresAt: string;
 }
 
 export interface SignupNicknameReservation {

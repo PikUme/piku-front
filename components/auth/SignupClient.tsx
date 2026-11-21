@@ -91,7 +91,7 @@ const SignupClient = () => {
   const router = useRouter();
   const pathname = usePathname();
   const [sentVerification, setSentVerification] = useState<SignupVerificationSentResponse | null>(null);
-  const [emailVerification, setEmailVerification] = useState<{ token?: string; expiresAt: number; email: string; legacy: boolean } | null>(null);
+  const [emailVerification, setEmailVerification] = useState<{ token: string; expiresAt: number; email: string } | null>(null);
   const [nicknameReservation, setNicknameReservation] = useState<{ nickname: string; expiresAt: number } | null>(null);
   const [isReservationUncertain, setIsReservationUncertain] = useState(false);
   const [nicknameReservationError, setNicknameReservationError] = useState('');
@@ -104,7 +104,7 @@ const SignupClient = () => {
   const activeReservationRequestId = useRef<number | null>(null);
   const reservationContextVersion = useRef(0);
   const nicknameReservationPending = useRef(false);
-  const isEmailVerified = emailVerification !== null && emailVerification.email === values.email && (emailVerification.legacy || emailVerification.expiresAt > now);
+  const isEmailVerified = emailVerification !== null && emailVerification.email === values.email && emailVerification.expiresAt > now;
   const sentExpiresAt = sentVerification?.expiresAt ? parseEmailVerificationTime(sentVerification.expiresAt) : Number.NaN;
   const isVerificationSent = sentVerification !== null && (!sentVerification.expiresAt || (Number.isFinite(sentExpiresAt) && sentExpiresAt > now));
   const codeSeconds = isVerificationSent && Number.isFinite(sentExpiresAt) ? Math.max(0, Math.ceil((sentExpiresAt - now) / 1000)) : undefined;
@@ -113,7 +113,6 @@ const SignupClient = () => {
     && nicknameReservation !== null
     && nicknameReservation.expiresAt > now
     && nicknameReservation.nickname === values.nickname;
-  const canReserveNickname = isEmailVerified && Boolean(emailVerification?.token);
   const nicknameError = nicknameReservationError || (isReservationUncertain
     ? '예약 상태를 확인하지 못했습니다. 다시 확인해 주세요.'
     : '');
@@ -164,19 +163,17 @@ const SignupClient = () => {
       email: snapshot.email,
       token: snapshot.emailVerificationToken,
       expiresAt,
-      legacy: false,
     });
     setNow(Date.now());
   }, []);
 
   useEffect(() => {
-    if (!sentVerification && !emailVerification && !nicknameReservation && (retryAvailableAt === null || retryAvailableAt <= Date.now())) return;
-    if (!sentVerification?.expiresAt && (!emailVerification || emailVerification.legacy) && !nicknameReservation && (retryAvailableAt === null || retryAvailableAt <= Date.now())) return;
+    if (!sentVerification?.expiresAt && !emailVerification && !nicknameReservation && (retryAvailableAt === null || retryAvailableAt <= Date.now())) return;
     const timer = setInterval(() => {
       const currentTime = Date.now();
       setNow(currentTime);
       const codeActive = sentVerification?.expiresAt && parseEmailVerificationTime(sentVerification.expiresAt) > currentTime;
-      const tokenActive = emailVerification && !emailVerification.legacy && emailVerification.expiresAt > currentTime;
+      const tokenActive = emailVerification && emailVerification.expiresAt > currentTime;
       const reservationActive = nicknameReservation && nicknameReservation.expiresAt > currentTime;
       const cooldownActive = retryAvailableAt !== null && retryAvailableAt > currentTime;
       if (!codeActive && !tokenActive && !reservationActive && !cooldownActive) clearInterval(timer);
@@ -447,27 +444,20 @@ const SignupClient = () => {
     try {
       const response = await verifyCode({ email: values.email, code: values.verificationCode, type: 'SIGN_UP' });
       if (requestVersion !== emailRequestVersion.current) return;
-      const tokenFieldAbsent = !Object.prototype.hasOwnProperty.call(response, 'emailVerificationToken');
-      const expiryFieldAbsent = !Object.prototype.hasOwnProperty.call(response, 'expiresAt');
-      const hasToken = typeof response.emailVerificationToken === 'string' && response.emailVerificationToken.trim().length > 0;
-      const hasExpiry = typeof response.expiresAt === 'string' && response.expiresAt.length > 0;
-      const legacy = tokenFieldAbsent && expiryFieldAbsent;
-      const expiresAt = hasExpiry ? parseEmailVerificationTime(response.expiresAt!) : Number.NaN;
-      if (!response?.message || (!legacy && (!hasToken || !hasExpiry || !Number.isFinite(expiresAt) || expiresAt <= Date.now()))) {
+      const token = response?.emailVerificationToken;
+      const serverExpiresAt = typeof response?.expiresAt === 'string' ? response.expiresAt : '';
+      const expiresAt = serverExpiresAt ? parseEmailVerificationTime(serverExpiresAt) : Number.NaN;
+      if (!response?.message || typeof token !== 'string' || !token.trim() || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
         setVerificationMessage('인증 결과를 확인할 수 없습니다. 다시 전송해주세요.');
         return;
       }
       setNow(Date.now());
-      setEmailVerification({ token: hasToken ? response.emailVerificationToken : undefined, expiresAt, email: values.email, legacy });
-      if (legacy) {
-        clearSignupVerificationSnapshot();
-      } else {
-        saveSignupVerificationSnapshot({
-          email: values.email,
-          emailVerificationToken: response.emailVerificationToken!,
-          expiresAt: response.expiresAt!,
-        });
-      }
+      setEmailVerification({ token, expiresAt, email: values.email });
+      saveSignupVerificationSnapshot({
+        email: values.email,
+        emailVerificationToken: token,
+        expiresAt: serverExpiresAt,
+      });
       invalidateNicknameReservationRequest();
       setMessage('');
       setErrors(previous => ({ ...previous, email: '' }));
@@ -503,7 +493,7 @@ const SignupClient = () => {
 
   const handleReserveNickname = async () => {
     if (nicknameReservationPending.current || emailRequestPending.current || signupPending.current) return;
-    if (!emailVerification || !emailVerification.token || emailVerification.email !== values.email || emailVerification.expiresAt <= Date.now()) {
+    if (!emailVerification || emailVerification.email !== values.email || emailVerification.expiresAt <= Date.now()) {
       setNicknameReservationError('이메일 인증을 먼저 완료해주세요.');
       return;
     }
@@ -585,7 +575,7 @@ const SignupClient = () => {
       setMessage('예약 상태를 확인하지 못했습니다. 닉네임 예약을 다시 확인해주세요.');
       return;
     }
-    if (!emailVerification || emailVerification.email !== values.email || (!emailVerification.legacy && emailVerification.expiresAt <= Date.now())) {
+    if (!emailVerification || emailVerification.email !== values.email || emailVerification.expiresAt <= Date.now()) {
       setMessage('이메일 인증을 완료해주세요.');
       return;
     }
@@ -615,7 +605,7 @@ const SignupClient = () => {
     let redirecting = false;
     try {
       const { verificationCode, passwordConfirm, ...signupData } = values;
-      await signup({ ...signupData, ...(emailVerification.token ? { emailVerificationToken: emailVerification.token } : {}) });
+      await signup({ ...signupData, emailVerificationToken: emailVerification.token });
       if (requestVersion !== emailRequestVersion.current) return;
       clearSignupVerificationSnapshot();
       clearNicknameReservation();
@@ -699,7 +689,7 @@ const SignupClient = () => {
               isVerifyingCode={isVerifyingCode}
               resendSeconds={resendSeconds}
               codeSeconds={codeSeconds}
-              canReserveNickname={canReserveNickname}
+              canReserveNickname={isEmailVerified}
               handleReserveNickname={handleReserveNickname}
               isReservingNickname={isReservingNickname}
               isNicknameReserved={isNicknameReserved}
@@ -728,7 +718,7 @@ const SignupClient = () => {
               isVerifyingCode={isVerifyingCode}
               resendSeconds={resendSeconds}
               codeSeconds={codeSeconds}
-              canReserveNickname={canReserveNickname}
+              canReserveNickname={isEmailVerified}
               handleReserveNickname={handleReserveNickname}
               isReservingNickname={isReservingNickname}
               isNicknameReserved={isNicknameReserved}
