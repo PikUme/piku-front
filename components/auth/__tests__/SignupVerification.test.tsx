@@ -9,6 +9,7 @@ vi.mock('react-responsive', () => ({ useMediaQuery: () => media.desktop }));
 vi.mock('@/lib/api/api', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 const post = vi.mocked(api.post);
 const originTime = new Date('2026-09-28T00:00:00Z');
+const verificationSnapshotKey = 'pikume:signup-email-verification:v1';
 const sent = { message: '인증코드가 발송되었습니다.', expiresAt: '2026-09-28T09:05:00' };
 const verified = { message: '이메일 인증이 완료되었습니다.', emailVerificationToken: 'verification-token', expiresAt: '2026-09-28T09:10:00' };
 const change = (placeholder: string, value: string) => fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value } });
@@ -33,6 +34,12 @@ describe('기존 회원가입 이메일 인증', () => {
     vi.useFakeTimers();
     vi.setSystemTime(originTime);
     vi.clearAllMocks();
+    window.sessionStorage.clear();
+    window.__pikumeSignupDocumentContext = {
+      initialPathname: '/signup',
+      navigationType: 'navigate',
+      restoreAllowed: null,
+    };
     media.desktop = true;
     route.pathname = '/signup';
     vi.mocked(api.get).mockImplementation(async url => ({ data: url === '/auth/email-domains' ? ['gmail.com'] : [{ id: 1, type: 'CAT', displayImageUrl: '/cat.png' }] }));
@@ -57,24 +64,90 @@ describe('기존 회원가입 이메일 인증', () => {
     expect(push).toHaveBeenCalledOnce();
     expect(push).toHaveBeenCalledWith('/login');
     expect(screen.queryByText('회원가입 성공')).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem(verificationSnapshotKey)).toBeNull();
   });
 
-  it('레거시 메시지 응답만으로 인증하고 토큰 없이 가입 요청을 한 번 보낸다', async () => {
-    post.mockImplementation(async url => ({ data: url === '/auth/send-verification/sign-up' || url === '/auth/verify-code'
-      ? { message: 'ok' }
-      : { message: '회원가입 성공' } }));
+  it('이메일 인증 성공 전에는 저장하지 않고 성공 후 허용된 스냅샷만 저장한다', async () => {
+    await act(async () => render(<SignupClient />));
+    await sendCode();
+
+    expect(window.sessionStorage.getItem(verificationSnapshotKey)).toBeNull();
+    change('인증코드를 입력하세요', '123456');
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '인증' })));
+
+    expect(window.sessionStorage.getItem(verificationSnapshotKey)).toBe(JSON.stringify({
+      version: 1,
+      email: 'tester@gmail.com',
+      emailVerificationToken: verified.emailVerificationToken,
+      expiresAt: verified.expiresAt,
+    }));
+  });
+
+  it('같은 가입 탭 재로드는 이메일과 유효 토큰을 복원하고 요청을 자동 실행하지 않는다', async () => {
+    const firstDocument = render(<SignupClient />);
+    await verifyEmail();
+    const postCountBeforeReload = post.mock.calls.length;
+    firstDocument.unmount();
+
+    window.__pikumeSignupDocumentContext = {
+      initialPathname: '/signup',
+      navigationType: 'reload',
+      restoreAllowed: null,
+    };
+    await act(async () => render(<SignupClient />));
+
+    expect(screen.getByPlaceholderText('이메일을 입력해주세요')).toHaveValue('tester@gmail.com');
+    expect(screen.queryByPlaceholderText('인증코드를 입력하세요')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^(전송|재전송.*|인증)$/ })).not.toBeInTheDocument();
+    expect(post).toHaveBeenCalledTimes(postCountBeforeReload);
+    expect(window.sessionStorage.getItem(verificationSnapshotKey)).not.toBeNull();
+  });
+
+  it('가입 경로 이탈 시 스냅샷을 정리하고 같은 문서로 돌아와도 인증을 요구한다', async () => {
+    const view = render(<SignupClient />);
+    await verifyEmail();
+    expect(window.sessionStorage.getItem(verificationSnapshotKey)).not.toBeNull();
+
+    route.pathname = '/';
+    await act(async () => view.rerender(<SignupClient />));
+    expect(window.sessionStorage.getItem(verificationSnapshotKey)).toBeNull();
+
+    route.pathname = '/signup';
+    await act(async () => view.rerender(<SignupClient />));
+    expect(screen.getByPlaceholderText('이메일을 입력해주세요')).toHaveValue('tester@gmail.com');
+    expect(screen.getByRole('button', { name: '전송' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: '회원 가입' })).toBeDisabled();
+  });
+
+  it('다른 경로 재로드 뒤 가입 화면에 진입하면 복사된 세션 스냅샷을 폐기한다', async () => {
+    const firstDocument = render(<SignupClient />);
+    await verifyEmail();
+    firstDocument.unmount();
+
+    window.__pikumeSignupDocumentContext = {
+      initialPathname: '/profile',
+      navigationType: 'reload',
+      restoreAllowed: null,
+    };
+    await act(async () => render(<SignupClient />));
+
+    expect(screen.getByPlaceholderText('이메일을 입력해주세요')).toHaveValue('');
+    expect(screen.getByRole('button', { name: '전송' })).toBeDisabled();
+    expect(window.sessionStorage.getItem(verificationSnapshotKey)).toBeNull();
+  });
+
+  it('메시지만 있는 인증 응답에서는 회원가입을 막는다', async () => {
+    post.mockImplementation(async url => ({ data: url === '/auth/verify-code' ? { message: 'ok' } : sent }));
     await act(async () => render(<SignupClient />));
     await verifyEmail();
-    expect(screen.queryByRole('button', { name: /^(전송|재전송.*|인증)$/ })).not.toBeInTheDocument();
     completeFields();
     fireEvent.click(screen.getByAltText('캐릭터 CAT'));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '회원 가입' })));
 
-    const signupCalls = post.mock.calls.filter(([url]) => url === '/auth/signup');
-    expect(signupCalls).toHaveLength(1);
-    expect(signupCalls[0][1]).toEqual({
-      email: 'tester@gmail.com', password: 'password1!', nickname: '테스터', fixedCharacterId: 1,
-    });
+    expect(post.mock.calls.filter(([url]) => url === '/auth/signup')).toHaveLength(0);
+    expect(screen.getByRole('button', { name: '회원 가입' })).toBeDisabled();
+    expect(screen.getByText('인증 결과를 확인할 수 없습니다. 다시 전송해주세요.')).toBeInTheDocument();
+    expect(window.sessionStorage.getItem(verificationSnapshotKey)).toBeNull();
   });
 
   it.each([
@@ -84,7 +157,7 @@ describe('기존 회원가입 이메일 인증', () => {
     { message: 'ok', emailVerificationToken: '', expiresAt: '' },
     { message: 'ok', emailVerificationToken: null, expiresAt: null },
     { message: 'ok', emailVerificationToken: 7, expiresAt: 42 },
-  ])('불완전하거나 잘못된 검증 증명은 레거시 성공으로 처리하지 않는다: %o', async response => {
+  ])('불완전하거나 잘못된 검증 증명은 인증 성공으로 처리하지 않는다: %o', async response => {
     post.mockImplementation(async url => ({ data: url === '/auth/verify-code' ? response : sent }));
     await act(async () => render(<SignupClient />));
     await sendCode();
@@ -93,11 +166,8 @@ describe('기존 회원가입 이메일 인증', () => {
     expect(screen.getByRole('button', { name: '회원 가입' })).toBeDisabled();
   });
 
-  it('레거시 인증 뒤 신규 백엔드 토큰 필수 필드 오류가 오면 인증을 폐기하고 재인증을 요구한다', async () => {
+  it('가입에서 인증 토큰 필드 오류가 오면 저장값을 지우고 모바일 화면에서 재인증을 요구한다', async () => {
     media.desktop = false;
-    post.mockImplementation(async url => ({ data: url === '/auth/send-verification/sign-up' || url === '/auth/verify-code'
-      ? { message: 'ok' }
-      : { message: '회원가입 성공' } }));
     await act(async () => render(<SignupClient />));
     await verifyEmail();
     completeFields();
@@ -112,6 +182,7 @@ describe('기존 회원가입 이메일 인증', () => {
     expect(screen.getByRole('button', { name: '다음' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '다음' })).toBeDisabled();
     expect(screen.getByText('이메일 인증이 필요합니다.')).toBeInTheDocument();
+    expect(window.sessionStorage.getItem(verificationSnapshotKey)).toBeNull();
   });
 
   it('이메일 변경 뒤 도착한 코드 검증 응답은 새 이메일을 인증하지 않는다', async () => {
@@ -137,6 +208,7 @@ describe('기존 회원가입 이메일 인증', () => {
     expect(screen.getByRole('button', { name: '전송' })).toBeEnabled();
     expect(screen.getByText(/인증.*만료/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '회원 가입' })).toBeDisabled();
+    expect(window.sessionStorage.getItem(verificationSnapshotKey)).toBeNull();
   });
 
   it('발송 코드 만료 후 검증 요청을 보내지 않는다', async () => {
@@ -155,6 +227,7 @@ describe('기존 회원가입 이메일 인증', () => {
     change('이메일을 입력해주세요', 'other@gmail.com');
     expect(screen.getByRole('button', { name: '전송' })).toBeEnabled();
     expect(screen.getByRole('button', { name: '회원 가입' })).toBeDisabled();
+    expect(window.sessionStorage.getItem(verificationSnapshotKey)).toBeNull();
   });
 
   it('가입 경로 이탈 중 늦게 도착한 가입 응답은 상태와 로그인 이동을 만들지 않는다', async () => {
@@ -199,17 +272,18 @@ describe('기존 회원가입 이메일 인증', () => {
     await act(async () => resolveVerify({ data: verified }));
 
     expect(screen.queryByText('이메일 인증이 완료되었습니다.')).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem(verificationSnapshotKey)).toBeNull();
   });
 
   it('BFCache 복원 시 화면 인증과 코드 입력을 폐기한다', async () => {
     await act(async () => render(<SignupClient />));
-    await sendCode();
-    change('인증코드를 입력하세요', '123456');
+    await verifyEmail();
     const pageshow = Object.assign(new Event('pageshow'), { persisted: true });
     await act(async () => window.dispatchEvent(pageshow));
 
     expect(screen.queryByPlaceholderText('인증코드를 입력하세요')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '전송' })).toBeEnabled();
+    expect(window.sessionStorage.getItem(verificationSnapshotKey)).toBeNull();
   });
 
   it('메일함을 확인하기 위한 모바일 내부 단계 이동은 인증을 유지한다', async () => {
@@ -458,11 +532,8 @@ describe('기존 회원가입 이메일 인증', () => {
     }
   });
 
-  it('BE3 레거시 인증 증명이 만료된 VERIFICATION_INVALID에서 모바일 첫 단계로 복구한다', async () => {
+  it('서버가 인증 토큰을 거절하는 VERIFICATION_INVALID에서 모바일 첫 단계로 복구한다', async () => {
     media.desktop = false;
-    post.mockImplementation(async url => ({ data: url === '/auth/send-verification/sign-up' || url === '/auth/verify-code'
-      ? { message: 'ok' }
-      : { message: '가입 성공' } }));
     await act(async () => render(<SignupClient />));
     await verifyEmail();
     completeFields();

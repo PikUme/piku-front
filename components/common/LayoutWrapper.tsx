@@ -11,6 +11,7 @@ import useAuthStore from '../store/authStore';
 import { useEffect, useState } from 'react';
 import FCMInitializer from './FCMInitializer';
 import SSEInitializer from './SSEInitializer';
+import { clearSignupVerificationSnapshot } from '@/lib/auth/signupVerificationSnapshot';
 
 const LayoutWrapper = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
@@ -23,6 +24,10 @@ const LayoutWrapper = ({ children }: { children: React.ReactNode }) => {
     checkAuth();
     setIsClient(true);
   }, [checkAuth]);
+
+  useEffect(() => {
+    if (pathname !== '/signup') clearSignupVerificationSnapshot();
+  }, [pathname]);
 
   useEffect(() => {
     if (isClient && isLoggedIn && hideNavOnPaths.includes(pathname)) {
