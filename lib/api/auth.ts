@@ -16,14 +16,13 @@ interface SignupData {
   password: string;
   nickname: string;
   character: string;
-  emailVerificationToken?: string;
+  emailVerificationToken: string;
 }
 
 export const signup = async (data: SignupData): Promise<MessageResponse> => {
-  const { character, emailVerificationToken, ...rest } = data;
+  const { character, ...rest } = data;
   const response = await api.post<MessageResponse>('/auth/signup', {
     ...rest,
-    ...(emailVerificationToken ? { emailVerificationToken } : {}),
     fixedCharacterId: Number(character),
   }, { headers: { 'Cache-Control': 'no-store' } });
   return response.data;

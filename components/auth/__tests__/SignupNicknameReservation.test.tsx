@@ -62,6 +62,12 @@ describe('가입 닉네임 예약', () => {
     vi.useFakeTimers();
     vi.setSystemTime(originTime);
     vi.clearAllMocks();
+    window.sessionStorage.clear();
+    window.__pikumeSignupDocumentContext = {
+      initialPathname: '/signup',
+      navigationType: 'navigate',
+      restoreAllowed: null,
+    };
     media.desktop = true;
     route.pathname = '/signup';
     vi.mocked(api.get).mockResolvedValue({ data: ['example.test'] });
@@ -104,6 +110,42 @@ describe('가입 닉네임 예약', () => {
     expect(screen.queryByText(/예약 중|예약 시간은 연장되지 않습니다/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^(중복확인|예약됨)$/ })).not.toBeInTheDocument();
     change('닉네임을 입력해주세요', '다른이름');
+    expect(screen.getByRole('button', { name: '중복확인' })).toBeEnabled();
+  });
+
+  it('가입 토큰 필드 오류는 이메일 인증 proof와 닉네임 예약을 함께 폐기한다', async () => {
+    vi.mocked(api.get).mockImplementation(async url => ({
+      data: url === '/auth/email-domains' ? ['example.test'] : [{ id: 1, type: 'CAT', displayImageUrl: '/cat.png' }],
+    }));
+    post.mockImplementation(async url => {
+      if (url === '/auth/send-verification/sign-up') return { data: sent };
+      if (url === '/auth/verify-code') return { data: verified };
+      if (url === '/auth/signup/nickname-reservations') {
+        return { data: { nickname: '테스터', expiresAt: '2026-09-28T00:12:00Z' } };
+      }
+      throw { response: { status: 400, data: {
+        type: 'about:blank', title: 'Bad Request', status: 400,
+        detail: '이메일 인증을 다시 해주세요.', instance: '/api/auth/signup',
+        fieldErrors: { emailVerificationToken: '유효한 이메일 인증이 필요합니다.' },
+      } } };
+    });
+    await act(async () => render(<SignupClient />));
+    await sendAndVerify();
+    completeSignupFields();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '중복확인' })));
+    expect(screen.queryByRole('button', { name: '중복확인' })).not.toBeInTheDocument();
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '회원 가입' })));
+
+    expect(screen.getByRole('button', { name: '재전송 (60초)' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '중복확인' })).toBeDisabled();
+    expect(window.sessionStorage.getItem('pikume:signup-email-verification:v1')).toBeNull();
+
+    await act(async () => vi.advanceTimersByTime(60000));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '전송' })));
+    change('인증코드를 입력하세요', '123456');
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '인증' })));
+
     expect(screen.getByRole('button', { name: '중복확인' })).toBeEnabled();
   });
 
